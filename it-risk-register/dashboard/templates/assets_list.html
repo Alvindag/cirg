@@ -1,0 +1,27 @@
+{% extends "base.html" %}
+{% block title %}Assets — IT Risk Register{% endblock %}
+{% block content %}
+<h1>Assets</h1>
+<table>
+    <thead><tr><th>Name</th><th>Type</th><th>Category</th><th>Owner</th><th>Criticality</th><th>Risk score</th><th>Band</th></tr></thead>
+    <tbody>
+        {% for a in assets %}
+        <tr>
+            <td><a href="/assets/{{ a.id }}">{{ a.name }}</a></td>
+            <td>{{ a.asset_type }}</td>
+            <td>{{ a.category }}</td>
+            <td>{{ a.owner or '—' }}</td>
+            <td>{{ a.criticality }}</td>
+            {% if a.assessment %}
+            <td>{{ a.assessment.risk_score }}</td>
+            <td><span class="badge band-{{ a.assessment.risk_band }}">{{ a.assessment.risk_band }}</span></td>
+            {% else %}
+            <td colspan="2">Not yet scored</td>
+            {% endif %}
+        </tr>
+        {% else %}
+        <tr><td colspan="7">No assets yet — <a href="/assets/new">add one</a>.</td></tr>
+        {% endfor %}
+    </tbody>
+</table>
+{% endblock %}

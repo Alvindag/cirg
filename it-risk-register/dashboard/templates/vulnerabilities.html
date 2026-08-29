@@ -1,0 +1,22 @@
+{% extends "base.html" %}
+{% block title %}Vulnerabilities — IT Risk Register{% endblock %}
+{% block content %}
+<h1>Vulnerabilities</h1>
+<table>
+    <thead><tr><th>CVE</th><th>Title</th><th>CVSS</th><th>Severity</th><th>Source</th><th>Affected assets (open)</th></tr></thead>
+    <tbody>
+        {% for v in vulns %}
+        <tr>
+            <td>{{ v.cve_id or '—' }}</td>
+            <td>{{ v.title }}</td>
+            <td>{{ v.cvss_score or '—' }}</td>
+            <td>{{ v.cvss_severity or '—' }}</td>
+            <td>{{ v.source }}</td>
+            <td>{{ v.affected_assets }}</td>
+        </tr>
+        {% else %}
+        <tr><td colspan="6">No vulnerability data yet — set NVD_API_KEY (optional) and add software assets, or import scanner results.</td></tr>
+        {% endfor %}
+    </tbody>
+</table>
+{% endblock %}

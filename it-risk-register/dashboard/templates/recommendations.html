@@ -1,0 +1,37 @@
+{% extends "base.html" %}
+{% block title %}Recommendations — IT Risk Register{% endblock %}
+{% block content %}
+<h1>Recommendations</h1>
+<div class="filter-bar">
+    <a href="/recommendations?status=open" class="{{ 'active' if status_filter == 'open' }}">Open</a>
+    <a href="/recommendations?status=in_progress" class="{{ 'active' if status_filter == 'in_progress' }}">In progress</a>
+    <a href="/recommendations?status=done" class="{{ 'active' if status_filter == 'done' }}">Done</a>
+    <a href="/recommendations?status=all" class="{{ 'active' if status_filter == 'all' }}">All</a>
+</div>
+
+<table>
+    <thead><tr><th>Priority</th><th>Asset</th><th>Category</th><th>Recommendation</th><th>Status</th></tr></thead>
+    <tbody>
+        {% for r in recs %}
+        <tr>
+            <td><span class="badge band-{{ r.priority }}">{{ r.priority }}</span></td>
+            <td><a href="/assets/{{ r.asset_id }}">{{ r.asset_name }}</a></td>
+            <td>{{ r.category }}</td>
+            <td>{{ r.recommendation }}</td>
+            <td>
+                <form method="post" class="inline-form">
+                    <input type="hidden" name="rec_id" value="{{ r.id }}">
+                    <select name="status" onchange="this.form.submit()">
+                        {% for s in ['open', 'in_progress', 'done', 'dismissed'] %}
+                        <option value="{{ s }}" {{ 'selected' if r.status == s }}>{{ s }}</option>
+                        {% endfor %}
+                    </select>
+                </form>
+            </td>
+        </tr>
+        {% else %}
+        <tr><td colspan="5">Nothing here.</td></tr>
+        {% endfor %}
+    </tbody>
+</table>
+{% endblock %}
