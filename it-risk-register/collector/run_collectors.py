@@ -12,12 +12,15 @@ import threading
 
 import risk_engine
 import nvd_sync
+import nmap_scanner
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
 logger = logging.getLogger("run_collectors")
 
 RISK_RECOMPUTE_INTERVAL_SECONDS = int(os.environ.get("RISK_RECOMPUTE_INTERVAL_SECONDS", 3600))
 NVD_SYNC_INTERVAL_SECONDS = int(os.environ.get("NVD_SYNC_INTERVAL_SECONDS", 86400))
+NMAP_SCAN_ENABLED = os.environ.get("NMAP_SCAN_ENABLED", "false").lower() == "true"
+NMAP_SCAN_INTERVAL_SECONDS = int(os.environ.get("NMAP_SCAN_INTERVAL_SECONDS", 86400))
 
 
 def run_forever(name, interval_seconds, fn):
@@ -31,6 +34,11 @@ def run_forever(name, interval_seconds, fn):
 
 def nvd_then_score():
     nvd_sync.run()
+    risk_engine.run()
+
+
+def nmap_then_score():
+    nmap_scanner.run()
     risk_engine.run()
 
 
@@ -52,6 +60,16 @@ def main():
         args=("nvd_sync", NVD_SYNC_INTERVAL_SECONDS, nvd_then_score),
         daemon=True, name="nvd-sync",
     ).start()
+
+    if NMAP_SCAN_ENABLED:
+        threading.Thread(
+            target=run_forever,
+            args=("nmap_scanner", NMAP_SCAN_INTERVAL_SECONDS, nmap_then_score),
+            daemon=True, name="nmap-scanner",
+        ).start()
+    else:
+        logger.info("nmap active scanning disabled (set NMAP_SCAN_ENABLED=true to enable — "
+                     "only against hosts you're authorized to scan)")
 
     logger.info("Collectors started")
     while True:
