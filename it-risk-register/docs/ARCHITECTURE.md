@@ -12,8 +12,10 @@
      collector container   dashboard container (Flask, :8081)
      ├─ risk_engine.py      ├─ CRUD for assets (physical + software)
      │  (hourly, + on save) ├─ risk register views, recommendation tracker
-     └─ nvd_sync.py          └─ CSV scan upload → scanner_import.py +
-        (daily, NVD CVE API)    risk_engine.py (same code, imported as lib/)
+     ├─ nvd_sync.py          └─ CSV scan upload → scanner_import.py +
+     │  (daily, NVD CVE API)    risk_engine.py (same code, imported as lib/)
+     └─ nmap_scanner.py
+        (opt-in, active scan of assets with an IP — vuln/vulners NSE scripts)
 ```
 
 ## Scoring model
@@ -50,10 +52,21 @@
   assets by IP or exact name. This is the integration point for
   OpenVAS/Nessus/Qualys/etc.; wiring a specific scanner's native API
   instead of CSV export is a follow-up, not implemented here.
+- **nmap active scan** (`collector/nmap_scanner.py`, opt-in via
+  `NMAP_SCAN_ENABLED=true`) — nmap does real vulnerability *scanning*
+  (the other two sources are lookups/imports against pre-existing data)
+  against every asset with `ip_address` set: `-sV` for service/version
+  detection, then two NSE script sets —
+  [`vulners`](https://github.com/vulnersCom/nmap-vulners) (matches detected
+  CPEs against vulners.com, returns real CVE IDs + CVSS, needs outbound
+  internet from the collector container and is installed at image build
+  time) and nmap's bundled `vuln` category (offline, narrower — targeted
+  checks like `smb-vuln-ms17-010`, `ssl-heartbleed`). See "Active scanning"
+  in the README before enabling.
 
-Both paths write into the same `vulnerabilities` / `asset_vulnerabilities`
+All three paths write into the same `vulnerabilities` / `asset_vulnerabilities`
 tables, so risk scoring and recommendations don't care which source found
-a given CVE.
+a given finding.
 
 ## Recommendations engine
 
@@ -82,6 +95,16 @@ remediation priorities, versus a black-box scoring model.
   dashboard or CLI). If your scanner supports a webhook/export-to-folder
   pattern, add a watcher thread to `run_collectors.py` calling
   `scanner_import.run()` on new files.
+- **nmap findings aren't deduplicated against NVD/scanner findings for the
+  same underlying issue** — if NVD keyword-matching and the nmap `vulners`
+  script both surface the same CVE for an asset, `asset_vulnerabilities`
+  gets one row per (asset, vulnerability) pair regardless of source, so
+  scoring only counts it once — but the `vulnerabilities.source` column
+  will show whichever wrote the row first and won't reflect that multiple
+  sources agree on it.
+- **nmap scanning has no target allowlist beyond `assets.ip_address`** — it
+  scans whatever IP is in that field, so a typo'd or stale IP gets scanned
+  too. No CIDR/subnet safety check is enforced; that's on the operator.
 - **Recommendation rules are a starting set**, not exhaustive — add rules to
   `build_recommendations()` as your organization's policy needs surface
   patterns not covered here (e.g. a specific compliance framework's
