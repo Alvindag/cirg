@@ -93,8 +93,9 @@ if ($InstallSysmon) {
     Write-Step "Configuring Sysmon"
     $sysmonExe = Get-Command sysmon64.exe -ErrorAction SilentlyContinue
     if (-not $sysmonExe) {
-        Write-Warning "Sysmon is not installed. Download it from https://learn.microsoft.com/sysinternals/downloads/sysmon, " +
+        $sysmonMsg = "Sysmon is not installed. Download it from https://learn.microsoft.com/sysinternals/downloads/sysmon, " +
             "then run: sysmon64.exe -accepteula -i `"$PSScriptRoot\sysmon_config.xml`""
+        Write-Warning $sysmonMsg
     } else {
         & sysmon64.exe -accepteula -c "$PSScriptRoot\sysmon_config.xml"
     }
