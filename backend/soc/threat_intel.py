@@ -1,7 +1,7 @@
 """Threat intelligence: IOC storage, bulk import (manual list or STIX 2.1
 'indicator' objects), and automatic correlation against ingested telemetry."""
 
-from flask import Blueprint, g, jsonify, request
+from flask import Blueprint, jsonify, request
 
 from backend.auth import require_user
 from backend.db import get_cursor

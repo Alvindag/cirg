@@ -294,13 +294,13 @@ class CollectorClient:
 FIREWALL_RULE_PREFIX = "CIRG-Isolation"
 
 
-def execute_action(action: dict, collector_ip_hint: str | None) -> tuple[bool, dict]:
+def execute_action(action: dict, collector_ip_hint: str | None, server_url: str) -> tuple[bool, dict]:
     action_type = action["action_type"]
     params = action.get("params") or {}
     log.info("executing remediation action %s: %s", action_type, params)
     try:
         if action_type == "isolate_host":
-            return _isolate_host(collector_ip_hint)
+            return _isolate_host(collector_ip_hint, server_url)
         if action_type == "unisolate_host":
             return _unisolate_host()
         if action_type == "kill_process":
@@ -321,15 +321,41 @@ def execute_action(action: dict, collector_ip_hint: str | None) -> tuple[bool, d
         return False, {"error": str(exc)}
 
 
-def _isolate_host(collector_ip_hint: str | None) -> tuple[bool, dict]:
-    allow_target = f"remoteip={collector_ip_hint}" if collector_ip_hint else "remoteip=any"
+def _resolve_collector_ip(collector_ip_hint: str | None, server_url: str) -> str | None:
+    """Best-effort resolution of the collector's IP, so isolate_host always
+    has a concrete address to carve an exception for. Windows Firewall block
+    rules take precedence over allow rules regardless of how specific the
+    allow rule is (barring -OverrideBlockRules), so a fallback of "Any" here
+    would be actively dangerous: combined with -OverrideBlockRules it would
+    let ALL outbound traffic through, defeating isolation entirely."""
+    if collector_ip_hint:
+        return collector_ip_hint
+    try:
+        import socket
+        from urllib.parse import urlparse
+
+        host = urlparse(server_url).hostname
+        return socket.gethostbyname(host) if host else None
+    except Exception:
+        log.exception("could not resolve collector IP from server_url %s", server_url)
+        return None
+
+
+def _isolate_host(collector_ip_hint: str | None, server_url: str) -> tuple[bool, dict]:
+    collector_ip = _resolve_collector_ip(collector_ip_hint, server_url)
+    if not collector_ip:
+        return False, {
+            "error": "could not determine the collector's IP address; refusing to isolate without a "
+                     "guaranteed return path (isolating with an unrestricted allow-exception would not "
+                     "isolate anything, and isolating with no exception would strand the agent)."
+        }
     script = f"""
     New-NetFirewallRule -DisplayName '{FIREWALL_RULE_PREFIX}-Block-Out' -Direction Outbound -Action Block -Enabled True -Profile Any | Out-Null
     New-NetFirewallRule -DisplayName '{FIREWALL_RULE_PREFIX}-Block-In' -Direction Inbound -Action Block -Enabled True -Profile Any | Out-Null
-    New-NetFirewallRule -DisplayName '{FIREWALL_RULE_PREFIX}-Allow-Collector' -Direction Outbound -Action Allow -RemoteAddress {collector_ip_hint or 'Any'} -Enabled True -Profile Any | Out-Null
+    New-NetFirewallRule -DisplayName '{FIREWALL_RULE_PREFIX}-Allow-Collector' -Direction Outbound -Action Allow -RemoteAddress {collector_ip} -Enabled True -Profile Any -OverrideBlockRules $True | Out-Null
     """
     _run_powershell(script)
-    return True, {"message": "host isolated: all traffic blocked except the CIRG collector"}
+    return True, {"message": f"host isolated: all traffic blocked except the CIRG collector ({collector_ip})"}
 
 
 def _unisolate_host() -> tuple[bool, dict]:
@@ -397,7 +423,7 @@ def _collect_triage_package() -> tuple[bool, dict]:
 def _run_av_scan(params: dict) -> tuple[bool, dict]:
     scan_type = "FullScan" if params.get("full") else "QuickScan"
     out = _run_powershell(f"Start-MpScan -ScanType {scan_type} -ErrorAction Stop; 'ok'", timeout=600)
-    return "ok" in out or True, {"output": out.strip(), "scan_type": scan_type}
+    return "ok" in out, {"output": out.strip(), "scan_type": scan_type}
 
 
 # ---------------------------------------------------------------------------
@@ -418,7 +444,7 @@ def run_once(cfg: dict, state: dict, client: CollectorClient):
 
     pending = client.poll_remediation()
     for action in pending:
-        success, result = execute_action(action, cfg.get("collector_ip"))
+        success, result = execute_action(action, cfg.get("collector_ip"), cfg["server_url"])
         client.report_result(action["id"], success, result)
         log.info("remediation action %s -> %s", action["action_type"], "success" if success else "failed")
 

@@ -69,17 +69,38 @@ CREATE TABLE IF NOT EXISTS agent_api_keys (
 
 CREATE INDEX IF NOT EXISTS idx_agent_api_keys_prefix ON agent_api_keys(key_prefix);
 
--- Enrollment tokens issued by an admin, used once by install.ps1 to register
--- a new endpoint and mint its agent_api_key.
+-- Enrollment tokens issued by an admin and consumed by install.ps1 to
+-- register a new endpoint and mint its agent_api_key.
+--
+-- max_uses = 1 (the default) behaves as a classic single-use token, for
+-- enrolling one machine interactively. For fleet rollout via a GPO computer
+-- startup script — where the same token is presented by every machine in
+-- the OU — an admin instead generates a token with a higher max_uses (or
+-- NULL for unlimited within its expiry window).
 CREATE TABLE IF NOT EXISTS enrollment_tokens (
     id              SERIAL PRIMARY KEY,
     token_hash      VARCHAR(255) NOT NULL UNIQUE,
     created_by      INTEGER REFERENCES soc_users(id),
     created_at      TIMESTAMPTZ NOT NULL DEFAULT now(),
     expires_at      TIMESTAMPTZ NOT NULL,
-    used_at         TIMESTAMPTZ,
-    used_by_asset   INTEGER REFERENCES assets(id)
+    max_uses        INTEGER,              -- NULL = unlimited (bounded only by expires_at)
+    use_count        INTEGER NOT NULL DEFAULT 0,
+    used_at         TIMESTAMPTZ,          -- first use, kept for quick-glance info
+    used_by_asset   INTEGER REFERENCES assets(id),   -- first asset that used it, ditto
+    label            VARCHAR(255)          -- optional note, e.g. "GPO rollout - Finance OU"
 );
+
+-- Full audit trail of every asset that consumed a (possibly multi-use)
+-- enrollment token — the single used_by_asset/used_at columns above only
+-- capture the first use.
+CREATE TABLE IF NOT EXISTS enrollment_token_uses (
+    id              BIGSERIAL PRIMARY KEY,
+    token_id        INTEGER NOT NULL REFERENCES enrollment_tokens(id) ON DELETE CASCADE,
+    asset_id        INTEGER NOT NULL REFERENCES assets(id) ON DELETE CASCADE,
+    used_at         TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+CREATE INDEX IF NOT EXISTS idx_enrollment_token_uses_token ON enrollment_token_uses(token_id);
 
 -- ---------------------------------------------------------------------------
 -- Telemetry events (Windows Event Log / Sysmon / PowerShell channels)

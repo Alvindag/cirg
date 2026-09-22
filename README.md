@@ -124,7 +124,10 @@ threats).
 - **Monitoring** — a lightweight Windows agent forwards Security/System/
   PowerShell event logs and (if installed) Sysmon telemetry to a central
   collector over HTTPS; live asset inventory with online/offline/isolated
-  status.
+  status. Deployable one endpoint at a time or fleet-wide via a Group Policy
+  computer startup script (multi-use enrollment tokens, idempotent
+  install/refresh, Kaspersky-compatible exclusion guidance — see
+  `agent/GPO_DEPLOYMENT.md`).
 - **Detection** — a Sigma-inspired rule engine evaluates every ingested
   event batch against threshold- and pattern-based rules. **16 built-in
   rules** ship out of the box, mapped to MITRE ATT&CK and NIST CSF,

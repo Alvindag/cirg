@@ -25,20 +25,33 @@ SUPPORTED_OS = {"Windows 10", "Windows 11", "Windows Server 2016", "Windows Serv
 @telemetry_bp.route("/enroll/token", methods=["POST"])
 @require_user(roles=("admin", "analyst"))
 def create_enrollment_token():
+    """Mint an enrollment token. By default it's single-use (max_uses=1), for
+    enrolling one machine interactively. For a GPO computer-startup-script
+    rollout, where every machine in an OU presents the same token, pass
+    max_uses (e.g. the OU's machine count, or omit/null for unlimited within
+    the token's expiry) and a ttl_hours long enough to cover the rollout."""
+    data = request.get_json(silent=True) or {}
+    max_uses = data.get("max_uses", 1)
+    if max_uses is not None and (not isinstance(max_uses, int) or max_uses < 1):
+        return jsonify({"error": "max_uses must be a positive integer, or null for unlimited"}), 400
+    ttl_hours = data.get("ttl_hours", config.ENROLLMENT_TOKEN_TTL_HOURS)
+
     token, token_hash = generate_enrollment_token()
-    expires_at = datetime.now(timezone.utc) + timedelta(hours=config.ENROLLMENT_TOKEN_TTL_HOURS)
+    expires_at = datetime.now(timezone.utc) + timedelta(hours=ttl_hours)
     with get_cursor() as cur:
         cur.execute(
             """
-            INSERT INTO enrollment_tokens (token_hash, created_by, expires_at)
-            VALUES (%s, %s, %s) RETURNING id
+            INSERT INTO enrollment_tokens (token_hash, created_by, expires_at, max_uses, label)
+            VALUES (%s, %s, %s, %s, %s) RETURNING id
             """,
-            (token_hash, g.user["sub"], expires_at),
+            (token_hash, g.user["sub"], expires_at, max_uses, data.get("label")),
         )
     return jsonify({
         "enrollment_token": token,
         "expires_at": expires_at.isoformat(),
-        "usage": "Pass this as -EnrollToken to agent/install.ps1 on the target Windows host.",
+        "max_uses": max_uses,
+        "usage": "Pass this as -EnrollToken to agent/install.ps1 on the target Windows host "
+                 "(or as the shared token in a GPO computer startup script when max_uses > 1).",
     }), 201
 
 
@@ -58,16 +71,21 @@ def enroll_agent():
     token_hash = hash_enrollment_token(token)
 
     with get_cursor() as cur:
+        # Atomically claim one use of the token: the row-level lock this
+        # UPDATE takes makes the max_uses check race-safe even when many
+        # endpoints enroll at once (e.g. a GPO startup-script storm at boot).
         cur.execute(
             """
-            SELECT id FROM enrollment_tokens
-            WHERE token_hash = %s AND used_at IS NULL AND expires_at > now()
+            UPDATE enrollment_tokens SET use_count = use_count + 1
+            WHERE token_hash = %s AND expires_at > now()
+              AND (max_uses IS NULL OR use_count < max_uses)
+            RETURNING id
             """,
             (token_hash,),
         )
         row = cur.fetchone()
         if not row:
-            return jsonify({"error": "invalid, expired, or already-used enrollment token"}), 401
+            return jsonify({"error": "invalid, expired, or exhausted (max_uses reached) enrollment token"}), 401
 
         cur.execute(
             """
@@ -98,8 +116,16 @@ def enroll_agent():
         )
 
         cur.execute(
-            "UPDATE enrollment_tokens SET used_at = now(), used_by_asset = %s WHERE id = %s",
+            """
+            UPDATE enrollment_tokens
+            SET used_at = COALESCE(used_at, now()), used_by_asset = COALESCE(used_by_asset, %s)
+            WHERE id = %s
+            """,
             (asset["id"], row["id"]),
+        )
+        cur.execute(
+            "INSERT INTO enrollment_token_uses (token_id, asset_id) VALUES (%s, %s)",
+            (row["id"], asset["id"]),
         )
 
     return jsonify({
