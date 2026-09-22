@@ -1,0 +1,573 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>CIRG — Enterprise Security Operations</title>
+<style>
+  :root {
+    --bg: #0b1120; --panel: #121a2e; --panel-2: #17213a; --border: #263354;
+    --text: #dbe2f5; --muted: #8a97bd; --accent: #3d7bff; --accent-2: #63e6be;
+    --crit: #e5484d; --high: #f0883e; --med: #f2c14e; --low: #63e6be; --info: #8a97bd;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--text); font-family: "Segoe UI", Roboto, Arial, sans-serif; font-size: 14px; }
+  a { color: var(--accent); }
+  #login-screen { display:flex; align-items:center; justify-content:center; height:100vh; }
+  .login-box { background: var(--panel); border: 1px solid var(--border); border-radius: 10px; padding: 36px; width: 340px; }
+  .login-box h1 { font-size: 20px; margin: 0 0 4px; }
+  .login-box p.sub { color: var(--muted); margin: 0 0 20px; font-size: 12.5px; }
+  input, select, textarea, button { font-family: inherit; font-size: 13.5px; }
+  input, select, textarea {
+    width: 100%; padding: 9px 10px; margin-bottom: 12px; background: var(--bg);
+    border: 1px solid var(--border); border-radius: 6px; color: var(--text);
+  }
+  button { cursor: pointer; border: none; border-radius: 6px; padding: 9px 14px; background: var(--accent); color: white; font-weight: 600; }
+  button.secondary { background: var(--panel-2); color: var(--text); border: 1px solid var(--border); }
+  button.danger { background: var(--crit); }
+  button:disabled { opacity: 0.5; cursor: not-allowed; }
+  #error-msg { color: var(--crit); font-size: 12.5px; min-height: 16px; }
+
+  #app { display: none; }
+  header { display:flex; align-items:center; justify-content:space-between; padding: 12px 20px; background: var(--panel); border-bottom: 1px solid var(--border); }
+  header .brand { font-weight: 700; font-size: 16px; display:flex; align-items:center; gap:8px; }
+  header .brand .dot { width:9px; height:9px; border-radius:50%; background: var(--accent-2); box-shadow:0 0 8px var(--accent-2); }
+  nav { display:flex; gap: 4px; }
+  nav button { background: transparent; color: var(--muted); font-weight: 500; padding: 8px 14px; border-radius: 6px; }
+  nav button.active { background: var(--panel-2); color: var(--text); }
+  header .user { color: var(--muted); font-size: 12.5px; display:flex; align-items:center; gap:10px; }
+
+  main { padding: 22px; max-width: 1400px; margin: 0 auto; }
+  .view { display:none; }
+  .view.active { display:block; }
+
+  .kpis { display:grid; grid-template-columns: repeat(auto-fit, minmax(170px,1fr)); gap: 14px; margin-bottom: 22px; }
+  .kpi { background: var(--panel); border: 1px solid var(--border); border-radius: 10px; padding: 16px; }
+  .kpi .label { color: var(--muted); font-size: 11.5px; text-transform: uppercase; letter-spacing: .04em; }
+  .kpi .value { font-size: 28px; font-weight: 700; margin-top: 4px; }
+  .kpi.crit .value { color: var(--crit); }
+
+  .panel { background: var(--panel); border: 1px solid var(--border); border-radius: 10px; padding: 18px; margin-bottom: 18px; }
+  .panel h2 { margin: 0 0 14px; font-size: 15px; }
+  .panel .panel-head { display:flex; align-items:center; justify-content:space-between; margin-bottom: 14px; }
+  .toolbar { display:flex; gap:8px; align-items:center; flex-wrap:wrap; margin-bottom: 14px; }
+  .toolbar select, .toolbar input { width:auto; margin-bottom:0; }
+
+  table { width:100%; border-collapse: collapse; }
+  th, td { text-align:left; padding: 9px 10px; border-bottom: 1px solid var(--border); font-size: 13px; }
+  th { color: var(--muted); font-weight: 600; font-size: 11.5px; text-transform: uppercase; letter-spacing: .03em; }
+  tr.clickable { cursor: pointer; }
+  tr.clickable:hover { background: var(--panel-2); }
+
+  .pill { display:inline-block; padding: 2px 9px; border-radius: 20px; font-size: 11px; font-weight: 700; text-transform: uppercase; }
+  .pill.critical { background: rgba(229,72,77,.18); color: var(--crit); }
+  .pill.high { background: rgba(240,136,62,.18); color: var(--high); }
+  .pill.medium { background: rgba(242,193,78,.18); color: var(--med); }
+  .pill.low, .pill.info { background: rgba(99,230,190,.15); color: var(--low); }
+  .pill.online { background: rgba(99,230,190,.15); color: var(--accent-2); }
+  .pill.offline { background: rgba(138,151,189,.15); color: var(--muted); }
+  .pill.isolated { background: rgba(229,72,77,.18); color: var(--crit); }
+  .pill.new { background: rgba(61,123,255,.18); color: var(--accent); }
+  .pill.resolved, .pill.closed, .pill.false_positive { background: rgba(138,151,189,.15); color: var(--muted); }
+
+  .bar-row { display:flex; align-items:center; gap:10px; margin-bottom: 8px; font-size: 12.5px; }
+  .bar-row .lbl { width: 90px; color: var(--muted); }
+  .bar-track { flex:1; background: var(--bg); border-radius: 4px; overflow:hidden; height: 8px; }
+  .bar-fill { height: 100%; background: var(--accent); }
+  .bar-row .cnt { width: 30px; text-align:right; }
+
+  .modal-backdrop { display:none; position:fixed; inset:0; background: rgba(5,8,18,.7); align-items:center; justify-content:center; z-index: 50; }
+  .modal-backdrop.active { display:flex; }
+  .modal { background: var(--panel); border: 1px solid var(--border); border-radius: 10px; padding: 22px; width: 640px; max-width: 92vw; max-height: 86vh; overflow-y:auto; }
+  .modal h3 { margin-top:0; }
+  .modal .close { float:right; background:transparent; color: var(--muted); font-size: 18px; padding: 0 6px; }
+  .kv { display:grid; grid-template-columns: 140px 1fr; gap: 6px 12px; font-size: 13px; margin-bottom: 14px; }
+  .kv .k { color: var(--muted); }
+  .actions-row { display:flex; gap:8px; flex-wrap:wrap; margin: 10px 0; }
+  code.small { background: var(--bg); padding: 2px 6px; border-radius: 4px; font-size: 12px; }
+  .muted { color: var(--muted); }
+  .timeline-entry { border-left: 2px solid var(--border); padding: 4px 0 4px 12px; margin-bottom: 8px; font-size: 12.5px; }
+  .timeline-entry .meta { color: var(--muted); font-size: 11px; }
+  .empty { color: var(--muted); font-size: 13px; padding: 14px 0; text-align:center; }
+  .toast { position: fixed; bottom: 20px; right: 20px; background: var(--panel-2); border: 1px solid var(--border); padding: 10px 16px; border-radius: 8px; font-size: 13px; z-index: 100; }
+</style>
+</head>
+<body>
+
+<div id="login-screen">
+  <div class="login-box">
+    <h1>CIRG SOC</h1>
+    <p class="sub">Enterprise Security Operations — monitoring, detection &amp; response</p>
+    <form id="login-form">
+      <input type="text" id="login-username" placeholder="Username" autocomplete="username" required>
+      <input type="password" id="login-password" placeholder="Password" autocomplete="current-password" required>
+      <div id="error-msg"></div>
+      <button type="submit" style="width:100%">Sign in</button>
+    </form>
+    <p class="sub" style="margin-top:16px">First time? <a href="#" id="show-register">Create the admin account</a></p>
+  </div>
+</div>
+
+<div id="app">
+  <header>
+    <div class="brand"><span class="dot"></span> CIRG · Security Operations</div>
+    <nav id="main-nav">
+      <button data-view="overview" class="active">Overview</button>
+      <button data-view="assets">Assets</button>
+      <button data-view="alerts">Alerts</button>
+      <button data-view="incidents">Incidents</button>
+      <button data-view="threatintel">Threat Intel</button>
+      <button data-view="reports">Reports</button>
+    </nav>
+    <div class="user"><span id="whoami"></span><button class="secondary" id="logout-btn">Log out</button></div>
+  </header>
+
+  <main>
+    <!-- OVERVIEW -->
+    <section id="view-overview" class="view active">
+      <div class="kpis" id="kpi-row"></div>
+      <div class="panel">
+        <h2>Alerts by MITRE ATT&amp;CK Technique (30d)</h2>
+        <div id="mitre-bars"></div>
+      </div>
+      <div class="panel">
+        <h2>Recent Alerts</h2>
+        <table><thead><tr><th>Title</th><th>Severity</th><th>Status</th><th>Triggered</th></tr></thead>
+          <tbody id="recent-alerts-body"></tbody></table>
+      </div>
+    </section>
+
+    <!-- ASSETS -->
+    <section id="view-assets" class="view">
+      <div class="panel">
+        <div class="panel-head">
+          <h2>Monitored Endpoints</h2>
+          <button id="enroll-btn">+ Enroll Endpoint</button>
+        </div>
+        <div class="toolbar">
+          <select id="asset-status-filter">
+            <option value="">All statuses</option>
+            <option value="online">Online</option>
+            <option value="offline">Offline</option>
+            <option value="isolated">Isolated</option>
+            <option value="pending">Pending</option>
+          </select>
+        </div>
+        <table><thead><tr><th>Hostname</th><th>OS</th><th>IP</th><th>Status</th><th>Criticality</th><th>Last Seen</th></tr></thead>
+          <tbody id="assets-body"></tbody></table>
+      </div>
+    </section>
+
+    <!-- ALERTS -->
+    <section id="view-alerts" class="view">
+      <div class="panel">
+        <h2>Alert Triage Queue</h2>
+        <div class="toolbar">
+          <select id="alert-status-filter">
+            <option value="">All statuses</option>
+            <option value="new" selected>New</option>
+            <option value="investigating">Investigating</option>
+            <option value="contained">Contained</option>
+            <option value="resolved">Resolved</option>
+            <option value="false_positive">False Positive</option>
+          </select>
+          <select id="alert-severity-filter">
+            <option value="">All severities</option>
+            <option value="critical">Critical</option>
+            <option value="high">High</option>
+            <option value="medium">Medium</option>
+            <option value="low">Low</option>
+          </select>
+        </div>
+        <table><thead><tr><th>Title</th><th>Asset</th><th>Severity</th><th>Status</th><th>ATT&amp;CK</th><th>Triggered</th></tr></thead>
+          <tbody id="alerts-body"></tbody></table>
+      </div>
+    </section>
+
+    <!-- INCIDENTS -->
+    <section id="view-incidents" class="view">
+      <div class="panel">
+        <div class="panel-head">
+          <h2>Incident Cases</h2>
+          <button id="new-incident-btn">+ New Incident</button>
+        </div>
+        <table><thead><tr><th>Title</th><th>Category</th><th>Severity</th><th>Status</th><th>Created</th></tr></thead>
+          <tbody id="incidents-body"></tbody></table>
+      </div>
+    </section>
+
+    <!-- THREAT INTEL -->
+    <section id="view-threatintel" class="view">
+      <div class="panel">
+        <div class="panel-head">
+          <h2>Indicators of Compromise</h2>
+          <button id="add-ioc-btn">+ Add IOC</button>
+        </div>
+        <table><thead><tr><th>Type</th><th>Value</th><th>Severity</th><th>Source</th><th>Last Seen</th><th></th></tr></thead>
+          <tbody id="ioc-body"></tbody></table>
+      </div>
+    </section>
+
+    <!-- REPORTS -->
+    <section id="view-reports" class="view">
+      <div class="panel">
+        <div class="panel-head">
+          <h2>Generated Reports</h2>
+          <button id="gen-exec-summary-btn">Generate Executive Summary</button>
+        </div>
+        <table><thead><tr><th>Type</th><th>Framework</th><th>Generated</th><th></th></tr></thead>
+          <tbody id="reports-body"></tbody></table>
+      </div>
+    </section>
+  </main>
+</div>
+
+<div class="modal-backdrop" id="modal-backdrop">
+  <div class="modal" id="modal-content"></div>
+</div>
+<div id="toast" class="toast" style="display:none"></div>
+
+<script>
+// The dashboard is a static file that can be opened directly (file://) or
+// served separately from the Flask API (which defaults to port 5001). If
+// we're not already being served from that port, assume the API lives
+// there on the same host.
+const CIRG_API_PORT = 5001;
+const API = (() => {
+  if (window.location.protocol === 'file:') return 'http://localhost:' + CIRG_API_PORT;
+  if (window.location.port === String(CIRG_API_PORT)) return '';
+  return `${window.location.protocol}//${window.location.hostname}:${CIRG_API_PORT}`;
+})();
+let TOKEN = localStorage.getItem('cirg_token');
+let USER = JSON.parse(localStorage.getItem('cirg_user') || 'null');
+
+function toast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg; t.style.display = 'block';
+  setTimeout(() => t.style.display = 'none', 3200);
+}
+
+async function api(path, opts = {}) {
+  const headers = Object.assign({'Content-Type': 'application/json'}, opts.headers || {});
+  if (TOKEN) headers['Authorization'] = 'Bearer ' + TOKEN;
+  const res = await fetch(API + path, Object.assign({}, opts, {headers}));
+  if (res.status === 401) { doLogout(); throw new Error('session expired'); }
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(data.error || ('HTTP ' + res.status));
+  return data;
+}
+
+function esc(s) { const d = document.createElement('div'); d.textContent = s ?? ''; return d.innerHTML; }
+function fmtDate(s) { if (!s) return '-'; try { return new Date(s).toLocaleString(); } catch { return s; } }
+function pill(text, cls) { return `<span class="pill ${esc(cls || text)}">${esc(text)}</span>`; }
+
+// ---------------------------------------------------------------- auth ----
+document.getElementById('login-form').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const username = document.getElementById('login-username').value;
+  const password = document.getElementById('login-password').value;
+  try {
+    const data = await api('/api/soc/auth/login', {method:'POST', body: JSON.stringify({username, password})});
+    TOKEN = data.token; USER = data.user;
+    localStorage.setItem('cirg_token', TOKEN);
+    localStorage.setItem('cirg_user', JSON.stringify(USER));
+    showApp();
+  } catch (err) {
+    document.getElementById('error-msg').textContent = err.message;
+  }
+});
+
+document.getElementById('show-register').addEventListener('click', async (e) => {
+  e.preventDefault();
+  const username = prompt('Choose an admin username:');
+  if (!username) return;
+  const email = prompt('Admin email:');
+  const password = prompt('Choose a password (min 8 chars):');
+  if (!username || !email || !password) return;
+  try {
+    const data = await api('/api/soc/auth/register', {method:'POST', body: JSON.stringify({username, email, password})});
+    TOKEN = data.token; USER = data.user;
+    localStorage.setItem('cirg_token', TOKEN);
+    localStorage.setItem('cirg_user', JSON.stringify(USER));
+    showApp();
+  } catch (err) {
+    alert('Registration failed: ' + err.message);
+  }
+});
+
+document.getElementById('logout-btn').addEventListener('click', doLogout);
+function doLogout() {
+  TOKEN = null; USER = null;
+  localStorage.removeItem('cirg_token'); localStorage.removeItem('cirg_user');
+  document.getElementById('app').style.display = 'none';
+  document.getElementById('login-screen').style.display = 'flex';
+}
+
+function showApp() {
+  document.getElementById('login-screen').style.display = 'none';
+  document.getElementById('app').style.display = 'block';
+  document.getElementById('whoami').textContent = `${USER.username} (${USER.role})`;
+  loadOverview();
+}
+
+if (TOKEN && USER) showApp();
+
+// ---------------------------------------------------------------- nav -----
+document.getElementById('main-nav').addEventListener('click', (e) => {
+  const btn = e.target.closest('button[data-view]');
+  if (!btn) return;
+  document.querySelectorAll('#main-nav button').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
+  document.getElementById('view-' + btn.dataset.view).classList.add('active');
+  ({overview: loadOverview, assets: loadAssets, alerts: loadAlerts,
+    incidents: loadIncidents, threatintel: loadIocs, reports: loadReports})[btn.dataset.view]();
+});
+
+function openModal(html) {
+  document.getElementById('modal-content').innerHTML = html;
+  document.getElementById('modal-backdrop').classList.add('active');
+}
+function closeModal() { document.getElementById('modal-backdrop').classList.remove('active'); }
+document.getElementById('modal-backdrop').addEventListener('click', (e) => {
+  if (e.target.id === 'modal-backdrop') closeModal();
+});
+
+// ------------------------------------------------------------ overview ----
+async function loadOverview() {
+  const d = await api('/api/soc/dashboard');
+  document.getElementById('kpi-row').innerHTML = `
+    <div class="kpi"><div class="label">Assets Online</div><div class="value">${d.assets.online}/${d.assets.total}</div></div>
+    <div class="kpi ${d.assets.isolated ? 'crit' : ''}"><div class="label">Isolated Hosts</div><div class="value">${d.assets.isolated}</div></div>
+    <div class="kpi"><div class="label">Open Alerts</div><div class="value">${d.alerts.open}</div></div>
+    <div class="kpi crit"><div class="label">Critical/High Alerts</div><div class="value">${d.alerts.critical_high}</div></div>
+    <div class="kpi"><div class="label">Alerts (24h)</div><div class="value">${d.alerts.last_24h}</div></div>
+    <div class="kpi"><div class="label">Open Incidents</div><div class="value">${d.incidents.open}</div></div>
+    <div class="kpi"><div class="label">Pending Remediation</div><div class="value">${d.remediation.pending}</div></div>
+  `;
+  const top = d.top_mitre_techniques_30d || [];
+  const max = Math.max(1, ...top.map(t => t.c));
+  document.getElementById('mitre-bars').innerHTML = top.length ? top.map(t => `
+    <div class="bar-row"><div class="lbl">${esc(t.technique)}</div>
+      <div class="bar-track"><div class="bar-fill" style="width:${(t.c/max*100).toFixed(0)}%"></div></div>
+      <div class="cnt">${t.c}</div></div>
+  `).join('') : '<div class="empty">No alert activity in the last 30 days.</div>';
+
+  document.getElementById('recent-alerts-body').innerHTML = (d.recent_alerts || []).map(a => `
+    <tr><td>${esc(a.title)}</td><td>${pill(a.severity)}</td><td>${pill(a.status)}</td><td>${fmtDate(a.triggered_at)}</td></tr>
+  `).join('') || '<tr><td colspan="4" class="empty">No recent alerts</td></tr>';
+}
+
+// -------------------------------------------------------------- assets ----
+async function loadAssets() {
+  const status = document.getElementById('asset-status-filter').value;
+  const assets = await api('/api/soc/assets' + (status ? `?status=${status}` : ''));
+  document.getElementById('assets-body').innerHTML = assets.map(a => `
+    <tr class="clickable" data-id="${a.id}">
+      <td>${esc(a.hostname)}</td><td>${esc(a.os_name || '-')}</td><td>${esc(a.ip_address || '-')}</td>
+      <td>${pill(a.status)}</td><td>${pill(a.criticality)}</td><td>${fmtDate(a.last_seen)}</td>
+    </tr>`).join('') || '<tr><td colspan="6" class="empty">No endpoints enrolled yet.</td></tr>';
+  document.querySelectorAll('#assets-body tr.clickable').forEach(tr =>
+    tr.addEventListener('click', () => openAssetModal(tr.dataset.id)));
+}
+document.getElementById('asset-status-filter').addEventListener('change', loadAssets);
+
+async function openAssetModal(id) {
+  const a = await api(`/api/soc/assets/${id}`);
+  openModal(`
+    <button class="close" onclick="closeModal()">&times;</button>
+    <h3>${esc(a.hostname)}</h3>
+    <div class="kv">
+      <div class="k">Status</div><div>${pill(a.status)}</div>
+      <div class="k">OS</div><div>${esc(a.os_name)} (${esc(a.os_version || '')})</div>
+      <div class="k">IP</div><div>${esc(a.ip_address || '-')}</div>
+      <div class="k">Domain</div><div>${esc(a.domain || '-')}</div>
+      <div class="k">Agent ID</div><div><code class="small">${esc(a.agent_id)}</code></div>
+      <div class="k">Last seen</div><div>${fmtDate(a.last_seen)}</div>
+    </div>
+    <div class="actions-row">
+      ${a.status !== 'isolated'
+        ? `<button class="danger" onclick="requestRemediation(${a.id}, 'isolate_host')">Isolate Host</button>`
+        : `<button class="secondary" onclick="requestRemediation(${a.id}, 'unisolate_host')">Remove Isolation</button>`}
+      <button class="secondary" onclick="requestRemediation(${a.id}, 'run_av_scan')">Run AV Scan</button>
+      <button class="secondary" onclick="requestRemediation(${a.id}, 'collect_triage_package')">Collect Triage Package</button>
+    </div>
+    <h4>Recent alerts</h4>
+    ${(a.recent_alerts || []).map(al => `<div class="timeline-entry">${esc(al.title)} ${pill(al.severity)}<div class="meta">${fmtDate(al.triggered_at)}</div></div>`).join('') || '<div class="empty">None</div>'}
+    <h4>Recent events</h4>
+    ${(a.recent_events || []).slice(0,20).map(ev => `<div class="timeline-entry">[${ev.event_id}] ${esc(ev.channel)} ${esc(ev.command_line || ev.process_name || '')}<div class="meta">${fmtDate(ev.event_time)}</div></div>`).join('') || '<div class="empty">None</div>'}
+  `);
+}
+
+async function requestRemediation(assetId, actionType, params = {}) {
+  if (!confirm(`Confirm: ${actionType.replace('_',' ')} on asset #${assetId}?`)) return;
+  try {
+    await api('/api/soc/remediation', {method:'POST', body: JSON.stringify({asset_id: assetId, action_type: actionType, params})});
+    toast('Remediation action queued — the agent will pick it up on its next check-in.');
+    closeModal();
+  } catch (err) { alert(err.message); }
+}
+
+document.getElementById('enroll-btn').addEventListener('click', async () => {
+  try {
+    const t = await api('/api/soc/enroll/token', {method:'POST'});
+    openModal(`
+      <button class="close" onclick="closeModal()">&times;</button>
+      <h3>Enroll a new endpoint</h3>
+      <p class="muted">Token expires ${fmtDate(t.expires_at)}. Run on the target Windows 10/11/Server 2016+ host (elevated PowerShell):</p>
+      <textarea rows="4" readonly>.\\install.ps1 -ServerUrl "${window.location.origin}" -EnrollToken "${t.enrollment_token}" -InstallSysmon</textarea>
+    `);
+  } catch (err) { alert(err.message); }
+});
+
+// -------------------------------------------------------------- alerts ----
+async function loadAlerts() {
+  const status = document.getElementById('alert-status-filter').value;
+  const severity = document.getElementById('alert-severity-filter').value;
+  const qs = new URLSearchParams(); if (status) qs.set('status', status); if (severity) qs.set('severity', severity);
+  const alerts = await api('/api/soc/alerts?' + qs.toString());
+  document.getElementById('alerts-body').innerHTML = alerts.map(a => `
+    <tr class="clickable" data-id="${a.id}">
+      <td>${esc(a.title)}</td><td>#${a.asset_id ?? '-'}</td><td>${pill(a.severity)}</td>
+      <td>${pill(a.status)}</td><td>${(a.mitre_attack_techniques||[]).join(', ')}</td><td>${fmtDate(a.triggered_at)}</td>
+    </tr>`).join('') || '<tr><td colspan="6" class="empty">No alerts match this filter.</td></tr>';
+  document.querySelectorAll('#alerts-body tr.clickable').forEach(tr =>
+    tr.addEventListener('click', () => openAlertModal(tr.dataset.id)));
+}
+document.getElementById('alert-status-filter').addEventListener('change', loadAlerts);
+document.getElementById('alert-severity-filter').addEventListener('change', loadAlerts);
+
+async function openAlertModal(id) {
+  const a = await api(`/api/soc/alerts/${id}`);
+  openModal(`
+    <button class="close" onclick="closeModal()">&times;</button>
+    <h3>${esc(a.title)}</h3>
+    <div class="kv">
+      <div class="k">Severity</div><div>${pill(a.severity)}</div>
+      <div class="k">Status</div><div>${pill(a.status)}</div>
+      <div class="k">Asset</div><div>#${a.asset_id ?? '-'}</div>
+      <div class="k">ATT&amp;CK</div><div>${(a.mitre_attack_techniques||[]).join(', ') || '-'}</div>
+      <div class="k">Triggered</div><div>${fmtDate(a.triggered_at)}</div>
+    </div>
+    <p>${esc(a.description || '')}</p>
+    <div class="actions-row">
+      <button onclick="escalateAlert(${a.id})">Escalate to Incident</button>
+      <button class="secondary" onclick="setAlertStatus(${a.id}, 'investigating')">Mark Investigating</button>
+      <button class="secondary" onclick="setAlertStatus(${a.id}, 'resolved')">Resolve</button>
+      <button class="secondary" onclick="setAlertStatus(${a.id}, 'false_positive')">False Positive</button>
+    </div>
+    <h4>Matched events</h4>
+    ${(a.matched_events || []).map(ev => `<div class="timeline-entry">[${ev.event_id}] ${esc(ev.channel)}<br>${esc(ev.command_line || ev.process_name || JSON.stringify(ev.raw || {}))}<div class="meta">${fmtDate(ev.event_time)}</div></div>`).join('') || '<div class="empty">None recorded</div>'}
+  `);
+}
+
+async function setAlertStatus(id, status) {
+  await api(`/api/soc/alerts/${id}`, {method:'PATCH', body: JSON.stringify({status})});
+  toast('Alert updated'); closeModal(); loadAlerts();
+}
+async function escalateAlert(id) {
+  const title = prompt('Incident title:', 'Incident from alert #' + id);
+  if (!title) return;
+  const inc = await api(`/api/soc/alerts/${id}/escalate`, {method:'POST', body: JSON.stringify({title, category: 'uncategorized'})});
+  toast('Escalated to incident #' + inc.id); closeModal();
+}
+
+// ----------------------------------------------------------- incidents ----
+async function loadIncidents() {
+  const incidents = await api('/api/soc/incidents');
+  document.getElementById('incidents-body').innerHTML = incidents.map(i => `
+    <tr class="clickable" data-id="${i.id}">
+      <td>${esc(i.title)}</td><td>${esc(i.category || '-')}</td><td>${pill(i.severity)}</td>
+      <td>${pill(i.status)}</td><td>${fmtDate(i.created_at)}</td>
+    </tr>`).join('') || '<tr><td colspan="5" class="empty">No incidents yet.</td></tr>';
+  document.querySelectorAll('#incidents-body tr.clickable').forEach(tr =>
+    tr.addEventListener('click', () => openIncidentModal(tr.dataset.id)));
+}
+
+document.getElementById('new-incident-btn').addEventListener('click', async () => {
+  const title = prompt('Incident title:');
+  if (!title) return;
+  const category = prompt('Category (e.g. ransomware, phishing, credential-access):', 'uncategorized');
+  await api('/api/soc/incidents', {method:'POST', body: JSON.stringify({title, category})});
+  loadIncidents();
+});
+
+const NEXT_STATUS = {open: ['contained','closed'], contained: ['eradicated','closed'], eradicated: ['recovering','closed'], recovering: ['closed']};
+
+async function openIncidentModal(id) {
+  const i = await api(`/api/soc/incidents/${id}`);
+  const nextStates = NEXT_STATUS[i.status] || [];
+  openModal(`
+    <button class="close" onclick="closeModal()">&times;</button>
+    <h3>#${i.id} — ${esc(i.title)}</h3>
+    <div class="kv">
+      <div class="k">Severity</div><div>${pill(i.severity)}</div>
+      <div class="k">Status</div><div>${pill(i.status)}</div>
+      <div class="k">Category</div><div>${esc(i.category || '-')}</div>
+      <div class="k">Created</div><div>${fmtDate(i.created_at)}</div>
+    </div>
+    <p>${esc(i.summary || '')}</p>
+    <div class="actions-row">
+      ${nextStates.map(s => `<button class="secondary" onclick="setIncidentStatus(${i.id}, '${s}')">Mark ${s}</button>`).join('')}
+      <button onclick="addIncidentNote(${i.id})">Add Note</button>
+      <button onclick="generateIncidentReport(${i.id})">Generate PDF Report</button>
+    </div>
+    <h4>Timeline</h4>
+    ${(i.timeline || []).map(t => `<div class="timeline-entry"><b>${esc(t.action)}</b> — ${esc(t.notes || '')}<div class="meta">${esc(t.actor)} · ${fmtDate(t.occurred_at)}</div></div>`).join('') || '<div class="empty">No timeline entries</div>'}
+    <h4>Remediation actions</h4>
+    ${(i.remediation_actions || []).map(r => `<div class="timeline-entry">${esc(r.action_type)} ${pill(r.status)}<div class="meta">${fmtDate(r.requested_at)}</div></div>`).join('') || '<div class="empty">None</div>'}
+  `);
+}
+async function setIncidentStatus(id, status) {
+  await api(`/api/soc/incidents/${id}`, {method:'PATCH', body: JSON.stringify({status})});
+  toast('Incident status updated'); closeModal(); loadIncidents();
+}
+async function addIncidentNote(id) {
+  const notes = prompt('Note:');
+  if (!notes) return;
+  await api(`/api/soc/incidents/${id}/notes`, {method:'POST', body: JSON.stringify({notes})});
+  openIncidentModal(id);
+}
+async function generateIncidentReport(id) {
+  const r = await api(`/api/soc/reports/incident/${id}`, {method:'POST'});
+  toast('Report generated — see the Reports tab to download.');
+}
+
+// --------------------------------------------------------- threat intel ---
+async function loadIocs() {
+  const iocs = await api('/api/soc/threat-intel/iocs');
+  document.getElementById('ioc-body').innerHTML = iocs.map(i => `
+    <tr><td>${esc(i.ioc_type)}</td><td><code class="small">${esc(i.value)}</code></td><td>${pill(i.severity)}</td>
+      <td>${esc(i.source)}</td><td>${fmtDate(i.last_seen)}</td>
+      <td><button class="secondary" onclick="deactivateIoc(${i.id})">Remove</button></td></tr>
+  `).join('') || '<tr><td colspan="6" class="empty">No IOCs loaded.</td></tr>';
+}
+async function deactivateIoc(id) {
+  await api(`/api/soc/threat-intel/iocs/${id}`, {method:'DELETE'});
+  loadIocs();
+}
+document.getElementById('add-ioc-btn').addEventListener('click', async () => {
+  const ioc_type = prompt('Type (ip, domain, url, hash_md5, hash_sha1, hash_sha256):', 'ip');
+  if (!ioc_type) return;
+  const value = prompt('Value:');
+  if (!value) return;
+  const severity = prompt('Severity (info/low/medium/high/critical):', 'high');
+  await api('/api/soc/threat-intel/iocs', {method:'POST', body: JSON.stringify({ioc_type, value, severity})});
+  loadIocs();
+});
+
+// -------------------------------------------------------------- reports ---
+async function loadReports() {
+  const reports = await api('/api/soc/reports');
+  document.getElementById('reports-body').innerHTML = reports.map(r => `
+    <tr><td>${esc(r.report_type)}</td><td>${esc(r.framework || '-')}</td><td>${fmtDate(r.generated_at)}</td>
+      <td><a href="${API}/api/soc/reports/${r.id}/download?token=${encodeURIComponent(TOKEN)}" target="_blank">Download</a></td></tr>
+  `).join('') || '<tr><td colspan="4" class="empty">No reports generated yet.</td></tr>';
+}
+document.getElementById('gen-exec-summary-btn').addEventListener('click', async () => {
+  await api('/api/soc/reports/executive-summary', {method:'POST', body: JSON.stringify({days: 30})});
+  toast('Executive summary generated'); loadReports();
+});
+</script>
+</body>
+</html>

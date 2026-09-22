@@ -3,3 +3,5 @@ flask-cors==4.0.1
 psycopg2-binary==2.9.9
 reportlab==4.2.2
 python-dotenv==1.0.1
+pyjwt==2.9.0
+werkzeug==3.0.4
