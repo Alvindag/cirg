@@ -87,7 +87,7 @@ def request_remediation():
             )
 
         cur.execute(
-            "INSERT INTO audit_log (actor, action, target_type, target_id, details) VALUES (%s, %s, 'asset', %s, %s)",
+            "INSERT INTO soc_audit_log (actor, action, target_type, target_id, details) VALUES (%s, %s, 'asset', %s, %s)",
             (g.user["username"], f"remediation_requested:{action_type}", str(asset_id),
              __import__("json").dumps(data.get("params", {}))),
         )

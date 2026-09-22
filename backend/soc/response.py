@@ -81,7 +81,7 @@ def update_alert(alert_id):
         updated = cur.fetchone()
         if updated:
             cur.execute(
-                "INSERT INTO audit_log (actor, action, target_type, target_id, details) VALUES (%s, %s, %s, %s, %s)",
+                "INSERT INTO soc_audit_log (actor, action, target_type, target_id, details) VALUES (%s, %s, %s, %s, %s)",
                 (g.user["username"], "alert_updated", "alert", str(alert_id), __import__("json").dumps(data)),
             )
     if not updated:

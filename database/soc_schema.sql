@@ -279,9 +279,14 @@ CREATE TABLE IF NOT EXISTS soc_reports (
 );
 
 -- ---------------------------------------------------------------------------
--- Audit log (who did what, across the SOC platform)
+-- Audit log (who did what, across the SOC module)
+--
+-- Named soc_audit_log (not audit_log) because this schema is designed to
+-- share a database with an existing CFEMS installation, which already owns
+-- an unrelated `audit_log` table for its own forensic chain-of-custody
+-- actions (see chain_of_custody, evidence, case_file, analyst, ...).
 -- ---------------------------------------------------------------------------
-CREATE TABLE IF NOT EXISTS audit_log (
+CREATE TABLE IF NOT EXISTS soc_audit_log (
     id            BIGSERIAL PRIMARY KEY,
     actor         VARCHAR(255) NOT NULL,
     action        VARCHAR(150) NOT NULL,
@@ -291,4 +296,4 @@ CREATE TABLE IF NOT EXISTS audit_log (
     occurred_at   TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
-CREATE INDEX IF NOT EXISTS idx_audit_log_occurred_at ON audit_log(occurred_at DESC);
+CREATE INDEX IF NOT EXISTS idx_soc_audit_log_occurred_at ON soc_audit_log(occurred_at DESC);
