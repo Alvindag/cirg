@@ -1,0 +1,1459 @@
+{
+  "schemaVersion": "1.0",
+  "pack": {
+    "id": "core.windows-security",
+    "name": "Core Windows Security Detections",
+    "version": "1.0.0",
+    "attackVersion": "v15 (subset)"
+  },
+  "assets": {
+    "systemAccounts": [
+      "SYSTEM",
+      "LOCAL SERVICE",
+      "NETWORK SERVICE",
+      "DWM-1",
+      "DWM-2",
+      "UMFD-0",
+      "UMFD-1"
+    ],
+    "privilegedGroups": [
+      "Administrators",
+      "Domain Admins",
+      "Enterprise Admins",
+      "Schema Admins",
+      "Backup Operators",
+      "Account Operators",
+      "Server Operators",
+      "DnsAdmins",
+      "Print Operators"
+    ],
+    "approvedAdminAccounts": []
+  },
+  "rules": [
+    {
+      "id": "AUD-001",
+      "name": "Windows event log cleared",
+      "kind": "match",
+      "severity": "critical",
+      "confidence": 0.9,
+      "tags": [
+        "anti-forensics"
+      ],
+      "attack": [
+        {
+          "tactic": "TA0005",
+          "technique": "T1070.001"
+        }
+      ],
+      "when": {
+        "eventIds": [
+          1102,
+          104
+        ]
+      },
+      "context": {
+        "summary": "Clearing the Security (1102) or System (104) log removes evidence of earlier activity. Attackers do this after privilege escalation or before ransomware.",
+        "falsePositives": [
+          "Documented log maintenance by an administrator",
+          "Imaging or re-provisioning of a lab machine"
+        ],
+        "maliciousIndicators": [
+          "Cleared by an account that is not a log-management admin",
+          "Cleared shortly after other findings on the same host",
+          "Cleared outside a change window"
+        ],
+        "references": [
+          "https://attack.mitre.org/techniques/T1070/001/"
+        ]
+      },
+      "response": {
+        "investigate": [
+          {
+            "title": "Check who cleared the log and when",
+            "shell": "powershell",
+            "command": "Get-WinEvent -ComputerName '{{computer}}' -FilterHashtable @{LogName='Security';Id=1102} -MaxEvents 10 | Format-List TimeCreated,Message",
+            "risk": "read-only"
+          },
+          {
+            "title": "Look for the same host in your SIEM before the clear time",
+            "shell": "kql",
+            "command": "SecurityEvent | where Computer == \"{{computer}}\" | order by TimeGenerated desc",
+            "risk": "read-only"
+          }
+        ],
+        "remediate": [
+          {
+            "title": "Isolate the host (EDR or network quarantine) pending triage",
+            "shell": "manual",
+            "command": "Use your EDR / NAC to isolate {{computer}}.",
+            "risk": "disruptive"
+          },
+          {
+            "title": "Preserve the remaining logs before more are lost",
+            "shell": "powershell",
+            "command": "$h='{{computer}}'; wevtutil epl Security \"C:\\IR\\Security-$h.evtx\"",
+            "risk": "read-only"
+          }
+        ]
+      }
+    },
+    {
+      "id": "AUD-002",
+      "name": "Audit policy changed",
+      "kind": "match",
+      "severity": "medium",
+      "confidence": 0.4,
+      "tags": [
+        "anti-forensics"
+      ],
+      "attack": [
+        {
+          "tactic": "TA0005",
+          "technique": "T1562.002"
+        }
+      ],
+      "when": {
+        "eventIds": [
+          4719
+        ]
+      },
+      "context": {
+        "summary": "Weakening audit policy reduces what future attacks will record.",
+        "falsePositives": [
+          "Group Policy refresh applying a legitimate baseline",
+          "Security hardening projects"
+        ],
+        "maliciousIndicators": [
+          "Audit categories set to 'No Auditing'",
+          "Change made by a non-admin or service account"
+        ]
+      },
+      "response": {
+        "investigate": [
+          {
+            "title": "Review the effective audit policy",
+            "shell": "powershell",
+            "command": "auditpol /get /category:*",
+            "risk": "read-only"
+          }
+        ],
+        "remediate": [
+          {
+            "title": "Reapply the baseline audit policy via Group Policy",
+            "shell": "manual",
+            "command": "gpupdate /force on {{computer}} after confirming the GPO is correct.",
+            "risk": "disruptive"
+          }
+        ]
+      }
+    },
+    {
+      "id": "AUTH-001",
+      "name": "Repeated failed logons against one account from one source (brute force)",
+      "kind": "threshold",
+      "severity": "high",
+      "confidence": 0.6,
+      "tags": [
+        "bruteforce"
+      ],
+      "attack": [
+        {
+          "tactic": "TA0006",
+          "technique": "T1110.001"
+        }
+      ],
+      "when": {
+        "eventIds": [
+          4625
+        ],
+        "groupBy": [
+          "targetUserName",
+          "ipAddress"
+        ],
+        "count": 10,
+        "window": "5m"
+      },
+      "context": {
+        "summary": "Ten or more failed logons for the same account from the same address within five minutes suggests password guessing.",
+        "falsePositives": [
+          "A user or service with an expired or stale saved password",
+          "Misconfigured scheduled task or mapped drive"
+        ],
+        "maliciousIndicators": [
+          "External or unusual source IP",
+          "A successful 4624 for the same account right after the burst",
+          "Many different accounts targeted from the same IP (see AUTH-002)"
+        ]
+      },
+      "response": {
+        "investigate": [
+          {
+            "title": "Did the account later log on successfully from this source?",
+            "shell": "kql",
+            "command": "SecurityEvent | where EventID == 4624 and TargetUserName == \"{{targetUserName}}\" and IpAddress == \"{{ipAddress}}\"",
+            "risk": "read-only"
+          }
+        ],
+        "remediate": [
+          {
+            "title": "Block the source IP at the perimeter",
+            "shell": "manual",
+            "command": "Block {{ipAddress}} on the firewall / WAF after confirming it is not internal infrastructure.",
+            "risk": "disruptive"
+          },
+          {
+            "title": "Force a password reset if a success followed",
+            "shell": "manual",
+            "command": "Reset the password for {{targetUserName}} and revoke active sessions.",
+            "risk": "disruptive"
+          }
+        ]
+      }
+    },
+    {
+      "id": "AUTH-002",
+      "name": "One source failing logons across many accounts (password spraying)",
+      "kind": "threshold",
+      "severity": "high",
+      "confidence": 0.7,
+      "tags": [
+        "bruteforce",
+        "spray"
+      ],
+      "attack": [
+        {
+          "tactic": "TA0006",
+          "technique": "T1110.003"
+        }
+      ],
+      "when": {
+        "eventIds": [
+          4625
+        ],
+        "groupBy": [
+          "ipAddress"
+        ],
+        "distinct": "targetUserName",
+        "count": 10,
+        "window": "30m"
+      },
+      "context": {
+        "summary": "A single source failing logons against ten or more distinct accounts in 30 minutes is characteristic of password spraying.",
+        "falsePositives": [
+          "A shared NAT / proxy IP in front of many legitimate users",
+          "Vulnerability scanners or pen-test activity"
+        ],
+        "maliciousIndicators": [
+          "Common passwords tried across the whole directory",
+          "Source IP is external or a known-bad address",
+          "Any account that then succeeds from the same IP"
+        ]
+      },
+      "response": {
+        "investigate": [
+          {
+            "title": "List accounts that succeeded from this source",
+            "shell": "kql",
+            "command": "SecurityEvent | where EventID == 4624 and IpAddress == \"{{ipAddress}}\" | summarize count() by TargetUserName",
+            "risk": "read-only"
+          }
+        ],
+        "remediate": [
+          {
+            "title": "Block the source IP",
+            "shell": "manual",
+            "command": "Block {{ipAddress}} and review any account it authenticated to.",
+            "risk": "disruptive"
+          }
+        ]
+      }
+    },
+    {
+      "id": "AUTH-003",
+      "name": "Logon with explicit credentials",
+      "kind": "match",
+      "severity": "low",
+      "confidence": 0.25,
+      "tags": [
+        "noisy"
+      ],
+      "attack": [
+        {
+          "tactic": "TA0005",
+          "technique": "T1078"
+        }
+      ],
+      "when": {
+        "eventIds": [
+          4648
+        ],
+        "condition": {
+          "not": {
+            "field": "subjectUserName",
+            "op": "endsWith",
+            "value": "$"
+          }
+        }
+      },
+      "context": {
+        "summary": "A process used different credentials than the logged-on user (runas, mapped drives, lateral tooling).",
+        "falsePositives": [
+          "Interactive 'Run as different user'",
+          "Scheduled tasks and service accounts",
+          "Outlook / SMB clients using saved credentials"
+        ],
+        "maliciousIndicators": [
+          "Initiated by an unusual process",
+          "Target server is a domain controller or file server the user never uses"
+        ]
+      }
+    },
+    {
+      "id": "AUTH-004",
+      "name": "Network or RDP logon from a non-private IPv4 address",
+      "kind": "match",
+      "severity": "medium",
+      "confidence": 0.4,
+      "tags": [
+        "external-access"
+      ],
+      "attack": [
+        {
+          "tactic": "TA0008",
+          "technique": "T1021.001"
+        },
+        {
+          "tactic": "TA0001",
+          "technique": "T1078"
+        }
+      ],
+      "when": {
+        "eventIds": [
+          4624
+        ],
+        "condition": {
+          "all": [
+            {
+              "field": "logonType",
+              "op": "in",
+              "value": [
+                3,
+                10
+              ]
+            },
+            {
+              "field": "ipAddress",
+              "op": "exists"
+            },
+            {
+              "not": {
+                "field": "ipAddress",
+                "op": "cidr",
+                "value": [
+                  "10.0.0.0/8",
+                  "172.16.0.0/12",
+                  "192.168.0.0/16",
+                  "127.0.0.0/8",
+                  "169.254.0.0/16",
+                  "100.64.0.0/10"
+                ]
+              }
+            },
+            {
+              "not": {
+                "field": "ipAddress",
+                "op": "contains",
+                "value": ":"
+              }
+            }
+          ]
+        }
+      },
+      "context": {
+        "summary": "A successful network/RDP logon whose source is a public IPv4 address means a remote service is reachable from the internet. IPv6 sources are not evaluated.",
+        "falsePositives": [
+          "Intentionally internet-facing RDP gateways or VPN concentrators",
+          "Remote staff on a corporate VPN that presents public egress IPs"
+        ],
+        "maliciousIndicators": [
+          "Source geolocates outside your normal footprint",
+          "Preceded by failed logons (AUTH-001/002)",
+          "Followed by privileged activity or new processes"
+        ]
+      },
+      "response": {
+        "investigate": [
+          {
+            "title": "Review all logons from this source",
+            "shell": "kql",
+            "command": "SecurityEvent | where EventID == 4624 and IpAddress == \"{{ipAddress}}\" | project TimeGenerated, Computer, TargetUserName, LogonType",
+            "risk": "read-only"
+          }
+        ],
+        "remediate": [
+          {
+            "title": "Restrict RDP exposure",
+            "shell": "manual",
+            "command": "Remove direct internet exposure for {{computer}}; require VPN/RD Gateway with MFA.",
+            "risk": "disruptive"
+          }
+        ]
+      }
+    },
+    {
+      "id": "AUTH-005",
+      "name": "NTLM network logon by a user account (pass-the-hash indicator)",
+      "kind": "match",
+      "severity": "low",
+      "confidence": 0.2,
+      "tags": [
+        "noisy"
+      ],
+      "attack": [
+        {
+          "tactic": "TA0008",
+          "technique": "T1550.002"
+        }
+      ],
+      "when": {
+        "eventIds": [
+          4624
+        ],
+        "condition": {
+          "all": [
+            {
+              "field": "logonType",
+              "op": "eq",
+              "value": 3
+            },
+            {
+              "field": "authenticationPackage",
+              "op": "eq",
+              "value": "NTLM"
+            },
+            {
+              "not": {
+                "field": "targetUserName",
+                "op": "endsWith",
+                "value": "$"
+              }
+            },
+            {
+              "not": {
+                "field": "targetUserName",
+                "op": "eq",
+                "value": "ANONYMOUS LOGON"
+              }
+            }
+          ]
+        }
+      },
+      "context": {
+        "summary": "Type 3 NTLM logons with a user account can indicate pass-the-hash, but NTLM is still common in many networks. Treat as context for other findings, not a verdict.",
+        "falsePositives": [
+          "Legacy applications and IP-based SMB access",
+          "File servers accessed by IP address"
+        ],
+        "maliciousIndicators": [
+          "Admin account authenticating to many hosts in a short time",
+          "Workstation-to-workstation NTLM"
+        ]
+      }
+    },
+    {
+      "id": "PRIV-001",
+      "name": "Special privileges assigned to a non-system account",
+      "kind": "match",
+      "severity": "info",
+      "confidence": 0.15,
+      "tags": [
+        "noisy",
+        "context"
+      ],
+      "attack": [
+        {
+          "tactic": "TA0004",
+          "technique": "T1078"
+        }
+      ],
+      "when": {
+        "eventIds": [
+          4672
+        ],
+        "condition": {
+          "all": [
+            {
+              "not": {
+                "field": "subjectUserName",
+                "op": "in",
+                "value": "$lists.systemAccounts"
+              }
+            },
+            {
+              "not": {
+                "field": "subjectUserName",
+                "op": "endsWith",
+                "value": "$"
+              }
+            }
+          ]
+        }
+      },
+      "context": {
+        "summary": "An admin-level logon occurred. Normal for administrators; valuable as a link in correlated chains (Phase 3).",
+        "falsePositives": [
+          "Every logon by a member of Administrators"
+        ]
+      }
+    },
+    {
+      "id": "PERS-001",
+      "name": "New service installed",
+      "kind": "match",
+      "severity": "medium",
+      "confidence": 0.4,
+      "tags": [
+        "persistence"
+      ],
+      "attack": [
+        {
+          "tactic": "TA0003",
+          "technique": "T1543.003"
+        },
+        {
+          "tactic": "TA0004",
+          "technique": "T1543.003"
+        }
+      ],
+      "when": {
+        "eventIds": [
+          4697,
+          7045
+        ]
+      },
+      "context": {
+        "summary": "Services run as SYSTEM and survive reboots, so attackers use them for persistence and remote execution (PsExec-style).",
+        "falsePositives": [
+          "Software installs and updates",
+          "Endpoint agent deployments"
+        ],
+        "maliciousIndicators": [
+          "Binary in a temp/user-writable path",
+          "Random service name",
+          "Service created over the network by an admin account"
+        ]
+      },
+      "response": {
+        "investigate": [
+          {
+            "title": "Inspect the service binary path",
+            "shell": "powershell",
+            "command": "Get-CimInstance Win32_Service -ComputerName '{{computer}}' -Filter \"Name='{{serviceName}}'\" | Select Name,PathName,StartName,State",
+            "risk": "read-only"
+          }
+        ],
+        "remediate": [
+          {
+            "title": "Stop and remove a confirmed-malicious service",
+            "shell": "powershell",
+            "command": "$h='{{computer}}'; $s='{{serviceName}}'; sc.exe \\\\$h stop $s; sc.exe \\\\$h delete $s",
+            "risk": "disruptive"
+          }
+        ]
+      }
+    },
+    {
+      "id": "PERS-002",
+      "name": "Scheduled task created",
+      "kind": "match",
+      "severity": "medium",
+      "confidence": 0.4,
+      "tags": [
+        "persistence"
+      ],
+      "attack": [
+        {
+          "tactic": "TA0003",
+          "technique": "T1053.005"
+        },
+        {
+          "tactic": "TA0002",
+          "technique": "T1053.005"
+        }
+      ],
+      "when": {
+        "eventIds": [
+          4698
+        ]
+      },
+      "context": {
+        "summary": "Scheduled tasks provide persistence and delayed or remote execution.",
+        "falsePositives": [
+          "Software updaters and management tooling",
+          "Admin-created maintenance jobs"
+        ],
+        "maliciousIndicators": [
+          "Task runs a script from a user-writable path",
+          "Task created by a remote logon",
+          "Randomized task name"
+        ]
+      },
+      "response": {
+        "investigate": [
+          {
+            "title": "List scheduled tasks on the host",
+            "shell": "powershell",
+            "command": "Get-ScheduledTask -CimSession '{{computer}}' | Where-Object State -ne 'Disabled' | Select TaskName,TaskPath,State",
+            "risk": "read-only"
+          }
+        ]
+      }
+    },
+    {
+      "id": "ACC-001",
+      "name": "User account created",
+      "kind": "match",
+      "severity": "medium",
+      "confidence": 0.4,
+      "tags": [
+        "persistence"
+      ],
+      "attack": [
+        {
+          "tactic": "TA0003",
+          "technique": "T1136.001"
+        }
+      ],
+      "when": {
+        "eventIds": [
+          4720
+        ]
+      },
+      "context": {
+        "summary": "New accounts are a common persistence mechanism.",
+        "falsePositives": [
+          "HR on-boarding automation",
+          "Helpdesk-created accounts"
+        ],
+        "maliciousIndicators": [
+          "Created outside business hours",
+          "Creator is not an identity-management account",
+          "Immediately added to a privileged group (ACC-002)"
+        ]
+      },
+      "response": {
+        "investigate": [
+          {
+            "title": "Review the new account",
+            "shell": "powershell",
+            "command": "Get-ADUser -Identity '{{targetUserName}}' -Properties whenCreated,memberOf",
+            "risk": "read-only"
+          }
+        ],
+        "remediate": [
+          {
+            "title": "Disable the account if unauthorized",
+            "shell": "powershell",
+            "command": "Disable-ADAccount -Identity '{{targetUserName}}'",
+            "risk": "disruptive"
+          }
+        ]
+      }
+    },
+    {
+      "id": "ACC-002",
+      "name": "Member added to a privileged group",
+      "kind": "match",
+      "severity": "high",
+      "confidence": 0.7,
+      "tags": [
+        "privilege-escalation"
+      ],
+      "attack": [
+        {
+          "tactic": "TA0003",
+          "technique": "T1098"
+        },
+        {
+          "tactic": "TA0004",
+          "technique": "T1098"
+        }
+      ],
+      "when": {
+        "eventIds": [
+          4728,
+          4732,
+          4756
+        ],
+        "condition": {
+          "field": "targetUserName",
+          "op": "in",
+          "value": "$lists.privilegedGroups"
+        }
+      },
+      "context": {
+        "summary": "For 4728/4732/4756 the target name is the group. Additions to administrative groups grant broad access.",
+        "falsePositives": [
+          "Approved joiner/mover/leaver admin changes",
+          "Software installers adding service accounts to local Administrators"
+        ],
+        "maliciousIndicators": [
+          "Change made by a non-admin or compromised account",
+          "No matching change ticket",
+          "Account added was created recently (ACC-001)"
+        ]
+      },
+      "response": {
+        "investigate": [
+          {
+            "title": "List current members of the group",
+            "shell": "powershell",
+            "command": "Get-ADGroupMember -Identity '{{targetUserName}}' -Recursive | Select SamAccountName,objectClass",
+            "risk": "read-only"
+          }
+        ],
+        "remediate": [
+          {
+            "title": "Disable the account pending review",
+            "shell": "powershell",
+            "command": "Disable-ADAccount -Identity '{{subjectUserName}}'",
+            "risk": "disruptive"
+          }
+        ]
+      }
+    },
+    {
+      "id": "EXEC-001",
+      "name": "Suspicious PowerShell command line",
+      "kind": "match",
+      "severity": "high",
+      "confidence": 0.6,
+      "tags": [
+        "execution",
+        "process-creation"
+      ],
+      "attack": [
+        {
+          "tactic": "TA0002",
+          "technique": "T1059.001"
+        }
+      ],
+      "when": {
+        "eventIds": [
+          4688
+        ],
+        "condition": {
+          "all": [
+            {
+              "any": [
+                {
+                  "field": "newProcessName",
+                  "op": "endsWith",
+                  "value": "\\powershell.exe"
+                },
+                {
+                  "field": "newProcessName",
+                  "op": "endsWith",
+                  "value": "\\pwsh.exe"
+                }
+              ]
+            },
+            {
+              "any": [
+                {
+                  "field": "commandLine",
+                  "op": "regex",
+                  "value": "-e(nc(odedcommand)?)?\\s+[A-Za-z0-9+/=]{40,}"
+                },
+                {
+                  "field": "commandLine",
+                  "op": "regex",
+                  "value": "downloadstring|downloadfile|net\\.webclient"
+                },
+                {
+                  "field": "commandLine",
+                  "op": "regex",
+                  "value": "invoke-expression|\\biex\\b"
+                },
+                {
+                  "field": "commandLine",
+                  "op": "regex",
+                  "value": "frombase64string"
+                },
+                {
+                  "field": "commandLine",
+                  "op": "regex",
+                  "value": "-nop(rofile)?\\b.*-w(indowstyle)?\\s+hidden"
+                }
+              ]
+            }
+          ]
+        }
+      },
+      "suppress": [
+        {
+          "field": "subjectUserName",
+          "op": "in",
+          "value": "$lists.approvedAdminAccounts"
+        }
+      ],
+      "context": {
+        "summary": "Encoded commands, in-memory download cradles and hidden windows are staples of malicious PowerShell.",
+        "falsePositives": [
+          "Configuration management (SCCM, Intune, Ansible) and RMM tools",
+          "Admin automation using encoded commands"
+        ],
+        "maliciousIndicators": [
+          "Parent is Office, a browser, or a script host",
+          "Decoded payload downloads or injects code",
+          "Run by a user who does not normally use PowerShell"
+        ]
+      },
+      "response": {
+        "investigate": [
+          {
+            "title": "Decode a base64 payload from the command line",
+            "shell": "powershell",
+            "command": "[Text.Encoding]::Unicode.GetString([Convert]::FromBase64String('<paste the base64 string here>'))",
+            "risk": "read-only"
+          },
+          {
+            "title": "Hunt this host's recent process creations",
+            "shell": "powershell",
+            "command": "Get-WinEvent -ComputerName '{{computer}}' -FilterHashtable @{LogName='Security';Id=4688} -MaxEvents 500 | Select-Object TimeCreated,@{n='Cmd';e={$_.Properties[8].Value}}",
+            "risk": "read-only"
+          }
+        ],
+        "remediate": [
+          {
+            "title": "Isolate the host (EDR or network quarantine) pending triage",
+            "shell": "manual",
+            "command": "Use your EDR / NAC to isolate {{computer}}.",
+            "risk": "disruptive"
+          },
+          {
+            "title": "Disable the account pending review",
+            "shell": "powershell",
+            "command": "Disable-ADAccount -Identity '{{subjectUserName}}'",
+            "risk": "disruptive"
+          }
+        ]
+      }
+    },
+    {
+      "id": "EXEC-002",
+      "name": "Living-off-the-land binary abuse",
+      "kind": "match",
+      "severity": "high",
+      "confidence": 0.65,
+      "tags": [
+        "execution",
+        "lolbin"
+      ],
+      "attack": [
+        {
+          "tactic": "TA0011",
+          "technique": "T1105"
+        },
+        {
+          "tactic": "TA0005",
+          "technique": "T1218"
+        }
+      ],
+      "when": {
+        "eventIds": [
+          4688
+        ],
+        "condition": {
+          "any": [
+            {
+              "field": "commandLine",
+              "op": "regex",
+              "value": "certutil(\\.exe)?\\s.*-urlcache"
+            },
+            {
+              "field": "commandLine",
+              "op": "regex",
+              "value": "bitsadmin.*\\/transfer"
+            },
+            {
+              "field": "commandLine",
+              "op": "regex",
+              "value": "mshta(\\.exe)?\\s+(https?:|vbscript:|javascript:)"
+            },
+            {
+              "field": "commandLine",
+              "op": "regex",
+              "value": "regsvr32.*\\/i:https?:"
+            },
+            {
+              "field": "commandLine",
+              "op": "regex",
+              "value": "rundll32.*javascript:"
+            },
+            {
+              "field": "commandLine",
+              "op": "regex",
+              "value": "wmic.*process\\s+call\\s+create"
+            }
+          ]
+        }
+      },
+      "context": {
+        "summary": "Signed Windows binaries used to download or execute payloads while avoiding application allow-listing.",
+        "falsePositives": [
+          "certutil used to manage certificates (without -urlcache)",
+          "Software deployment scripts using bitsadmin"
+        ],
+        "maliciousIndicators": [
+          "Remote URL pointing to a raw IP or newly registered domain",
+          "Output written to a temp or user directory"
+        ]
+      },
+      "response": {
+        "investigate": [
+          {
+            "title": "Hunt this host's recent process creations",
+            "shell": "powershell",
+            "command": "Get-WinEvent -ComputerName '{{computer}}' -FilterHashtable @{LogName='Security';Id=4688} -MaxEvents 500 | Select-Object TimeCreated,@{n='Cmd';e={$_.Properties[8].Value}}",
+            "risk": "read-only"
+          }
+        ],
+        "remediate": [
+          {
+            "title": "Isolate the host (EDR or network quarantine) pending triage",
+            "shell": "manual",
+            "command": "Use your EDR / NAC to isolate {{computer}}.",
+            "risk": "disruptive"
+          }
+        ]
+      }
+    },
+    {
+      "id": "EXEC-003",
+      "name": "Office application spawned a command interpreter",
+      "kind": "match",
+      "severity": "high",
+      "confidence": 0.7,
+      "tags": [
+        "execution",
+        "phishing"
+      ],
+      "attack": [
+        {
+          "tactic": "TA0001",
+          "technique": "T1566.001"
+        },
+        {
+          "tactic": "TA0002",
+          "technique": "T1059"
+        }
+      ],
+      "when": {
+        "eventIds": [
+          4688
+        ],
+        "condition": {
+          "all": [
+            {
+              "field": "parentProcessName",
+              "op": "regex",
+              "value": "\\\\(winword|excel|powerpnt|outlook|msaccess)\\.exe$"
+            },
+            {
+              "field": "newProcessName",
+              "op": "regex",
+              "value": "\\\\(cmd|powershell|pwsh|wscript|cscript|mshta|rundll32|regsvr32)\\.exe$"
+            }
+          ]
+        }
+      },
+      "context": {
+        "summary": "Office should not normally launch shells or script hosts. This is the classic malicious-document pattern. Requires 4688 events that include ParentProcessName (Windows 10 / Server 2016+).",
+        "falsePositives": [
+          "Legitimate macros or add-ins that call cmd.exe",
+          "Line-of-business Excel workbooks automating tools"
+        ],
+        "maliciousIndicators": [
+          "Document recently downloaded or emailed",
+          "Child process makes network connections or downloads files"
+        ]
+      },
+      "response": {
+        "investigate": [
+          {
+            "title": "Hunt this host's recent process creations",
+            "shell": "powershell",
+            "command": "Get-WinEvent -ComputerName '{{computer}}' -FilterHashtable @{LogName='Security';Id=4688} -MaxEvents 500 | Select-Object TimeCreated,@{n='Cmd';e={$_.Properties[8].Value}}",
+            "risk": "read-only"
+          }
+        ],
+        "remediate": [
+          {
+            "title": "Isolate the host (EDR or network quarantine) pending triage",
+            "shell": "manual",
+            "command": "Use your EDR / NAC to isolate {{computer}}.",
+            "risk": "disruptive"
+          }
+        ]
+      }
+    },
+    {
+      "id": "CRED-001",
+      "name": "Credential dumping tool or technique",
+      "kind": "match",
+      "severity": "critical",
+      "confidence": 0.8,
+      "tags": [
+        "credential-access"
+      ],
+      "attack": [
+        {
+          "tactic": "TA0006",
+          "technique": "T1003"
+        },
+        {
+          "tactic": "TA0006",
+          "technique": "T1003.001"
+        }
+      ],
+      "when": {
+        "eventIds": [
+          4688
+        ],
+        "condition": {
+          "any": [
+            {
+              "field": "commandLine",
+              "op": "regex",
+              "value": "mimikatz|sekurlsa|lsadump::"
+            },
+            {
+              "field": "commandLine",
+              "op": "regex",
+              "value": "procdump.*lsass"
+            },
+            {
+              "field": "commandLine",
+              "op": "regex",
+              "value": "comsvcs\\.dll.*minidump"
+            },
+            {
+              "field": "commandLine",
+              "op": "regex",
+              "value": "ntdsutil.*\\bifm\\b"
+            },
+            {
+              "field": "commandLine",
+              "op": "regex",
+              "value": "reg(\\.exe)?\\s+save\\s+hklm\\\\(sam|security|system)"
+            }
+          ]
+        }
+      },
+      "context": {
+        "summary": "Command lines that dump LSASS memory, SAM/SECURITY hives or the AD database give attackers reusable credentials.",
+        "falsePositives": [
+          "Authorized red-team / pen-test activity",
+          "Crash-dump collection by a documented debugging process"
+        ],
+        "maliciousIndicators": [
+          "Executed by a non-admin or unexpected account",
+          "Dump file written to a temp path and then copied off-host"
+        ]
+      },
+      "response": {
+        "investigate": [
+          {
+            "title": "Hunt this host's recent process creations",
+            "shell": "powershell",
+            "command": "Get-WinEvent -ComputerName '{{computer}}' -FilterHashtable @{LogName='Security';Id=4688} -MaxEvents 500 | Select-Object TimeCreated,@{n='Cmd';e={$_.Properties[8].Value}}",
+            "risk": "read-only"
+          }
+        ],
+        "remediate": [
+          {
+            "title": "Isolate the host (EDR or network quarantine) pending triage",
+            "shell": "manual",
+            "command": "Use your EDR / NAC to isolate {{computer}}.",
+            "risk": "disruptive"
+          },
+          {
+            "title": "Reset credentials of every account that logged on to the host",
+            "shell": "manual",
+            "command": "Treat all accounts with sessions on {{computer}} as compromised; reset and rotate KRBTGT if a DC is involved.",
+            "risk": "disruptive"
+          }
+        ]
+      }
+    },
+    {
+      "id": "CRED-002",
+      "name": "Many service tickets requested by one account (Kerberoasting heuristic)",
+      "kind": "threshold",
+      "severity": "medium",
+      "confidence": 0.4,
+      "tags": [
+        "credential-access"
+      ],
+      "attack": [
+        {
+          "tactic": "TA0006",
+          "technique": "T1558.003"
+        }
+      ],
+      "when": {
+        "eventIds": [
+          4769
+        ],
+        "condition": {
+          "all": [
+            {
+              "not": {
+                "field": "serviceName",
+                "op": "endsWith",
+                "value": "$"
+              }
+            },
+            {
+              "not": {
+                "field": "serviceName",
+                "op": "eq",
+                "value": "krbtgt"
+              }
+            }
+          ]
+        },
+        "groupBy": [
+          "targetUserName",
+          "ipAddress"
+        ],
+        "distinct": "serviceName",
+        "count": 10,
+        "window": "10m"
+      },
+      "context": {
+        "summary": "Requesting tickets for many distinct service accounts quickly can be offline password cracking prep. This rule does not see ticket encryption type; check for RC4 (0x17) in the raw events.",
+        "falsePositives": [
+          "Admin tools and monitoring that enumerate SPNs",
+          "Application servers touching many services at startup"
+        ],
+        "maliciousIndicators": [
+          "RC4 (0x17) ticket encryption",
+          "Requests from a workstation not used for admin work"
+        ]
+      }
+    },
+    {
+      "id": "DISC-001",
+      "name": "Account and group discovery commands",
+      "kind": "match",
+      "severity": "medium",
+      "confidence": 0.35,
+      "tags": [
+        "discovery"
+      ],
+      "attack": [
+        {
+          "tactic": "TA0007",
+          "technique": "T1069.001"
+        },
+        {
+          "tactic": "TA0007",
+          "technique": "T1069.002"
+        },
+        {
+          "tactic": "TA0007",
+          "technique": "T1087"
+        }
+      ],
+      "when": {
+        "eventIds": [
+          4688
+        ],
+        "condition": {
+          "any": [
+            {
+              "field": "commandLine",
+              "op": "regex",
+              "value": "\\bnet1?(\\.exe)?\\s+(group|localgroup)\\s+.*(admins|administrators)"
+            },
+            {
+              "field": "commandLine",
+              "op": "regex",
+              "value": "nltest.*\\/(dclist|domain_trusts)"
+            },
+            {
+              "field": "commandLine",
+              "op": "regex",
+              "value": "whoami\\s+\\/(priv|all|groups)"
+            },
+            {
+              "field": "commandLine",
+              "op": "regex",
+              "value": "\\b(dsquery|adfind)\\b"
+            }
+          ]
+        }
+      },
+      "context": {
+        "summary": "Reconnaissance of privileged groups and domain structure usually follows initial access.",
+        "falsePositives": [
+          "Administrators troubleshooting access",
+          "Inventory and audit scripts"
+        ],
+        "maliciousIndicators": [
+          "Several discovery commands in quick succession",
+          "Run from a user or service account that is not an admin"
+        ]
+      }
+    },
+    {
+      "id": "EVAS-001",
+      "name": "Security tooling or logging tampering command",
+      "kind": "match",
+      "severity": "high",
+      "confidence": 0.6,
+      "tags": [
+        "defense-evasion"
+      ],
+      "attack": [
+        {
+          "tactic": "TA0005",
+          "technique": "T1562.001"
+        },
+        {
+          "tactic": "TA0005",
+          "technique": "T1070.001"
+        }
+      ],
+      "when": {
+        "eventIds": [
+          4688
+        ],
+        "condition": {
+          "any": [
+            {
+              "field": "commandLine",
+              "op": "regex",
+              "value": "wevtutil(\\.exe)?\\s+(cl|clear-log)"
+            },
+            {
+              "field": "commandLine",
+              "op": "regex",
+              "value": "auditpol.*\\/(clear|remove)"
+            },
+            {
+              "field": "commandLine",
+              "op": "regex",
+              "value": "set-mppreference.*-disable"
+            },
+            {
+              "field": "commandLine",
+              "op": "regex",
+              "value": "add-mppreference.*-exclusion"
+            },
+            {
+              "field": "commandLine",
+              "op": "regex",
+              "value": "sc(\\.exe)?\\s+(stop|config)\\s+(eventlog|windefend|sense)"
+            },
+            {
+              "field": "commandLine",
+              "op": "regex",
+              "value": "netsh.*advfirewall.*state\\s+off"
+            }
+          ]
+        }
+      },
+      "context": {
+        "summary": "Commands that disable antivirus, firewall or logging are used to hide later stages of an attack.",
+        "falsePositives": [
+          "Authorized AV exclusion requests",
+          "Software installers that temporarily stop security services"
+        ],
+        "maliciousIndicators": [
+          "Executed by a non-admin or remote session",
+          "Followed by suspicious process activity"
+        ]
+      },
+      "response": {
+        "investigate": [
+          {
+            "title": "Hunt this host's recent process creations",
+            "shell": "powershell",
+            "command": "Get-WinEvent -ComputerName '{{computer}}' -FilterHashtable @{LogName='Security';Id=4688} -MaxEvents 500 | Select-Object TimeCreated,@{n='Cmd';e={$_.Properties[8].Value}}",
+            "risk": "read-only"
+          }
+        ],
+        "remediate": [
+          {
+            "title": "Isolate the host (EDR or network quarantine) pending triage",
+            "shell": "manual",
+            "command": "Use your EDR / NAC to isolate {{computer}}.",
+            "risk": "disruptive"
+          }
+        ]
+      }
+    },
+    {
+      "id": "IMP-001",
+      "name": "Backup or shadow copy destruction (ransomware precursor)",
+      "kind": "match",
+      "severity": "critical",
+      "confidence": 0.85,
+      "tags": [
+        "ransomware"
+      ],
+      "attack": [
+        {
+          "tactic": "TA0040",
+          "technique": "T1490"
+        }
+      ],
+      "when": {
+        "eventIds": [
+          4688
+        ],
+        "condition": {
+          "any": [
+            {
+              "field": "commandLine",
+              "op": "regex",
+              "value": "vssadmin(\\.exe)?\\s+delete\\s+shadows"
+            },
+            {
+              "field": "commandLine",
+              "op": "regex",
+              "value": "wmic.*shadowcopy.*delete"
+            },
+            {
+              "field": "commandLine",
+              "op": "regex",
+              "value": "bcdedit.*recoveryenabled\\s+no"
+            },
+            {
+              "field": "commandLine",
+              "op": "regex",
+              "value": "wbadmin.*delete\\s+(catalog|backup|systemstatebackup)"
+            },
+            {
+              "field": "commandLine",
+              "op": "regex",
+              "value": "win32_shadowcopy.*delete"
+            }
+          ]
+        }
+      },
+      "context": {
+        "summary": "Deleting shadow copies and backup catalogs prevents recovery and is among the most reliable ransomware signals.",
+        "falsePositives": [
+          "Rare: storage-pressure maintenance scripts run by admins"
+        ],
+        "maliciousIndicators": [
+          "Occurs minutes before mass file modification",
+          "Executed from a remote session or a script in a temp path"
+        ]
+      },
+      "response": {
+        "investigate": [
+          {
+            "title": "Check for encrypted-file activity on the host",
+            "shell": "manual",
+            "command": "Look for rapid file renames/extension changes on {{computer}} and notify the incident commander immediately.",
+            "risk": "read-only"
+          }
+        ],
+        "remediate": [
+          {
+            "title": "Isolate the host (EDR or network quarantine) pending triage",
+            "shell": "manual",
+            "command": "Use your EDR / NAC to isolate {{computer}}.",
+            "risk": "disruptive"
+          }
+        ]
+      }
+    },
+    {
+      "id": "LAT-001",
+      "name": "Network logon, special privileges, then encoded PowerShell in the same session",
+      "kind": "sequence",
+      "severity": "high",
+      "confidence": 0.75,
+      "tags": [
+        "lateral-movement",
+        "sequence",
+        "phase3"
+      ],
+      "attack": [
+        {
+          "tactic": "TA0008",
+          "technique": "T1021.002"
+        },
+        {
+          "tactic": "TA0002",
+          "technique": "T1059.001"
+        }
+      ],
+      "when": {
+        "within": "10m",
+        "correlateOn": [
+          {
+            "name": "session",
+            "bind": {
+              "logon": "targetLogonId",
+              "priv": "subjectLogonId",
+              "proc": "subjectLogonId"
+            }
+          }
+        ],
+        "steps": [
+          {
+            "id": "logon",
+            "eventIds": [
+              4624
+            ],
+            "condition": {
+              "field": "logonType",
+              "op": "in",
+              "value": [
+                3,
+                10
+              ]
+            }
+          },
+          {
+            "id": "priv",
+            "eventIds": [
+              4672
+            ]
+          },
+          {
+            "id": "proc",
+            "eventIds": [
+              4688
+            ],
+            "condition": {
+              "field": "commandLine",
+              "op": "regex",
+              "value": "-e(nc(odedcommand)?)?\\s+[A-Za-z0-9+/=]{40,}"
+            }
+          }
+        ]
+      },
+      "suppress": [
+        {
+          "field": "subjectUserName",
+          "op": "in",
+          "value": "$lists.approvedAdminAccounts"
+        }
+      ],
+      "context": {
+        "summary": "A remote logon that gets admin privileges and immediately runs encoded PowerShell is a common lateral-movement pattern. Loaded now; evaluated once the Phase 3 correlation engine ships.",
+        "falsePositives": [
+          "Configuration management and approved admin automation"
+        ]
+      }
+    }
+  ]
+}

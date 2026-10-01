@@ -1,3 +1,5 @@
+import type { AnalysisResult, PackInput } from './analysis'
+
 /** Canonical, vendor-neutral Windows Security event. Raw records are discarded after normalization. */
 export interface CanonicalEvent {
   eventId: number
@@ -60,12 +62,12 @@ export interface IngestSummary {
 }
 
 export type ToWorker =
-  | { type: 'start'; file: File }
+  | { type: 'start'; file: File; packs: PackInput[] }
   | { type: 'cancel' }
   | { type: 'destroy' }
 
 export type FromWorker =
   | { type: 'progress'; bytes: number; total: number; events: number; rejected: number }
-  | { type: 'done'; summary: IngestSummary }
+  | { type: 'done'; result: AnalysisResult }
   | { type: 'cancelled' }
   | { type: 'error'; message: string }

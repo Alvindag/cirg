@@ -1,7 +1,7 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://local/schemas/triage-rules.schema.json",
-  "title": "Triage Rule Pack (DRAFT v1.0 - consumed by the engine in Phase 2)",
+  "title": "Triage Rule Pack v1.0",
   "type": "object",
   "required": ["schemaVersion", "pack", "rules"],
   "additionalProperties": false,
@@ -45,7 +45,7 @@
           "summary": { "type": "string" },
           "falsePositives": { "type": "array", "items": { "type": "string" } },
           "maliciousIndicators": { "type": "array", "items": { "type": "string" } },
-          "references": { "type": "array", "items": { "type": "string", "format": "uri" } } } },
+          "references": { "type": "array", "items": { "type": "string", "pattern": "^https?://" } } } },
         "response": { "type": "object", "properties": {
           "investigate": { "type": "array", "items": { "$ref": "#/$defs/action" } },
           "remediate": { "type": "array", "items": { "$ref": "#/$defs/action" } } } }

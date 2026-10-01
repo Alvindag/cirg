@@ -1,5 +1,5 @@
 /// <reference lib="webworker" />
-import { ingest } from '../core/ingest'
+import { analyze } from '../core/analysis'
 import type { FromWorker, ToWorker } from '../core/types'
 
 let cancelled = false
@@ -16,13 +16,13 @@ self.onmessage = async (ev: MessageEvent<ToWorker>) => {
   let file: File | null = msg.file
   try {
     const total = file.size
-    const summary = await ingest(file, {
+    const result = await analyze(file, msg.packs, {
       isCancelled: () => cancelled,
       onProgress: (p) => post({ type: 'progress', total, ...p }),
     })
-    post(summary ? { type: 'done', summary } : { type: 'cancelled' })
+    post(result ? { type: 'done', result } : { type: 'cancelled' })
   } catch (e) {
-    post({ type: 'error', message: e instanceof Error ? e.message : 'Unknown ingest error' })
+    post({ type: 'error', message: e instanceof Error ? e.message : 'Unknown analysis error' })
   } finally {
     file = null // drop the only reference to the File handle
     running = false

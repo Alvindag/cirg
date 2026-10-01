@@ -7,15 +7,31 @@ Strictly client-side. Log data is never uploaded, stored (Local/Session storage,
 | Phase | Scope | State |
 |---|---|---|
 | 1 | Secure scaffold, streaming ingestion (CSV / NDJSON+JSON / XML), canonical model, worker lifecycle, CSP | **Done** (gate passing) |
-| 2 | Rule engine (`match`, `threshold`), Ajv standalone validation, starter rule pack, ATT&CK mapping, rule tester UI | Planned |
+| 2 | Rule engine (`match`, `threshold`), Ajv standalone validation, starter rule pack, ATT&CK mapping, rule tester UI | **Done** (gate passing) |
 | 3 | Correlation engine (`sequence`, key indexes, TTL windows), attack-chain builder, risk scoring, EVTX via WASM | Planned |
 | 4 | Report (exec summary / deep dive / context / next steps), JSON + HTML + print-PDF export, a11y and security hardening | Planned |
 
-Phase 1 deviations from the original plan, to be revisited:
+## Phase 2: rule engine (as built)
+
+- **Schema:** `schemas/rules.schema.json` (JSON Schema 2020-12) is precompiled by `npm run gen:validator` into `src/generated/validateRules.js`. The output is self-contained (no `eval`, no imports), and a test fails if it is stale.
+- **Loading** (`core/rules/load.ts`): JSON or YAML (YAML core schema, alias-bomb limit, 2 MB cap), then schema validation, then semantic checks (kind matches `when` shape, duplicate ids, unknown ATT&CK tactic = error, unknown technique = warning), then per-rule compilation. One bad rule is reported and skipped; it never silently disables the pack. A later pack's rule with the same id overrides an earlier one (with a warning).
+- **Compile-time safety** (`core/rules/compile.ts`): unknown fields, unknown `$lists`, bad CIDRs and invalid regexes are errors. Regexes are length-capped, linted for nested quantifiers (a heuristic, not a proof), and only ever run on the first 4096 characters of a field. A per-rule time budget (sampled 1-in-128) disables a runaway rule and shows a visible warning.
+- **Engine** (`core/rules/engine.ts`): events are dispatched by Event ID. `match` rules aggregate into one finding per rule (count, first/last, earliest 25 evidence events, top accounts/hosts/IPs). `threshold` rules are order-independent: timestamps per group are collected and a sliding window runs at finalize, so newest-first SIEM exports work. Each separate burst becomes a finding. `distinct` counts distinct values (spray, Kerberoast heuristic).
+- **Response templates** (`core/rules/render.ts`): `{{field}}` values are escaped per shell and capped in length. PowerShell templates must wrap each placeholder in single quotes (enforced at load); all PowerShell quote look-alikes are neutralised. Commands are displayed and copyable, and the app never executes them.
+- **Starter pack** (`rules/default-pack.json`): 21 rules covering log clearing, audit tampering, brute force/spray, external logons, persistence (services, tasks, accounts, privileged groups), PowerShell/LOLBin/Office abuse, credential dumping, discovery, defense evasion and shadow-copy deletion. Each rule has ATT&CK mappings, false-positive guidance, and investigate/remediate actions. `LAT-001` is a `sequence` rule: it validates and loads, but is evaluated only once Phase 3 ships.
+- **ATT&CK:** offline subset in `core/attack.ts`. Extend it together with new rules.
+
+### Known limits (Phase 2)
+- Threshold evidence is capped per group (1000 events; 100k timestamps; 50k groups per rule). Counts stay accurate until the stamp cap, and the UI says when evidence was not retained.
+- Rules can only reference the canonical fields in `core/rules/compile.ts` (`FIELD_NAMES`). Fields such as Kerberos ticket encryption type are not yet normalized, so CRED-002 is a heuristic only.
+- AUTH-004 evaluates IPv4 only.
+- Rule packs from other people are untrusted input, but a malicious pack can still generate noise or hide detections via `suppress`. Review packs before use.
+
+## Phase 1 deviations from the original plan, to be revisited:
 - A **single ingest worker** does parse, normalize, and aggregate. The orchestrator / parser-pool / analysis-worker split arrives with Phase 2-3, when there is analysis work worth parallelising.
 - UI uses plain CSS. Radix + Tailwind (build-time) and TanStack Table are introduced with the findings views in Phase 2.
 - EVTX is detected (magic bytes) and rejected with `wevtutil` export instructions until the Phase 3 WASM parser.
-- Normalized events are not retained (only counters and a 200-event sample). Phase 2 plugs rules in at `ingest()`'s `onEvent` hook.
+- Normalized events are not retained (only counters and a 200-event sample); the rule engine consumes them through `ingest()`'s `onEvent` hook.
 
 ## Stack
 
