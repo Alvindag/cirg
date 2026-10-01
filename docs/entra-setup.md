@@ -13,6 +13,10 @@ Two app registrations in the Entra admin centre (in the vendor tenant that publi
 2. API permissions: the `access_as_user` scope of the API above (plus `openid`, `profile`, `offline_access`).
 3. Conditional Access (MFA, compliant device) is enforced by Entra on the customer's side; nothing to build in the app.
 
+## 2b. Web dashboard registration ("DAS Engage 360 Web")
+Platform *Single-page application* with redirect URI `https://<dashboard-host>/` (and `http://localhost:5173/` for development). API permission: `access_as_user`.
+Build settings are in `src/web/README.md`; add the dashboard origin to `Cors:AllowedOrigins` on the API.
+
 ## 3. API configuration (`appsettings.json` / App Service settings)
 ```json
 "Auth": {

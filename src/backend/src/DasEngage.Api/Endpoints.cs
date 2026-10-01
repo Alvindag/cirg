@@ -13,6 +13,7 @@ public static class Endpoints
         MapFieldForce(api);
         MapSync(api);
         MapDashboards(api);
+        MapDashboardCharts(api);
         MapAdmin(api);
         AdminUsers.Map(api);
         AttachmentEndpoints.Map(api);
@@ -387,6 +388,45 @@ public static class Endpoints
                 coveragePct = total == 0 ? 0 : Math.Round(100.0 * visited / total, 1),
                 byRep,
             });
+        });
+    }
+
+    // ---------- Dashboards (trend and product views for the web app) ----------
+    internal static void MapDashboardCharts(RouteGroupBuilder api)
+    {
+        // Completed calls per day, for the activity trend chart.
+        api.MapGet("/dashboards/trend", async (AppDbContext db, TeamScope team, DateTime from, DateTime to) =>
+        {
+            var ids = await team.VisibleUserIds();
+            var q = db.Visits.AsNoTracking().Where(v => v.CheckInAt >= from && v.CheckInAt <= to && v.Status == VisitStatus.Completed);
+            if (ids != null) q = q.Where(v => ids.Contains(v.RepId));
+            var rows = await q.Select(v => v.CheckInAt).ToListAsync();
+            var byDay = rows.GroupBy(d => DateOnly.FromDateTime(d)).ToDictionary(g => g.Key, g => g.Count());
+            var days = new List<object>();
+            for (var d = DateOnly.FromDateTime(from); d <= DateOnly.FromDateTime(to) && days.Count < 366; d = d.AddDays(1))
+                days.Add(new { date = d, calls = byDay.GetValueOrDefault(d) });
+            return Results.Ok(days);
+        });
+
+        // Product engagement: how often each product was discussed on calls, and how many sample units went out.
+        api.MapGet("/dashboards/products", async (AppDbContext db, TeamScope team, DateTime from, DateTime to) =>
+        {
+            var ids = await team.VisibleUserIds();
+            var reports = db.CallReports.AsNoTracking().Where(r => r.CreatedAt >= from && r.CreatedAt <= to);
+            if (ids != null) reports = reports.Where(r => ids.Contains(r.RepId));
+            var discussed = await reports.SelectMany(r => r.Products).GroupBy(p => p.ProductId)
+                .Select(g => new { productId = g.Key, calls = g.Count() }).ToListAsync();
+            var dist = db.SampleDistributions.AsNoTracking().Where(d => d.DistributedAt >= from && d.DistributedAt <= to);
+            if (ids != null) dist = dist.Where(d => ids.Contains(d.RepId));
+            var samples = await dist.GroupBy(d => d.ProductId).Select(g => new { productId = g.Key, units = g.Sum(d => d.Quantity) }).ToListAsync();
+            var products = await db.Products.AsNoTracking().ToDictionaryAsync(p => p.Id, p => p.Name);
+            var all = discussed.Select(d => d.productId).Union(samples.Select(s => s.productId)).Distinct();
+            return Results.Ok(all.Select(id => new
+            {
+                productId = id, name = products.GetValueOrDefault(id, "Unknown"),
+                calls = discussed.FirstOrDefault(d => d.productId == id)?.calls ?? 0,
+                sampleUnits = samples.FirstOrDefault(s => s.productId == id)?.units ?? 0,
+            }).OrderByDescending(x => x.calls).ThenByDescending(x => x.sampleUnits));
         });
     }
 

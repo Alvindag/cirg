@@ -36,6 +36,12 @@ builder.Services.AddSingleton<IBlobStore>(sp =>
         ? new AzureBlobStore(c["ConnectionString"], c["AccountUrl"], c["Container"] ?? "attachments")
         : new LocalBlobStore(c["LocalPath"] ?? Path.Combine(Path.GetTempPath(), "das-engage-attachments"));
 });
+// The web dashboard runs on its own origin: only the origins listed in Cors:AllowedOrigins may call the API from a browser.
+builder.Services.AddCors(o => o.AddDefaultPolicy(p =>
+{
+    var origins = builder.Configuration.GetSection("Cors:AllowedOrigins").Get<string[]>() ?? Array.Empty<string>();
+    if (origins.Length > 0) p.WithOrigins(origins).AllowAnyHeader().AllowAnyMethod().WithExposedHeaders("Content-Disposition");
+}));
 builder.Services.AddMemoryCache();
 builder.Services.AddScoped<Microsoft.AspNetCore.Authentication.IClaimsTransformation, AppClaimsTransformation>();
 builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme).AddJwtBearer();
@@ -93,6 +99,7 @@ var app = builder.Build();
 
 if (!app.Environment.IsProduction()) { app.UseSwagger(); app.UseSwaggerUI(); }
 app.UseHttpsRedirection();
+app.UseCors();
 app.UseRateLimiter();
 app.UseAuthentication();
 app.UseAuthorization();

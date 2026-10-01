@@ -1,0 +1,44 @@
+import type { ReactNode } from 'react'
+
+export function Loading({ what = 'Loading' }: { what?: string }) {
+  return <div className="muted" role="status">{what}…</div>
+}
+
+export function ErrorBox({ message, onRetry }: { message: string; onRetry?: () => void }) {
+  return (
+    <div className="error" role="alert">
+      {message}
+      {onRetry && <button className="link" onClick={onRetry}>Try again</button>}
+    </div>
+  )
+}
+
+export function Kpi({ label, value, hint, tone }: { label: string; value: string; hint?: string; tone?: 'good' | 'warn' | 'bad' }) {
+  return (
+    <div className={`kpi ${tone ?? ''}`}>
+      <div className="kpi-label">{label}</div>
+      <div className="kpi-value">{value}</div>
+      {hint && <div className="kpi-hint">{hint}</div>}
+    </div>
+  )
+}
+
+export function Section({ title, actions, children }: { title: string; actions?: ReactNode; children: ReactNode }) {
+  return (
+    <section className="card">
+      <div className="card-head">
+        <h2>{title}</h2>
+        <div>{actions}</div>
+      </div>
+      {children}
+    </section>
+  )
+}
+
+export function Badge({ tone, children }: { tone?: 'good' | 'warn' | 'bad' | 'muted'; children: ReactNode }) {
+  return <span className={`badge ${tone ?? 'muted'}`}>{children}</span>
+}
+
+export function Empty({ children }: { children: ReactNode }) {
+  return <p className="muted">{children}</p>
+}

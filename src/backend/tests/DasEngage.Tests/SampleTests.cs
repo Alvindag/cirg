@@ -395,3 +395,51 @@ public class SampleTests : IClassFixture<ApiFactory>
         Assert.Equal("\"\"", SampleReports.Csv(null));
     }
 }
+
+public class DashboardChartTests : IClassFixture<ApiFactory>
+{
+    private readonly ApiFactory _f;
+    public DashboardChartTests(ApiFactory f) => _f = f;
+
+    [Fact]
+    public async Task Trend_and_product_views_are_scoped_and_complete()
+    {
+        var tenant = Guid.NewGuid(); var rep = Guid.NewGuid(); var other = Guid.NewGuid(); var terr = Guid.NewGuid();
+        var admin = _f.ClientFor(tenant, Guid.NewGuid(), "Admin");
+        var product = (await (await admin.PostAsJsonAsync("/api/v1/admin/products", new Product { Name = "Amoxil" })).Content.ReadFromJsonAsync<JsonElement>()).GetProperty("id").GetGuid();
+        var cust = (await (await admin.PostAsJsonAsync("/api/v1/customers", new CustomerDto(null, CustomerType.Doctor, "Dr A", null, Segment.A, terr, null, null, null, null, null, null, null, 2, null))).Content.ReadFromJsonAsync<JsonElement>()).GetProperty("id").GetGuid();
+
+        foreach (var r in new[] { rep, other })
+        {
+            var c = _f.ClientFor(tenant, r, "Rep", terr);
+            var vid = Guid.NewGuid();
+            var push = new SyncPushRequest(
+                new() { new CheckInOp(vid, new CheckInDto(null, cust, null, DateTime.UtcNow.AddMinutes(-30), null, null, null), new CheckOutDto(DateTime.UtcNow, null, null)) },
+                new() { new CallReportOp(new CallReportDto(Guid.NewGuid(), vid, "n", "Positive", null, null, new() { new CallProductDto(product, "good") })) }, null, null);
+            (await c.PostAsJsonAsync("/api/v1/sync/push", push)).EnsureSuccessStatusCode();
+        }
+
+        var from = Uri.EscapeDataString(DateTime.UtcNow.AddDays(-2).ToString("O")); var to = Uri.EscapeDataString(DateTime.UtcNow.AddDays(1).ToString("O"));
+        var trend = await admin.GetFromJsonAsync<JsonElement>($"/api/v1/dashboards/trend?from={from}&to={to}");
+        Assert.True(trend.GetArrayLength() >= 3);
+        Assert.Equal(2, trend.EnumerateArray().Sum(d => d.GetProperty("calls").GetInt32())); // gaps are filled with zeros
+
+        var products = await admin.GetFromJsonAsync<JsonElement>($"/api/v1/dashboards/products?from={from}&to={to}");
+        Assert.Equal("Amoxil", products[0].GetProperty("name").GetString());
+        Assert.Equal(2, products[0].GetProperty("calls").GetInt32());
+
+        // a rep sees only their own activity
+        var mine = await _f.ClientFor(tenant, rep, "Rep", terr).GetFromJsonAsync<JsonElement>($"/api/v1/dashboards/products?from={from}&to={to}");
+        Assert.Equal(1, mine[0].GetProperty("calls").GetInt32());
+    }
+
+    [Fact]
+    public async Task Cors_only_allows_configured_origins()
+    {
+        var c = _f.CreateClient();
+        var preflight = new HttpRequestMessage(HttpMethod.Options, "/api/v1/me");
+        preflight.Headers.Add("Origin", "http://evil.example");
+        preflight.Headers.Add("Access-Control-Request-Method", "GET");
+        Assert.False((await c.SendAsync(preflight)).Headers.Contains("Access-Control-Allow-Origin"));
+    }
+}

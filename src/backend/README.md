@@ -71,6 +71,10 @@ Stock is an **immutable ledger** (`StockMovement`): nothing is edited, every cha
 - `sync/pull` now also returns the caller's `sampleStock` (full snapshot) and their `sampleRequests` from the last 90 days.
 - Regulatory rules (sample limits per HCP, signature mandatory, controlled substances, record retention) vary: confirm them with the DAS regulatory team and the Ghana FDA before go-live.
 
+## Dashboard endpoints
+`GET /dashboards/sales`, `/dashboards/trend` (completed calls per day, zero-filled) and `/dashboards/products` (calls discussing each product, sample units given); all team-scoped.
+Browser access needs the dashboard origin in `Cors:AllowedOrigins`.
+
 ## Not yet done (known gaps)
 - PostgreSQL row-level security policies (defence in depth) – add in a migration.
 - Entra sign-in is tested with locally signed tokens (the real Entra metadata endpoint is not reachable from the build environment); verify once against a real tenant.
