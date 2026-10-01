@@ -1,0 +1,164 @@
+namespace DasEngage.Domain;
+
+public enum UserRole { Rep, AreaManager, RegionalManager, NationalSalesManager, Marketing, KeyAccountManager, Executive, Admin }
+
+public enum CustomerType { Doctor, Pharmacist, Hospital, Clinic, Pharmacy, Distributor, GovernmentInstitution }
+
+public enum Segment { A, B, C, Unclassified }
+
+public enum VisitStatus { Planned, InProgress, Completed, Missed, Cancelled }
+
+public enum FollowUpStatus { Open, Done, Cancelled }
+
+/// <summary>Base for all tenant-owned, syncable rows. Ids are client-generatable (UUID) for offline creation.</summary>
+public abstract class TenantEntity
+{
+    public Guid Id { get; set; } = Guid.NewGuid();
+    public Guid TenantId { get; set; }
+    public DateTime CreatedAt { get; set; }
+    public Guid? CreatedBy { get; set; }
+    public DateTime UpdatedAt { get; set; }
+    public Guid? UpdatedBy { get; set; }
+    /// <summary>Soft delete; doubles as a tombstone for offline sync.</summary>
+    public DateTime? DeletedAt { get; set; }
+}
+
+public class Tenant
+{
+    public Guid Id { get; set; } = Guid.NewGuid();
+    public string Name { get; set; } = "";
+    public bool IsActive { get; set; } = true;
+}
+
+public class Territory : TenantEntity
+{
+    public string Name { get; set; } = "";
+    public string? Region { get; set; }
+    public string? District { get; set; }
+}
+
+public class AppUser : TenantEntity
+{
+    /// <summary>Subject claim from the identity provider (Entra ID).</summary>
+    public string ExternalId { get; set; } = "";
+    public string FullName { get; set; } = "";
+    public string Email { get; set; } = "";
+    public UserRole Role { get; set; }
+    public Guid? ManagerId { get; set; }
+    public Guid? TerritoryId { get; set; }
+    public bool IsActive { get; set; } = true;
+}
+
+public class Product : TenantEntity
+{
+    public string Name { get; set; } = "";
+    public string? Code { get; set; }
+    public string? TherapeuticArea { get; set; }
+}
+
+public class Customer : TenantEntity
+{
+    public CustomerType Type { get; set; }
+    public string Name { get; set; } = "";
+    public string? Specialty { get; set; }
+    public Segment Segment { get; set; } = Segment.Unclassified;
+    public Guid? TerritoryId { get; set; }
+    /// <summary>For doctors/pharmacists: the hospital/clinic/pharmacy they are affiliated with.</summary>
+    public Guid? ParentCustomerId { get; set; }
+    public string? Phone { get; set; }
+    public string? Email { get; set; }
+    public string? Address { get; set; }
+    public string? City { get; set; }
+    public double? Latitude { get; set; }
+    public double? Longitude { get; set; }
+    /// <summary>Target visits per month, driven by segment.</summary>
+    public int TargetVisitsPerMonth { get; set; }
+    public List<CustomerProductInterest> ProductInterests { get; set; } = new();
+}
+
+public class CustomerProductInterest : TenantEntity
+{
+    public Guid CustomerId { get; set; }
+    public Guid ProductId { get; set; }
+}
+
+public class PlannedVisit : TenantEntity
+{
+    public Guid RepId { get; set; }
+    public Guid CustomerId { get; set; }
+    public DateOnly PlannedDate { get; set; }
+    public int Sequence { get; set; }
+    public VisitStatus Status { get; set; } = VisitStatus.Planned;
+    public string? Objective { get; set; }
+}
+
+public class Visit : TenantEntity
+{
+    public Guid RepId { get; set; }
+    public Guid CustomerId { get; set; }
+    public Guid? PlannedVisitId { get; set; }
+    public DateTime CheckInAt { get; set; }
+    public double? CheckInLat { get; set; }
+    public double? CheckInLng { get; set; }
+    public double? CheckInAccuracyM { get; set; }
+    public DateTime? CheckOutAt { get; set; }
+    public double? CheckOutLat { get; set; }
+    public double? CheckOutLng { get; set; }
+    /// <summary>Distance from the customer's recorded location at check-in; null if unknown.</summary>
+    public double? DistanceFromCustomerM { get; set; }
+    public bool? GeofenceOk { get; set; }
+    public VisitStatus Status { get; set; } = VisitStatus.InProgress;
+}
+
+public class CallReport : TenantEntity
+{
+    public Guid VisitId { get; set; }
+    public Guid RepId { get; set; }
+    public Guid CustomerId { get; set; }
+    public string? Notes { get; set; }
+    public string? Outcome { get; set; }
+    public string? NextStep { get; set; }
+    public string? VoiceNoteUrl { get; set; }
+    public List<CallReportProduct> Products { get; set; } = new();
+}
+
+public class CallReportProduct : TenantEntity
+{
+    public Guid CallReportId { get; set; }
+    public Guid ProductId { get; set; }
+    public string? Feedback { get; set; }
+}
+
+public class FollowUpTask : TenantEntity
+{
+    public Guid AssignedToId { get; set; }
+    public Guid? CustomerId { get; set; }
+    public Guid? CallReportId { get; set; }
+    public string Title { get; set; } = "";
+    public DateOnly? DueDate { get; set; }
+    public FollowUpStatus Status { get; set; } = FollowUpStatus.Open;
+}
+
+public class GpsPing : TenantEntity
+{
+    public Guid RepId { get; set; }
+    public DateTime RecordedAt { get; set; }
+    public double Latitude { get; set; }
+    public double Longitude { get; set; }
+    public double? AccuracyM { get; set; }
+}
+
+/// <summary>Append-only. Each entry hashes the previous one for tamper evidence.</summary>
+public class AuditLog
+{
+    public long Id { get; set; }
+    public Guid TenantId { get; set; }
+    public Guid? UserId { get; set; }
+    public DateTime At { get; set; }
+    public string Action { get; set; } = "";
+    public string EntityType { get; set; } = "";
+    public Guid EntityId { get; set; }
+    public string? Changes { get; set; }
+    public string? PrevHash { get; set; }
+    public string Hash { get; set; } = "";
+}
