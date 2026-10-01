@@ -34,7 +34,7 @@ describe('standalone HTML report', () => {
   })
 
   it('includes evidence integrity, logging assessment and control mapping; manual steps are prose, not code', async () => {
-    const csv = 'EventID,TimeGenerated,Computer,SubjectUserName,AuditPolicyChanges\n4719,2025-03-01T10:00:00Z,DC1,Administrator,%%8449\n4720,2025-03-01T20:00:00Z,DC1,Administrator,\n'
+    const csv = 'EventID,TimeGenerated,Computer,SubjectUserName,AuditPolicyChanges\n4719,2025-03-01T10:00:00Z,DC1,Administrator,%%8448\n4720,2025-03-01T20:00:00Z,DC1,Administrator,\n'
     const res = (await analyze(new Blob([csv]), [], { format: 'csv' }))!
     const html = await buildStandaloneHtml(buildReport(res, { redact: false, generatedAt: NOW, sourceName: 'x.csv', caseInfo: { id: 'INC-7', analyst: 'Sam' } }))
     for (const h of ['5.1 Methodology', '5.2 Evidence integrity and chain of custody', '5.3 Audit logging assessment', '5.4 Control mapping (indicative)', '5.5 Limitations']) expect(html).toContain(h)

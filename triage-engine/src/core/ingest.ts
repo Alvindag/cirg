@@ -36,7 +36,7 @@ export async function ingest(
   const s: IngestSummary = {
     format, bytes: file.size, totalRecords: 0, parsedEvents: 0, rejected: 0, rejectReasons: {},
     firstTs: null, lastTs: null, byEventId: {}, proc4688: 0, proc4688WithCmd: 0,
-    hourly: {}, hourlyTruncated: false, recordIds: { count: 0, min: Infinity, max: -Infinity, computers: 0, channels: 0 }, computers: [], computersTruncated: false, sample: [], elapsedMs: 0,
+    hourly: {}, hourlyTruncated: false, lastAuditPolicyChangeTs: null, recordIds: { count: 0, min: Infinity, max: -Infinity, computers: 0, channels: 0 }, computers: [], computersTruncated: false, sample: [], elapsedMs: 0,
   }
   const computers = new Set<string>()
   const channels = new Set<string>()
@@ -61,6 +61,7 @@ export async function ingest(
         if (summarize) {
           s.byEventId[e.eventId] = (s.byEventId[e.eventId] ?? 0) + 1
           if (e.eventId === 4688) { s.proc4688++; if (e.commandLine) s.proc4688WithCmd++ }
+          if (e.eventId === 4719 && (s.lastAuditPolicyChangeTs === null || e.ts > s.lastAuditPolicyChangeTs)) s.lastAuditPolicyChangeTs = e.ts
           if (s.firstTs === null || e.ts < s.firstTs) s.firstTs = e.ts
           if (s.lastTs === null || e.ts > s.lastTs) s.lastTs = e.ts
           const hr = Math.floor(e.ts / 3_600_000)

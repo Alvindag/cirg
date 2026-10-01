@@ -122,13 +122,19 @@ describe('real-world noise handling', () => {
     expect([removed!.severity, added!.severity]).toEqual(['high', 'info'])
     expect(unknown!.context.falsePositives.join()).toMatch(/enabling auditing/i)
   })
+  it('REGRESSION (real DC export): the exact codes seen when an admin ENABLED auditing classify as info, never high', () => {
+    // 5 success-only events and 3 success+failure events, as in the real report
+    const real = ['%%8449', '%%8449', '%%8449', '%%8449', '%%8449', '%%8449, %%8451', '%%8449, %%8451', '%%8449, %%8451']
+    const f = run(real.map((c, i) => ev({ eventId: 4719, subjectUserName: 'Administrator', ts: T0 + i, auditPolicyChanges: c }))).findings
+    expect(f.map((x) => [x.ruleId, x.severity, x.count])).toEqual([['AUD-004', 'info', 8]])
+  })
   it('REGRESSION (real DC data): enabling auditing is info, removing it is high, unknown direction stays medium', () => {
     const e = (changes?: string) => ev({ eventId: 4719, subjectUserName: 'Administrator', ...(changes ? { auditPolicyChanges: changes } : {}) })
-    expect(ids([e('%%8448, %%8450')])).toEqual(['AUD-004'])
-    expect(ids([e('%%8449')])).toEqual(['AUD-003'])
-    expect(ids([e('%%8448, %%8451')])).toEqual(['AUD-003']) // mixed: removal wins
+    expect(ids([e('%%8449, %%8451')])).toEqual(['AUD-004'])
+    expect(ids([e('%%8448')])).toEqual(['AUD-003'])
+    expect(ids([e('%%8449, %%8450')])).toEqual(['AUD-003']) // mixed: removal wins
     expect(ids([e()])).toEqual(['AUD-002'])
-    expect(run([e('%%8449')]).findings[0]!.severity).toBe('high')
+    expect(run([e('%%8448')]).findings[0]!.severity).toBe('high')
   })
 })
 

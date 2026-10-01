@@ -20,7 +20,7 @@ const T0 = Date.UTC(2025, 2, 1, 0, 0, 0)
 const summary = (o: Partial<IngestSummary> & { byEventId: Record<number, number> }): IngestSummary => ({
   format: 'evtx', bytes: 1, totalRecords: 1, parsedEvents: 1, rejected: 0, rejectReasons: {}, firstTs: T0, lastTs: T0 + 48 * H,
   computers: ['DC1'], computersTruncated: false, sample: [], elapsedMs: 1, proc4688: 0, proc4688WithCmd: 0, hourly: { [T0 / H]: 1, [T0 / H + 48]: 1 },
-  hourlyTruncated: false, recordIds: { count: 0, min: 0, max: 0, computers: 1, channels: 1 }, ...o,
+  hourlyTruncated: false, lastAuditPolicyChangeTs: null, recordIds: { count: 0, min: 0, max: 0, computers: 1, channels: 1 }, ...o,
 })
 const rows = (a: ReturnType<typeof assessLogging>) => Object.fromEntries(a.rows.map((r) => [r.id, r.status]))
 const RULES = [{ ruleId: 'CRED-002', eventIds: [4769] }, { ruleId: 'AUD-001', eventIds: [1102, 104] }, { ruleId: 'EXEC-001', eventIds: [4688] }]
@@ -46,6 +46,24 @@ describe('audit logging assessment', () => {
     const a = assessLogging(summary({ byEventId: { 4624: 5 }, firstTs: T0, lastTs: T0 + 25_000 }), RULES, 'dc')
     expect(rows(a)['kerb-tgs']).toBe('not-observed')
     expect(a.rows.find((r) => r.id === 'kerb-tgs')!.note).toMatch(/window is too short/)
+  })
+  it('REGRESSION (real DC): auditing enabled seconds before the export is NOT reported as a logging gap', () => {
+    const s = summary({ byEventId: { 4624: 900, 4719: 8 }, lastAuditPolicyChangeTs: T0 + 48 * H - 24_000 })
+    const a = assessLogging(s, RULES, 'dc')
+    expect(rows(a)['kerb-tgs']).toBe('not-observed')
+    expect(a.rows.find((r) => r.id === 'kerb-tgs')!.note).toMatch(/audit-policy change was recorded 24 second\(s\) before this export ended/)
+    expect(a.summary.possibleGaps).toBe(rows(a)['proc'] === 'possible-gap' ? 1 : 0)
+    expect(rows(a).proc).toBe('not-observed')
+    // an old change (days earlier) does not excuse a missing category
+    expect(rows(assessLogging(summary({ byEventId: { 4624: 900, 4719: 8 }, lastAuditPolicyChangeTs: T0 + 2 * H }), RULES, 'dc'))['kerb-tgs']).toBe('possible-gap')
+    // and it is annotated on partial command-line coverage too
+    const cl = assessLogging(summary({ byEventId: { 4688: 21 }, proc4688: 21, proc4688WithCmd: 3, lastAuditPolicyChangeTs: T0 + 48 * H - 24_000 }), RULES, 'dc').commandLine
+    expect(cl).toMatchObject({ status: 'partial', percent: 14 })
+    expect(cl.note).toMatch(/Re-export after a day/)
+  })
+  it('ingest records the latest 4719 timestamp', async () => {
+    const csv = 'EventID,TimeGenerated,Computer\n4719,2025-03-01T10:00:00Z,A\n4719,2025-03-01T12:00:00Z,A\n4624,2025-03-01T13:00:00Z,A\n'
+    expect((await ingest(new Blob([csv]), { format: 'csv' }))!.lastAuditPolicyChangeTs).toBe(Date.UTC(2025, 2, 1, 12))
   })
   it('command-line status: absent / partial / ok / not applicable', () => {
     const cl = (p: number, c: number) => assessLogging(summary({ byEventId: { 4688: p }, proc4688: p, proc4688WithCmd: c }), RULES).commandLine

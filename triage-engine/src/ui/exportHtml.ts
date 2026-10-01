@@ -1,4 +1,6 @@
+import { createElement } from 'react'
 import type { Report } from '../core/report/model'
+import { ReportDocument } from './ReportDocument'
 
 /**
  * Self-contained, script-free HTML report. All dynamic text goes through React's escaping (renderToStaticMarkup),
@@ -6,9 +8,8 @@ import type { Report } from '../core/report/model'
  * react-dom/server is loaded lazily so it is not part of the initial bundle.
  */
 export async function buildStandaloneHtml(report: Report): Promise<string> {
-  const [{ renderToStaticMarkup }, { createElement }, { ReportDocument }, css] = await Promise.all([
-    import('react-dom/server'), import('react'), import('./ReportDocument'), import('./report.css?inline'),
-  ])
+  // react and ReportDocument are already in the main bundle; only the server renderer and the inline CSS are loaded lazily.
+  const [{ renderToStaticMarkup }, css] = await Promise.all([import('react-dom/server'), import('./report.css?inline')])
   const body = renderToStaticMarkup(createElement(ReportDocument, { report }))
   const day = report.generatedAt.slice(0, 10)
   // The only interpolated values besides `body` are a fixed string, an ISO date derived from a Date, and CSS from our own bundle.

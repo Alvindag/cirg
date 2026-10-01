@@ -180,7 +180,7 @@ export function buildReport(r: AnalysisResult, opts: ReportOptions): Report {
   const limitations = [
     ...(r.summary.parsedEvents === 0 ? ['No events were parsed from this file, so no detections could run.'] : []),
     ...(r.summary.rejected > 0 ? [`${r.summary.rejected.toLocaleString()} of ${r.summary.totalRecords.toLocaleString()} records could not be parsed (${Object.entries(r.summary.rejectReasons).map(([k, v]) => `${k}: ${v}`).join('; ')}).`] : []),
-    ...gapRows.map((x) => `No ${x.area.toLowerCase()} events (${x.eventIds.join(', ')}) were observed in ${la.windowHours.toFixed(0)} hours although they normally appear constantly: the audit setting is probably off${x.affectedRules.length ? `, so ${x.affectedRules.join(', ')} had no data` : ''}.`),
+    ...gapRows.map((x) => `No ${x.area} events (${x.eventIds.join(', ')}) were observed in ${la.windowHours.toFixed(0)} hours although they normally appear constantly: the audit setting is probably off${x.affectedRules.length ? `, so ${x.affectedRules.join(', ')} had no data` : ''}.`),
     ...(la.commandLine.status === 'absent' || la.commandLine.status === 'partial' ? [la.commandLine.note] : []),
     ...(la.recordIntegrity.status === 'gaps' ? [la.recordIntegrity.note] : []),
     ...(la.logGaps.length ? [la.logGapsNote] : []),

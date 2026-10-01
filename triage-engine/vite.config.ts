@@ -45,6 +45,7 @@ export default defineConfig({
   build: {
     target: 'es2022',
     sourcemap: false,
+    chunkSizeWarningLimit: 700, // main bundle (React + app) is ~550 kB; the EVTX WASM and HTML renderer are already lazy chunks
     assetsInlineLimit: 0, // no data:/inline assets -> keeps style-src/script-src strict
     modulePreload: { polyfill: false }, // the polyfill injects inline code
   },

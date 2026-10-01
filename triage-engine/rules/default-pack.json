@@ -154,7 +154,7 @@
           {
             "title": "Check what changed: read 'Changes made' in event 4719 and compare with your change records",
             "shell": "manual",
-            "command": "Event Viewer > Windows Logs > Security > filter Event ID 4719 > Details. %%8448/%%8450 = Success/Failure added; %%8449/%%8451 = removed.",
+            "command": "Event Viewer > Windows Logs > Security > filter Event ID 4719 > Details. %%8449/%%8451 = Success/Failure added; %%8448/%%8450 = removed.",
             "risk": "read-only"
           },
           {
@@ -204,11 +204,11 @@
         "condition": {
           "field": "auditPolicyChanges",
           "op": "regex",
-          "value": "%%(8449|8451)|removed"
+          "value": "%%(8448|8450)|removed"
         }
       },
       "context": {
-        "summary": "An audit policy change removed Success or Failure auditing for a subcategory. Attackers disable auditing to hide later activity.",
+        "summary": "An audit policy change removed Success or Failure auditing for a subcategory. Attackers disable auditing to hide later activity. The direction is decoded from message-table codes in the event: always confirm \"Changes made\" in Event Viewer before acting.",
         "falsePositives": [
           "Planned reduction of noisy audit categories documented in a change record",
           "Group Policy replacing a local configuration with a different baseline"
@@ -281,13 +281,13 @@
             {
               "field": "auditPolicyChanges",
               "op": "regex",
-              "value": "%%(8448|8450)|added"
+              "value": "%%(8449|8451)|added"
             },
             {
               "not": {
                 "field": "auditPolicyChanges",
                 "op": "regex",
-                "value": "%%(8449|8451)|removed"
+                "value": "%%(8448|8450)|removed"
               }
             }
           ]

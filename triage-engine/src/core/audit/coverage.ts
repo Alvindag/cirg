@@ -53,6 +53,10 @@ export function assessLogging(s: IngestSummary, ruleEvents: RuleEvents[], roleOp
   const inferredDc = DC_SIGNS.some((id) => (s.byEventId[id] ?? 0) > 0)
   const role: LoggingAssessment['role'] = roleOpt === 'dc' ? 'dc' : roleOpt === 'member' ? 'member' : inferredDc ? 'dc' : 'unknown'
   const windowHours = s.firstTs !== null && s.lastTs !== null ? (s.lastTs - s.firstTs) / 3_600_000 : 0
+  // If auditing was changed shortly before the export ended, newly enabled categories have had no time to produce events.
+  const sinceChange = s.lastAuditPolicyChangeTs !== null && s.lastTs !== null ? s.lastTs - s.lastAuditPolicyChangeTs : null
+  const recentChange = sinceChange !== null && sinceChange >= 0 && sinceChange <= 6 * 3_600_000
+  const recentNote = recentChange ? ` An audit-policy change was recorded ${sinceChange! < 120_000 ? `${Math.max(1, Math.round(sinceChange! / 1000))} second(s)` : `${Math.round(sinceChange! / 60_000)} minute(s)`} before this export ended, so newly enabled categories may not have had time to produce events. Re-export after a day or more.` : ''
   const missingIds = new Set(AREAS.flatMap((a) => a.eventIds).filter((id) => (s.byEventId[id] ?? 0) === 0))
 
   const rows: AssessmentRow[] = AREAS.map((a) => {
@@ -60,6 +64,7 @@ export function assessLogging(s: IngestSummary, ruleEvents: RuleEvents[], roleOp
     let status: RowStatus, note: string
     if (observed > 0) { status = 'observed'; note = `${observed.toLocaleString()} event(s) observed.` }
     else if (a.dcOnly && role !== 'dc') { status = 'not-evaluated'; note = role === 'member' ? 'Applies to domain controllers only.' : 'Applies to domain controllers; the log source role is unknown (choose it above to evaluate).' }
+    else if (a.expectation === 'frequent' && windowHours >= 6 && recentChange) { status = 'not-observed'; note = 'None observed in this window.' + recentNote }
     else if (a.expectation === 'frequent' && windowHours >= 6) { status = 'possible-gap'; note = 'None observed in this window. This normally appears constantly, so the audit setting is probably not enabled (or its events were not exported).' }
     else if (a.expectation === 'frequent') { status = 'not-observed'; note = 'None observed, but the window is too short to conclude.' }
     else if (a.expectation === 'occasional') { status = 'not-observed'; note = 'None observed. Either the setting is off or the activity did not occur; verify the audit setting.' }
@@ -74,7 +79,7 @@ export function assessLogging(s: IngestSummary, ruleEvents: RuleEvents[], roleOp
   const commandLine: LoggingAssessment['commandLine'] = p === 0
     ? { applicable: false, processEvents: 0, withCommandLine: 0, percent: null, status: 'not-applicable', note: 'No process-creation events were present.' }
     : c === 0 ? { applicable: true, processEvents: p, withCommandLine: 0, percent: 0, status: 'absent', note: 'Process-creation events carry no command line, so command-line detections cannot run. Enable "Include command line in process creation events" (Group Policy: Administrative Templates > System > Audit Process Creation).' }
-    : c / p < 0.5 ? { applicable: true, processEvents: p, withCommandLine: c, percent: Math.round((100 * c) / p), status: 'partial', note: 'Only part of the period carries command lines (the setting was probably enabled recently), so command-line detections have partial coverage.' }
+    : c / p < 0.5 ? { applicable: true, processEvents: p, withCommandLine: c, percent: Math.round((100 * c) / p), status: 'partial', note: 'Only part of the period carries command lines (the setting was probably enabled recently), so command-line detections have partial coverage.' + recentNote }
     : { applicable: true, processEvents: p, withCommandLine: c, percent: Math.round((100 * c) / p), status: 'ok', note: 'Command lines are being recorded.' }
 
   // Periods with no events at all between the first and last event.

@@ -21,7 +21,7 @@ function EvidenceTable({ rows, total }: { rows: ReportEvent[]; total: number }) 
       <caption>Evidence (earliest {shown.length} of {total.toLocaleString()} matching events)</caption>
       <thead><tr><th scope="col">Time (UTC)</th><th scope="col">Event ID</th><th scope="col">Host</th><th scope="col">Account</th><th scope="col">Source IP</th><th scope="col">Detail</th></tr></thead>
       <tbody>{shown.map((e, i) => (
-        <tr key={i}><td>{fmt(e.time)}</td><td>{e.eventId}</td><td>{e.computer ?? '—'}</td>
+        <tr key={i}><td className="nw">{fmt(e.time)}</td><td>{e.eventId}</td><td className="nw">{e.computer ?? '—'}</td>
           <td>{String(e.fields['targetUserName'] ?? e.fields['subjectUserName'] ?? '—')}</td><td>{String(e.fields['ipAddress'] ?? '—')}</td>
           <td className="wrap"><code>{evidenceDetail(e)}</code></td></tr>
       ))}</tbody>

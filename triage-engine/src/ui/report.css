@@ -10,7 +10,7 @@
 .report th,.report td { border:1px solid var(--line); padding:5px 8px; text-align:left; vertical-align:top } .report thead th { background:#f1f4f8 } .report tbody th[scope=row] { background:#f7f9fb; font-weight:600 }
 .report dl { display:grid; grid-template-columns:max-content 1fr; gap:3px 16px; margin:8px 0 } .report dt { color:var(--muted) } .report dd { margin:0 }
 .report pre { background:#f4f6f9; border:1px solid var(--line); border-radius:4px; padding:8px; overflow-x:auto; white-space:pre-wrap; word-break:break-all; margin:6px 0 }
-.report code { font:12.5px/1.4 ui-monospace,SFMono-Regular,Menlo,Consolas,monospace } .report .wrap { white-space:pre-wrap; word-break:break-all }
+.report code { font:12.5px/1.4 ui-monospace,SFMono-Regular,Menlo,Consolas,monospace } .report .wrap { white-space:pre-wrap; overflow-wrap:anywhere; word-break:normal } .report td.nw { white-space:nowrap }
 .report .big { font-size:1.2rem; margin:.4em 0 } .report .timeline { padding-left:20px } .report .timeline time { color:var(--muted); margin-right:6px }
 .report .rsev { display:inline-block; font-size:.72rem; font-weight:700; padding:1px 8px; border-radius:999px; border:1.5px solid currentColor; vertical-align:middle; background:#fff }
 .report .rsev-critical { color:#a51d12 } .report .rsev-high { color:#a14400 } .report .rsev-medium { color:#7a5d00 } .report .rsev-low { color:#1f6140 } .report .rsev-info { color:#4a5565 }
@@ -21,7 +21,7 @@
 @media print {
   .screen-only { display:none !important } .print-only { display:block !important }
   .report { max-width:none; padding:0; font-size:11pt } .report h2 { break-after:avoid; page-break-after:avoid } .report h3,.report h4 { break-after:avoid }
-  .report section.finding-block,.report table,.report pre { break-inside:avoid } .report .chain-block { break-before:auto }
+  .report tr,.report pre,.report dl { break-inside:avoid } .report thead { display:table-header-group } .report caption { break-after:avoid }
   .report a { color:inherit; text-decoration:none } .report details > summary { display:none }
   @page { margin:16mm; }
 }

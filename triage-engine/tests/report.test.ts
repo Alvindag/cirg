@@ -66,13 +66,13 @@ describe('recommended actions (real DC report: advised reverting the auditing th
     expect(text).not.toMatch(/Reapply|Restore the baseline/i)
   })
   it('auditing that was only ADDED is info: no containment advice at all', async () => {
-    const r = await run(head + '4719,2025-03-01T10:00:00Z,DC1,Administrator,"%%8448, %%8450"\n')
+    const r = await run(head + '4719,2025-03-01T10:00:00Z,DC1,Administrator,"%%8449, %%8451"\n')
     expect(r.findings.map((f) => [f.ruleId, f.severity])).toEqual([['AUD-004', 'info']])
     expect(r.executiveSummary.recommendedActions.join(' ')).not.toMatch(/baseline/i)
     expect(r.executiveSummary.risk.label).toBe('Informational')
   })
   it('auditing REMOVED is high and does recommend containment, conditioned on authorization', async () => {
-    const r = await run(head + '4719,2025-03-01T10:00:00Z,DC1,Administrator,%%8449\n')
+    const r = await run(head + '4719,2025-03-01T10:00:00Z,DC1,Administrator,%%8448\n')
     expect(r.findings[0]).toMatchObject({ ruleId: 'AUD-003', severity: 'high' })
     expect(r.executiveSummary.recommendedActions.join(' ')).toMatch(/Restore the baseline audit policy ONLY if the change was not authorized/)
   })

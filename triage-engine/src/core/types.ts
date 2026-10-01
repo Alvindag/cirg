@@ -70,6 +70,8 @@ export interface IngestSummary {
   /** Event counts per UTC hour (hour index = floor(ts / 3600000)); used to find periods with no events. */
   hourly: Record<number, number>
   hourlyTruncated: boolean
+  /** Timestamp of the most recent audit-policy change (4719) seen. */
+  lastAuditPolicyChangeTs: number | null
   /** EventRecordID statistics (only meaningful for a single computer + channel). */
   recordIds: { count: number; min: number; max: number; computers: number; channels: number }
   /** SHA-256 of the source file, computed by streaming (chain of custody). */
