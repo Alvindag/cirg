@@ -114,3 +114,45 @@ export interface Governance {
   topUsers: { userId: string; requests: number }[]
   safeguards: string[]
 }
+
+export interface RevenueResult {
+  currency: string
+  total: number
+  previousTotal: number
+  growthPct: number | null
+  units: number
+  customersBuying: number
+  unlinkedAmount: number
+  granularity: 'day' | 'month'
+  trend: { period: string; amount: number; units: number }[]
+  topCustomers: { customerId: string; name: string; amount: number }[]
+  byProduct: { productId: string | null; name: string; amount: number }[]
+  byTerritory: { territoryId: string | null; name: string; amount: number }[]
+}
+
+export interface ErpConnection {
+  provider: 'none' | 'rest'
+  baseUrl: string | null
+  secretName: string | null
+  enabled: boolean
+  outboundEnabled: boolean
+  pullEnabled: boolean
+  pullIntervalMinutes: number
+  currency: string
+  lastPullAt: string | null
+  lastError: string | null
+}
+export interface IntegrationKeyRow { id: string; name: string; prefix: string; createdAt: string; lastUsedAt: string | null; revokedAt: string | null }
+export interface CreatedKey { id: string; name: string; prefix: string; key: string; note: string }
+export interface SyncRunRow { id: string; entity: string; source: string; startedAt: string; created: number; updated: number; skipped: number; errors: number; message: string | null }
+export interface OutboxRow { id: string; type: string; status: 'Pending' | 'Sent' | 'DeadLetter'; attempts: number; createdAt: string; nextAttemptAt: string; lastError: string | null; externalRef: string | null }
+export interface OutboxResult { counts: { status: string; n: number }[]; items: OutboxRow[] }
+export interface ErpImportResult { entity: string; source: string; created: number; updated: number; skipped: number; errors: number; items: { key: string; status: string; message: string | null }[] }
+export interface Unmatched { customers: { accountCode: string; lines: number; amount: number }[]; items: { itemCode: string; lines: number }[] }
+export interface StockReconciliation {
+  balanced: boolean
+  snapshotCount: number
+  rows: { itemCode: string; product: string | null; batchNumber: string | null; das: number; erp: number | null; difference: number | null; status: string }[]
+}
+export interface Suggestion { productId: string; itemCode: string | null; name: string; reorderLevel: number; available: number; onOrder: number; monthlyUsage: number; monthsOfCover: number | null; belowReorderLevel: boolean; suggestedQuantity: number }
+export interface Requisition { id: string; productId: string; quantity: number; neededBy: string | null; note: string | null; status: 'Draft' | 'Approved' | 'Received' | 'Rejected' | 'Cancelled'; requestedBy: string; erpReference: string | null; receivedQuantity: number; decisionNote: string | null; createdAt: string }

@@ -18,6 +18,8 @@ export function fakeApi(handlers: Record<string, Handler>) {
   const api = {
     get: vi.fn((path: string, query?: Record<string, unknown>) => call('GET', path, query)),
     post: vi.fn((path: string, body?: unknown, query?: Record<string, unknown>) => call('POST', path, query, body)),
+    put: vi.fn((path: string, body?: unknown, query?: Record<string, unknown>) => call('PUT', path, query, body)),
+    del: vi.fn((path: string, query?: Record<string, unknown>) => call('DELETE', path, query)),
     postText: vi.fn((path: string, text: string, query?: Record<string, unknown>) => call('POST', path, query, text)),
     download: vi.fn(async () => {}),
   }

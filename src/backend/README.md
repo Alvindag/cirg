@@ -80,11 +80,19 @@ See `docs/ai.md`. Generative: `POST /transcriptions`, `POST /visit-summaries`, `
 Rule-based: `GET /customers/scores`, `/customers/{id}/score`, `/next-best-actions`, `/opportunities`, `/territories/balance`, `POST /territories/moves/apply`, `POST /routes/optimize`.
 Governance: `GET /governance` (Admin/NSM/Executive). Models sit behind `IChatModel`/`ITranscriber` (Azure OpenAI over REST, managed identity); tests use fakes.
 
+## ERP integration (`/api/v1/erp`, `/integration/v1`)
+ERP-agnostic: one JSON contract, three ways in (integration-key push, CSV upload, scheduled pull from an ERP gateway) and a transactional outbox out. See `docs/erp-integration.md`.
+Imports (products, customer accounts, invoice lines, goods receipts, stock levels) are idempotent with per-record results; goods receipts create batch stock; stock levels are reconciled against the ledger;
+invoice lines feed `GET /dashboards/revenue` and customer scoring. Sample issues, hand-overs, write-offs, returns and approved purchase requisitions are queued as outbox messages and delivered with
+retries (1 min → 12 h, 8 tries, then *failed* for a person to retry). Procurement: reorder suggestions, requisitions needing a second approver. `GET /samples/reports/spend` values samples at the ERP's standard cost.
+Config: `Erp:Worker:Enabled`, `Erp:AllowedHosts`, `Secrets:<name>` for the gateway token. The gateway address is https-only and cannot point at local or private addresses.
+
 ## Not yet done (known gaps)
 - PostgreSQL row-level security policies (defence in depth) – add in a migration.
 - Entra sign-in is tested with locally signed tokens (the real Entra metadata endpoint is not reachable from the build environment); verify once against a real tenant.
 - No self-service tenant sign-up or tenant admin UI; customers are onboarded with `provision-tenant`.
 - Customer search uses `ILike` (PostgreSQL only), so it is not covered by the in-memory tests; run integration tests against Postgres (Testcontainers) before go-live.
 - Sample management: no UI for stock controllers or approvers yet (API only); no per-HCP sample limits; no recall notification push to reps; serializable-transaction retry is not automated.
+- ERP: no ERP-specific adapter yet (depends on DAS's ERP); one background worker instance only; customer master is one-way; credit limits, price lists and orders are not used.
 - Malware scanning of uploads, thumbnails, streaming uploads (bodies are buffered up to the size cap), approval workflows, e-signatures, PostGIS spatial queries, Power BI reporting views.
 - Sync pull is cursor-by-`UpdatedAt` (server clock); move to a monotonic version column if clock skew becomes an issue.

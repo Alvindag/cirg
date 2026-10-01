@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { Bar, BarChart, CartesianGrid, Legend, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts'
-import type { LastKnown, ProductEngagement, SalesDashboard, TrendPoint } from '../api/types'
+import type { LastKnown, ProductEngagement, RevenueResult, SalesDashboard, TrendPoint } from '../api/types'
 import { ErrorBox, Kpi, Loading, Section, Empty } from '../components/ui'
 import { RangePicker } from '../components/RangePicker'
 import { useApp } from '../context'
@@ -17,6 +17,7 @@ export function Overview() {
   const sales = useAsync(() => api.get<SalesDashboard>('/dashboards/sales', range), [days])
   const trend = useAsync(() => api.get<TrendPoint[]>('/dashboards/trend', range), [days])
   const products = useAsync(() => api.get<ProductEngagement[]>('/dashboards/products', range), [days])
+  const revenue = useAsync(() => api.get<RevenueResult>('/dashboards/revenue', range).catch(() => undefined), [days])
   const positions = useAsync(
     () => (isManager(me.role) ? api.get<LastKnown[]>('/gps/last-known') : Promise.resolve([] as LastKnown[])),
     [me.role],
@@ -43,7 +44,9 @@ export function Overview() {
         </div>
       )}
 
-      <p className="muted note">Revenue trends appear here once ERP sales data is connected (planned integration).</p>
+      {revenue.data && (revenue.data.trend.length > 0 || revenue.data.total !== 0) ? <RevenueSection r={revenue.data} /> : (
+        <p className="muted note">{revenue.loading && !revenue.data ? 'Loading revenue…' : 'No ERP sales data yet. Revenue appears here once invoices are imported or pulled from the ERP (ERP integration).'}</p>
+      )}
 
       <div className="grid-2">
         <Section title="Calls per day">
@@ -140,6 +143,43 @@ export function Overview() {
             )}
           </Section>
         )}
+      </div>
+    </>
+  )
+}
+
+const money = (n: number, currency: string) => `${currency} ${new Intl.NumberFormat('en-GB', { maximumFractionDigits: 0 }).format(n)}`
+
+function RevenueSection({ r }: { r: RevenueResult }) {
+  return (
+    <>
+      <div className="kpis">
+        <Kpi label="Revenue" value={money(r.total, r.currency)} hint={`${fmtInt(r.units)} units invoiced`} />
+        <Kpi label="Change on previous period" value={r.growthPct === null ? '—' : `${r.growthPct > 0 ? '+' : ''}${r.growthPct}%`} tone={r.growthPct === null ? undefined : r.growthPct >= 0 ? 'good' : 'bad'} hint={`previous: ${money(r.previousTotal, r.currency)}`} />
+        <Kpi label="Customers buying" value={fmtInt(r.customersBuying)} hint={r.unlinkedAmount ? `${money(r.unlinkedAmount, r.currency)} on accounts not linked yet` : undefined} tone={r.unlinkedAmount ? 'warn' : undefined} />
+      </div>
+      <div className="grid-2">
+        <Section title="Revenue trend">
+          <div className="chart" aria-label="Revenue trend chart">
+            <ResponsiveContainer width="100%" height={240}>
+              <BarChart data={r.trend}>
+                <CartesianGrid strokeDasharray="3 3" />
+                <XAxis dataKey="period" tickFormatter={(p: string) => (r.granularity === 'day' ? p.slice(5) : p)} minTickGap={20} />
+                <YAxis tickFormatter={(v: number) => (v >= 1000 ? `${Math.round(v / 1000)}k` : String(v))} />
+                <Tooltip formatter={(v) => money(Number(v), r.currency)} />
+                <Bar isAnimationActive={false} dataKey="amount" fill="var(--accent)" name="Revenue" />
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
+        </Section>
+        <Section title="Top customers">
+          {r.topCustomers.length === 0 ? <Empty>No linked customers have invoices in this period.</Empty> : (
+            <table>
+              <thead><tr><th>Customer</th><th className="num">Revenue</th></tr></thead>
+              <tbody>{r.topCustomers.map((c) => <tr key={c.customerId}><td>{c.name}</td><td className="num">{money(c.amount, r.currency)}</td></tr>)}</tbody>
+            </table>
+          )}
+        </Section>
       </div>
     </>
   )

@@ -28,6 +28,7 @@ The API must list the site's origin under `Cors:AllowedOrigins`. See `docs/entra
 - **Team:** people, reporting lines and territories; admins and the NSM can add and deactivate people (reassigning reports) and add territories.
 - **Samples:** approve or reject requests, issue stock (oldest expiry first), stock by holder with expiry and recall flags, batches (create, receive, quarantine, recall), compliance summary and CSV download.
 - **Insights:** customer scores with the factors behind them, product opportunities, territory balance with administrator-applied moves, and the AI governance register with the organisation opt-in switch (see `docs/ai.md`).
+- **ERP** (administrators; executives read-only): gateway connection and integration keys, CSV imports with accounts and items still to link, the outbox to the ERP (retry failed messages), stock reconciliation, procurement suggestions and requisitions. The Overview shows revenue once invoices exist. See `docs/erp-integration.md`.
 - **Audit:** the append-only audit log.
 
 ## Security notes

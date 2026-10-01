@@ -39,6 +39,15 @@ const routes = {
   'GET /samples/reports/stock': () => [
     { holderId: null, location: 'Warehouse', batchId: 'b1', productId: 'p1', batchNumber: 'AMX-2611', expiryDate: '2027-08-01', daysToExpiry: 300, status: 'Active', quantity: 4200, expired: false, expiringSoon: false, actionRequired: false },
     { holderId: 'rep-2', location: 'Rep', batchId: 'b0', productId: 'p1', batchNumber: 'AMX-2501', expiryDate: '2026-09-01', daysToExpiry: -30, status: 'Active', quantity: 25, expired: true, expiringSoon: false, actionRequired: true }],
+  'GET /dashboards/revenue': () => ({ currency: 'GHS', total: 482500, previousTotal: 401000, growthPct: 20.3, units: 12840, customersBuying: 64, unlinkedAmount: 7200, granularity: 'month',
+    trend: [{ period: '2026-05', amount: 61000, units: 1600 }, { period: '2026-06', amount: 70500, units: 1900 }, { period: '2026-07', amount: 79000, units: 2100 }, { period: '2026-08', amount: 88000, units: 2400 }, { period: '2026-09', amount: 92000, units: 2500 }, { period: '2026-10', amount: 92000, units: 2340 }],
+    topCustomers: [{ customerId: 'c1', name: 'Ernest Chemists Osu', amount: 42000 }, { customerId: 'c2', name: 'Dr Ama Boateng', amount: 31500 }], byProduct: [], byTerritory: [] }),
+  'GET /erp/connection': () => ({ provider: 'rest', baseUrl: 'https://erp-gateway.dasplc.com', secretName: 'ERP_TOKEN', enabled: true, outboundEnabled: true, pullEnabled: true, pullIntervalMinutes: 60, currency: 'GHS', lastPullAt: new Date().toISOString(), lastError: null }),
+  'GET /erp/keys': () => [{ id: 'k1', name: 'SAP gateway', prefix: 'ab12cd34', createdAt: new Date().toISOString(), lastUsedAt: new Date().toISOString(), revokedAt: null }],
+  'GET /erp/runs': () => [{ id: 'r1', entity: 'sales', source: 'pull', startedAt: new Date().toISOString(), created: 120, updated: 3, skipped: 0, errors: 0, message: null }],
+  'GET /erp/outbox': () => ({ counts: [{ status: 'Pending', n: 2 }, { status: 'Sent', n: 41 }, { status: 'DeadLetter', n: 1 }], items: [
+    { id: 'm1', type: 'sample.issue', status: 'Sent', attempts: 1, createdAt: new Date().toISOString(), nextAttemptAt: new Date().toISOString(), lastError: null, externalRef: 'STO-991' },
+    { id: 'm2', type: 'sample.adjustment', status: 'DeadLetter', attempts: 1, createdAt: new Date().toISOString(), nextAttemptAt: new Date().toISOString(), lastError: 'ERP answered 400: unknown item', externalRef: null }] }),
   'GET /ai/customers/scores': () => [
     { customerId: 'c1', name: 'Dr Ama Boateng', potential: 90, engagement: 12, overall: 43, status: 'At risk', suggestedSegment: 'B' },
     { customerId: 'c2', name: 'Ernest Chemists Osu', potential: 60, engagement: 80, overall: 72, status: 'Healthy', suggestedSegment: null }],
@@ -73,6 +82,7 @@ try {
   await expectText('Kofi Mensah')
   await page.waitForSelector('.recharts-line-curve', { timeout: 8000 })   // the trend chart really rendered
   await page.waitForSelector('.recharts-bar-rectangle', { timeout: 8000 })
+  await expectText('GHS 482,500')
   await shot('overview')
 
   await page.getByRole('link', { name: 'Customers' }).click()
@@ -96,6 +106,12 @@ try {
   await page.getByRole('button', { name: 'Dr Ama Boateng' }).click()
   await expectText('Last visited 120 day(s) ago.')
   await shot('insights')
+
+  await page.getByRole('link', { name: 'ERP' }).click()
+  await expectText('ERP gateway')
+  await page.getByRole('tab', { name: 'Outbox' }).click()
+  await expectText('unknown item')
+  await shot('erp-outbox')
 
   await page.getByRole('link', { name: 'Audit' }).click()
   await expectText('SampleBatch')

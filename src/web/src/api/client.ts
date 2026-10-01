@@ -13,6 +13,8 @@ export interface Api {
   get<T>(path: string, query?: Query): Promise<T>
   post<T>(path: string, body?: unknown, query?: Query): Promise<T>
   /** POST a plain-text body (used for CSV import). */
+  put<T>(path: string, body?: unknown, query?: Query): Promise<T>
+  del<T>(path: string, query?: Query): Promise<T>
   postText<T>(path: string, text: string, query?: Query, contentType?: string): Promise<T>
   /** Downloads a file (with the bearer token) and offers it to the browser. */
   download(path: string, query: Query, filename: string): Promise<void>
@@ -71,6 +73,9 @@ export function createApi(o: ApiOptions): Api {
     get: async (path, query) => json(await send('GET', path, { query })),
     post: async (path, body, query) =>
       json(await send('POST', path, { query, body: body === undefined ? undefined : JSON.stringify(body), contentType: body === undefined ? undefined : 'application/json' })),
+    put: async (path, body, query) =>
+      json(await send('PUT', path, { query, body: body === undefined ? undefined : JSON.stringify(body), contentType: body === undefined ? undefined : 'application/json' })),
+    del: async (path, query) => json(await send('DELETE', path, { query })),
     postText: async (path, text, query, contentType = 'text/csv') => json(await send('POST', path, { query, body: text, contentType })),
     download: async (path, query, filename) => {
       const blob = await (await send('GET', path, { query })).blob()

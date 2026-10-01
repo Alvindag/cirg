@@ -17,6 +17,7 @@ const overviewHandlers = {
   'GET /dashboards/sales': () => sales,
   'GET /dashboards/trend': () => [{ date: '2026-10-01', calls: 4 }],
   'GET /dashboards/products': () => [{ productId: 'p1', name: 'Amoxil', calls: 9, sampleUnits: 40 }],
+  'GET /dashboards/revenue': () => ({ currency: 'GHS', total: 0, previousTotal: 0, growthPct: null, units: 0, customersBuying: 0, unlinkedAmount: 0, granularity: 'month', trend: [], topCustomers: [], byProduct: [], byTerritory: [] }),
   'GET /gps/last-known': () => [{ repId: 'rep-1', recordedAt: '2026-10-01T09:00:00Z', latitude: 5.6037, longitude: -0.187 }],
   'GET /admin/users': () => users,
 }
@@ -30,7 +31,7 @@ describe('Overview', () => {
     expect(screen.getByText('61.5%')).toBeInTheDocument()
     expect(await screen.findAllByText('Kofi Rep')).not.toHaveLength(0) // id resolved to a name
     expect(screen.getByRole('link', { name: /5\.6037, -0\.1870/ })).toHaveAttribute('href', expect.stringContaining('openstreetmap.org'))
-    expect(screen.getByText(/Revenue trends appear here once ERP/)).toBeInTheDocument()
+    expect(await screen.findByText(/No ERP sales data yet/)).toBeInTheDocument()
   })
 
   it('asks the API for the chosen period', async () => {
@@ -64,6 +65,7 @@ describe('App access', () => {
     renderApp(<App />, fakeApi(overviewHandlers), me('AreaManager'))
     const nav = await screen.findByRole('navigation', { name: 'Main' })
     for (const l of ['Overview', 'Customers', 'Team', 'Samples', 'Audit']) expect(within(nav).getByText(l)).toBeInTheDocument()
+    expect(within(nav).queryByText('ERP')).not.toBeInTheDocument() // administrators and executives only
   })
 
   it('hides team, samples and audit from marketing', async () => {

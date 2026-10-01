@@ -1,6 +1,6 @@
 import { NavLink, Outlet } from 'react-router-dom'
 import { useApp } from '../context'
-import { isManager } from '../lib/roles'
+import { canSeeErp, isManager } from '../lib/roles'
 
 export function Layout() {
   const { me, signOut } = useApp()
@@ -15,6 +15,7 @@ export function Layout() {
           <NavLink to="/insights">Insights</NavLink>
           {manager && <NavLink to="/team">Team</NavLink>}
           {manager && <NavLink to="/samples">Samples</NavLink>}
+          {canSeeErp(me.role) && <NavLink to="/erp">ERP</NavLink>}
           {manager && <NavLink to="/audit">Audit</NavLink>}
         </nav>
         <div className="who">

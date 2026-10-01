@@ -15,3 +15,6 @@ export const canApproveSamples = (r: Role) => ['AreaManager', 'RegionalManager',
 export const canImportCustomers = (r: Role) => ['AreaManager', 'RegionalManager', 'NationalSalesManager', 'Admin'].includes(r)
 
 export const canUseDashboard = (r: Role) => dashboardRoles.includes(r)
+
+/** The ERP integration pages: administrators manage them, executives can see them. */
+export const canSeeErp = (r: Role) => ['Admin', 'NationalSalesManager', 'Executive'].includes(r)

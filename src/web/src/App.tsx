@@ -11,6 +11,7 @@ const Customers = lazy(() => import('./pages/Customers').then((m) => ({ default:
 const Team = lazy(() => import('./pages/Team').then((m) => ({ default: m.Team })))
 const Samples = lazy(() => import('./pages/Samples').then((m) => ({ default: m.Samples })))
 const Insights = lazy(() => import('./pages/Insights').then((m) => ({ default: m.Insights })))
+const Erp = lazy(() => import('./pages/Erp').then((m) => ({ default: m.Erp })))
 const Audit = lazy(() => import('./pages/Audit').then((m) => ({ default: m.Audit })))
 
 export function App() {
@@ -32,6 +33,7 @@ export function App() {
         <Route path="team" element={<Team />} />
         <Route path="samples" element={<Samples />} />
         <Route path="insights" element={<Insights />} />
+        <Route path="erp" element={<Erp />} />
         <Route path="audit" element={<Audit />} />
         <Route path="*" element={<ErrorBox message="Page not found." />} />
       </Route>
