@@ -22,6 +22,10 @@ export interface CanonicalEvent {
   newProcessName?: string
   parentProcessName?: string
   commandLine?: string
+  /** Process that performed the action (e.g. 4648 ProcessName), distinct from the newly created process in 4688. */
+  processName?: string
+  /** 4648: the server the explicit credentials were used against. */
+  targetServerName?: string
   ipAddress?: string
   ipPort?: number
   workstationName?: string

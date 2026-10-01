@@ -44,7 +44,8 @@ export class Pseudonymizer {
     if (e.memberSid) o.memberSid = this.sid(e.memberSid)
     if (e.ipAddress) o.ipAddress = this.ip(e.ipAddress)
     // Paths often embed profile names; keep only the executable name. Command lines are removed entirely.
-    for (const k of ['newProcessName', 'parentProcessName'] as const) if (e[k]) o[k] = e[k]!.split(/[\\/]/).pop()
+    if (e.targetServerName) o.targetServerName = ['localhost', '-'].includes(e.targetServerName.toLowerCase()) ? e.targetServerName : this.host(e.targetServerName)
+    for (const k of ['newProcessName', 'parentProcessName', 'processName'] as const) if (e[k]) o[k] = e[k]!.split(/[\\/]/).pop()
     if (e.commandLine) o.commandLine = `[redacted: ${e.commandLine.length} characters]`
     return o
   }

@@ -215,14 +215,16 @@ export class RuleEngine {
     return { findings: out, stats }
   }
 
-  /** Match rules: one finding per host per episode (a run of hits with no gap larger than episodeGapMs). */
+  /** Match rules: one finding per host per episode (a run of hits with no gap larger than episodeGapMs); low/info rules: one per host. */
   private episodes(host: string, b: HostBucket, base: BaseFinding): Finding[] {
     const ts = b.stamps.slice().sort((x, y) => x - y)
     const ev = b.evidence.slice().sort((x, y) => x.ts - y.ts)
     const res: Finding[] = []
     let start = 0
+    // Noisy context rules (low/info) collapse to ONE finding per host for the whole period; only medium+ detections split into episodes.
+    const gap = SEVERITY_RANK[base.severity] <= SEVERITY_RANK.low ? Infinity : this.lim.episodeGapMs
     for (let i = 1; i <= ts.length; i++) {
-      if (i < ts.length && ts[i]! - ts[i - 1]! <= this.lim.episodeGapMs) continue
+      if (i < ts.length && ts[i]! - ts[i - 1]! <= gap) continue
       const t0 = ts[start]!, t1 = ts[i - 1]!, count = i - start
       const mine = ev.filter((e) => e.ts >= t0 && e.ts <= t1)
       const shown = mine.slice(0, this.lim.evidencePerFinding)

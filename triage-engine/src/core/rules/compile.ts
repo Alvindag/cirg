@@ -5,7 +5,7 @@ import type { CompiledRule, CompiledSequence, Condition, Op, Predicate, RuleDef 
 export const FIELD_NAMES = [
   'eventId', 'ts', 'channel', 'computer', 'subjectUserSid', 'subjectUserName', 'subjectDomainName', 'subjectLogonId',
   'targetUserSid', 'targetUserName', 'targetDomainName', 'targetLogonId', 'memberSid', 'logonType', 'processId', 'newProcessId',
-  'newProcessName', 'parentProcessName', 'commandLine', 'ipAddress', 'ipPort', 'workstationName', 'status',
+  'newProcessName', 'parentProcessName', 'commandLine', 'processName', 'targetServerName', 'ipAddress', 'ipPort', 'workstationName', 'status',
   'subStatus', 'authenticationPackage', 'serviceName',
 ] as const
 const FIELDS = new Set<string>(FIELD_NAMES)

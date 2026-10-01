@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest'
+import defaultPack from '../rules/default-pack.json'
 import { analyze, buildRules } from '../src/core/analysis'
 import { RuleEngine } from '../src/core/rules/engine'
 import { loadPack, compilePacks } from '../src/core/rules/load'
@@ -91,6 +92,33 @@ describe('threshold rules', () => {
     const tk = (i: number, svc: string) => ev({ eventId: 4769, ts: T0 + i * 1000, targetUserName: 'u@D', ipAddress: '10.0.0.9', serviceName: svc })
     expect(ids(Array.from({ length: 12 }, (_, i) => tk(i, `HOST${i}$`)))).not.toContain('CRED-002')
     expect(ids(Array.from({ length: 12 }, (_, i) => tk(i, `svc${i}`)))).toContain('CRED-002')
+  })
+})
+
+describe('real-world noise handling', () => {
+  it('REGRESSION: low/info rules collapse to ONE finding per host over the whole period (was 8 findings for 15 events)', () => {
+    const hours = [0, 0, 0, 3, 3, 3, 9, 20, 30]  // bursts separated by far more than an hour
+    const f = run(hours.map((h) => ev({ eventId: 4648, ts: T0 + h * 3600_000, subjectUserName: 'alice' }))).findings.filter((x) => x.ruleId === 'AUTH-003')
+    expect(f).toHaveLength(1)
+    expect(f[0]).toMatchObject({ count: 9, host: 'WS1', firstTs: T0, lastTs: T0 + 30 * 3600_000 })
+  })
+  it('low/info collapse is per host; medium+ rules still split by episode', () => {
+    const two = run([ev({ eventId: 4648, computer: 'A', subjectUserName: 'x' }), ev({ eventId: 4648, computer: 'B', subjectUserName: 'x' })]).findings.filter((x) => x.ruleId === 'AUTH-003')
+    expect(two.map((x) => x.host).sort()).toEqual(['A', 'B'])
+    const med = run([ev({ eventId: 4698 }), ev({ eventId: 4698, ts: T0 + 5 * 3600_000 })]).findings.filter((x) => x.ruleId === 'PERS-002')
+    expect(med).toHaveLength(2)
+  })
+  it('4648 events keep the calling process and target server so they can be triaged', async () => {
+    const csv = 'EventID,TimeGenerated,Computer,SubjectUserName,TargetUserName,ProcessName,TargetServerName\n4648,2025-03-01T10:00:00Z,WS1,alice,adm-alice,C:\\Windows\\System32\\consent.exe,localhost\n'
+    const r = (await analyze(new Blob([csv]), [], { format: 'csv' }))!
+    expect(r.findings[0]!.evidence[0]).toMatchObject({ processName: 'C:\\Windows\\System32\\consent.exe', targetServerName: 'localhost' })
+  })
+  it('rule text no longer carries stale phase notes and AUD-002 covers both directions of change', () => {
+    const pack = JSON.stringify(defaultPack)
+    expect(pack).not.toMatch(/Phase 3/)
+    const aud = (defaultPack as { rules: { id: string; context: { summary: string; falsePositives: string[] } }[] }).rules.find((r) => r.id === 'AUD-002')!
+    expect(aud.context.summary).toMatch(/strengthen/i)
+    expect(aud.context.falsePositives.join()).toMatch(/enabling auditing/i)
   })
 })
 

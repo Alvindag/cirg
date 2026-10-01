@@ -53,7 +53,7 @@ Strictly client-side. Log data is never uploaded, stored (Local/Session storage,
 ## Phase 3: correlation, chains, risk, EVTX (as built)
 
 **Per-host, per-episode match findings.** Phase 2 produced one finding per match rule for the whole file, which blends hosts together.
-Match rules now produce one finding per host per *episode* (hits separated by more than 1 hour start a new episode). This is what makes chaining meaningful. Behavior change from Phase 2: the same rule can now appear several times (once per host/episode).
+Match rules now produce one finding per host per *episode* (hits separated by more than 1 hour start a new episode). Low/info rules collapse to one finding per host for the whole period, because splitting noisy context rules into episodes produced several findings per day on a normal workstation. This is what makes chaining meaningful. Behavior change from Phase 2: the same rule can now appear several times (once per host/episode).
 
 **Sequence rules** (`kind: sequence`, engine in `core/rules/engine.ts`):
 - Events matching any step are bucketed by the **primary correlation key** (`correlateOn[0]`); every step must bind a field to it. Example: `4624.TargetLogonId` and `4672.SubjectLogonId` and `4688.SubjectLogonId` all bind the `session` key.
@@ -73,7 +73,7 @@ Match rules now produce one finding per host per *episode* (hits separated by mo
 | source IP | IpAddress (loopback ignored) | 2 h |
 | process | host + NewProcessId/ProcessId (parent to child) | 1 h |
 
-Only **medium+ findings and sequence matches** can link; low/info findings may join a chain but can never bridge two (noisy context rules cannot glue unrelated activity together). A chain needs 2+ findings or one sequence match. Linking is interval-merging per key (O(n log n)); 20k findings chain in well under a second (tested).
+Only **medium+ findings and sequence matches** can link; low/info findings may join a chain but can never bridge two (noisy context rules cannot glue unrelated activity together). A chain needs a sequence match or 2+ medium-or-higher findings (low/info findings can decorate a chain but never create one; found on real workstation data, where a single medium finding plus context noise had been reported as an attack chain). Linking is interval-merging per key (O(n log n)); 20k findings chain in well under a second (tested).
 
 **Risk score** (`core/correlate/risk.ts`, deterministic, shown to the analyst with a component breakdown):
 severity weight (info 5, low 15, medium 35, high 60, critical 85) x (0.6 + 0.4 x rule confidence);

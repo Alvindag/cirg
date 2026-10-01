@@ -18,7 +18,7 @@ function Evidence({ rows }: { rows: CanonicalEvent[] }) {
             <tr key={i}>
               <td>{fmtTs(e.ts)}</td><td>{e.eventId}</td><td>{e.computer ?? '—'}</td>
               <td>{e.targetUserName ?? e.subjectUserName ?? '—'}</td><td>{e.ipAddress ?? '—'}</td>
-              <td className="wrap"><code>{e.commandLine ?? e.newProcessName ?? e.serviceName ?? (e.logonType !== undefined ? `LogonType ${e.logonType}` : '—')}</code></td>
+              <td className="wrap"><code>{[e.commandLine ?? e.newProcessName ?? e.processName ?? e.serviceName ?? (e.logonType !== undefined ? `LogonType ${e.logonType}` : undefined), e.targetServerName ? `→ ${e.targetServerName}` : undefined].filter(Boolean).join(' ') || '—'}</code></td>
             </tr>
           ))}
         </tbody>

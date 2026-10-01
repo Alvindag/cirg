@@ -8,7 +8,8 @@ function Sev({ s }: { s: string }) { return <span className={`rsev rsev-${s.toLo
 
 function evidenceDetail(e: ReportEvent): string {
   const f = e.fields
-  return String(f['commandLine'] ?? f['newProcessName'] ?? f['serviceName'] ?? (f['logonType'] !== undefined ? `LogonType ${f['logonType']}` : '—'))
+  const main = f['commandLine'] ?? f['newProcessName'] ?? f['processName'] ?? f['serviceName'] ?? (f['logonType'] !== undefined ? `LogonType ${f['logonType']}` : undefined)
+  return [main, f['targetServerName'] ? `→ ${f['targetServerName']}` : undefined].filter(Boolean).join(' ') || '—'
 }
 function EvidenceTable({ rows, total }: { rows: ReportEvent[]; total: number }) {
   const shown = rows.slice(0, MAX_EVIDENCE_ROWS)

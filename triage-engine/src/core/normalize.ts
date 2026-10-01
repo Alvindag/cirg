@@ -21,6 +21,8 @@ const ALIASES: Record<string, string[]> = {
   newProcessName: ['newprocessname', 'process', 'image'],
   parentProcessName: ['parentprocessname'],
   commandLine: ['commandline', 'processcommandline'],
+  processName: ['processname', 'callerprocessname'],
+  targetServerName: ['targetservername'],
   ipAddress: ['ipaddress', 'sourcenetworkaddress', 'sourceip', 'srcip', 'clientaddress'],
   ipPort: ['ipport', 'sourceport', 'srcport'],
   workstationName: ['workstationname', 'workstation'],
@@ -125,7 +127,7 @@ export function normalize(rec: FlatRecord, index: number): NormalizeResult {
 
   const ev: CanonicalEvent = { eventId, ts, src: { index } }
   const S = ['channel', 'computer', 'subjectUserSid', 'subjectUserName', 'subjectDomainName', 'targetUserSid',
-    'targetUserName', 'targetDomainName', 'memberSid', 'newProcessName', 'parentProcessName', 'commandLine', 'ipAddress',
+    'targetUserName', 'targetDomainName', 'memberSid', 'newProcessName', 'parentProcessName', 'commandLine', 'processName', 'targetServerName', 'ipAddress',
     'workstationName', 'status', 'subStatus', 'authenticationPackage', 'serviceName'] as const
   for (const f of S) {
     const v = str(picked[f])

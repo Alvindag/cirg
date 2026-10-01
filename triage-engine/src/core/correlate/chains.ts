@@ -75,7 +75,7 @@ const isStrong = (f: Finding) => f.kind === 'sequence' || SEVERITY_RANK[f.severi
  * Findings are linked when they share an entity (logon session, host, account/SID, source IP, process id) and are close in time
  * (sessions link at any distance). Only medium+ findings and sequence matches can link two findings together; low/info findings
  * can join an existing chain but never bridge two, so noisy context rules cannot glue unrelated activity together.
- * A chain needs 2+ findings or a correlated sequence match.
+ * A chain needs 2+ medium-or-higher findings or a correlated sequence match.
  */
 export function buildChains(findings: Finding[], opts: Partial<ChainOptions> = {}): { chains: AttackChain[]; unchained: string[] } {
   const o = { ...DEFAULT_CHAIN_OPTIONS, ...opts }
@@ -131,7 +131,9 @@ export function buildChains(findings: Finding[], opts: Partial<ChainOptions> = {
   const chained = new Set<string>()
   for (const idxs of comps.values()) {
     const fs = idxs.map((i) => findings[i]!).sort((a, b) => a.firstTs - b.firstTs)
-    if (fs.length < 2 && !fs.some((f) => f.kind === 'sequence')) continue
+    // A chain needs real corroboration: a correlated sequence match, or 2+ medium-or-higher findings.
+    // (Low/info findings may decorate a chain but can never create one: a single finding plus context noise is not a chain.)
+    if (!fs.some((f) => f.kind === 'sequence') && fs.filter(isStrong).length < 2) continue
     const hosts = new Set<string>(), accounts = new Set<string>(), ips = new Set<string>()
     for (const i of idxs) for (const k of keys[i]!) {
       if (k.kind === 'host') hosts.add(k.label.slice(5))

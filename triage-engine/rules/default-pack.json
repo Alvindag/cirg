@@ -118,14 +118,16 @@
         ]
       },
       "context": {
-        "summary": "Weakening audit policy reduces what future attacks will record.",
+        "summary": "The audit policy was changed. This can weaken what future activity records (attackers do this to hide) or strengthen it (administrators enabling auditing). Open the event's \"Changes made\" to see which, and confirm it matches a planned change.",
         "falsePositives": [
+          "An administrator enabling auditing (auditpol or Group Policy), for example to turn on process command-line logging",
           "Group Policy refresh applying a legitimate baseline",
           "Security hardening projects"
         ],
         "maliciousIndicators": [
-          "Audit categories set to 'No Auditing'",
-          "Change made by a non-admin or service account"
+          "Success/Failure auditing REMOVED for logon, process creation or account management",
+          "Change made by a non-admin or service account",
+          "Change shortly before other suspicious activity"
         ]
       },
       "response": {
@@ -296,15 +298,17 @@
         }
       },
       "context": {
-        "summary": "A process used different credentials than the logged-on user (runas, mapped drives, lateral tooling).",
+        "summary": "A process used different credentials than the logged-on user (runas, UAC elevation with a separate admin account, mapped drives, lateral tooling). The decisive facts are the Process Name and the Target Server shown in the evidence.",
         "falsePositives": [
+          "UAC elevation with a separate administrator account (consent.exe, target localhost)",
           "Interactive 'Run as different user'",
           "Scheduled tasks and service accounts",
           "Outlook / SMB clients using saved credentials"
         ],
         "maliciousIndicators": [
-          "Initiated by an unusual process",
-          "Target server is a domain controller or file server the user never uses"
+          "Process is powershell, cmd, wmic, psexec or net rather than consent.exe, svchost.exe or a known application",
+          "Target server is a remote host (not localhost), especially a domain controller or file server the user never uses",
+          "Many different target servers in a short time"
         ]
       }
     },
@@ -500,7 +504,7 @@
         }
       },
       "context": {
-        "summary": "An admin-level logon occurred. Normal for administrators; valuable as a link in correlated chains (Phase 3).",
+        "summary": "An administrator-level logon occurred (the account holds special privileges such as SeDebug or SeTakeOwnership). Normal for administrators. It is context for other findings and does not raise an alert on its own. If a day-to-day user account appears here, consider whether it needs administrator rights at all.",
         "falsePositives": [
           "Every logon by a member of Administrators"
         ]

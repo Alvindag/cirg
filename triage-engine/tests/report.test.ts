@@ -85,6 +85,12 @@ describe('redaction', () => {
     expect(e.targetUserSid).toBe('SID-1')
     expect(JSON.stringify(e)).not.toContain('hunter2')
   })
+  it('redacts 4648 process paths and remote target servers but keeps localhost', () => {
+    const p = new Pseudonymizer()
+    const remote = p.event({ eventId: 4648, ts: 1, processName: 'C:\\Users\\bob\\tools\\psexec.exe', targetServerName: 'fileserver01.corp.example' })
+    expect(remote).toMatchObject({ processName: 'psexec.exe', targetServerName: 'HOST-1' })
+    expect(p.event({ eventId: 4648, ts: 1, targetServerName: 'localhost' }).targetServerName).toBe('localhost')
+  })
   it('does not double-replace and skips tiny tokens', () => {
     const p = new Pseudonymizer()
     p.host('host'); p.user('al')

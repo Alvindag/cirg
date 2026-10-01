@@ -203,6 +203,21 @@ describe('attack chains', () => {
     expect(chains).toHaveLength(2) // the info finding touches both but must not merge them
     expect(chains.filter((c) => c.findingIds.includes('N:0'))).toHaveLength(1)
   })
+  it('REGRESSION (real workstation data): one medium finding + one info finding sharing a logon session is NOT a chain', () => {
+    const e = (id: number, tsMin: number) => ev({ eventId: id, subjectLogonId: '0x1a2b3c', subjectUserName: 'alice', ts: T0 + tsMin * MIN })
+    const medium = finding({ id: 'AUD-002:0', severity: 'medium', evidence: [e(4719, 29 * 60)], firstTs: T0 + 29 * 60 * MIN, lastTs: T0 + 29 * 60 * MIN })
+    const info = finding({ id: 'PRIV-001:0', severity: 'info', evidence: [e(4672, 0)], firstTs: T0, lastTs: T0 })
+    const r = buildChains([medium, info])
+    expect(r.chains).toHaveLength(0)
+    expect(r.unchained.sort()).toEqual(['AUD-002:0', 'PRIV-001:0'])
+  })
+  it('two medium+ findings still chain, and context findings can then decorate that chain', () => {
+    const e = (id: number, tsMin: number) => ev({ eventId: id, subjectLogonId: '0x1a2b3c', ts: T0 + tsMin * MIN })
+    const mk = (id: string, severity: Finding['severity'], tsMin: number) => finding({ id, severity, evidence: [e(1, tsMin)], firstTs: T0 + tsMin * MIN, lastTs: T0 + tsMin * MIN })
+    const { chains } = buildChains([mk('A:0', 'high', 0), mk('B:0', 'medium', 5), mk('N:0', 'info', 3)])
+    expect(chains).toHaveLength(1)
+    expect(chains[0]!.findingIds.sort()).toEqual(['A:0', 'B:0', 'N:0'])
+  })
   it('a lone sequence finding is a chain by itself; a lone match finding is not', () => {
     expect(buildChains([finding({ id: 'S:0', kind: 'sequence' })]).chains).toHaveLength(1)
     expect(buildChains([finding({ id: 'M:0' })]).chains).toHaveLength(0)
