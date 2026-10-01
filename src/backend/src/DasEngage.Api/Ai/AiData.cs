@@ -34,10 +34,16 @@ public static class AiData
         var interests = (await db.CustomerProductInterests.AsNoTracking().Where(i => ids.Contains(i.CustomerId))
             .GroupBy(i => i.CustomerId).Select(g => new { Id = g.Key, N = g.Count() }).ToListAsync()).ToDictionary(x => x.Id, x => x.N);
 
+        var hasSales = await db.SalesFacts.AnyAsync();
+        var revenue = hasSales
+            ? (await db.SalesFacts.AsNoTracking().Where(x => x.CustomerId != null && ids.Contains(x.CustomerId.Value) && x.SaleDate >= DateOnly.FromDateTime(since90))
+                .GroupBy(x => x.CustomerId!.Value).Select(g => new { Id = g.Key, Amount = g.Sum(x => x.NetAmount) }).ToListAsync()).ToDictionary(x => x.Id, x => x.Amount)
+            : new Dictionary<Guid, decimal>();
+
         return customers.Select(c => new CustomerFacts(c.Id, c.Name, c.Type, c.Segment, c.TargetVisitsPerMonth, interests.GetValueOrDefault(c.Id),
             c.Latitude, c.Longitude, c.TerritoryId, visits.TryGetValue(c.Id, out var v) ? v.Count : 0,
             lastEver.TryGetValue(c.Id, out var last) ? last : null, outcomes.GetValueOrDefault(c.Id) ?? Array.Empty<string?>(),
-            samples.GetValueOrDefault(c.Id), tasks.GetValueOrDefault(c.Id))).ToList();
+            samples.GetValueOrDefault(c.Id), tasks.GetValueOrDefault(c.Id), hasSales ? revenue.GetValueOrDefault(c.Id) : null)).ToList();
     }
 
     public static async Task<Dictionary<Guid, ProductFacts>> LoadProductFacts(AppDbContext db, Guid productId, IReadOnlyCollection<Guid> customerIds, DateTime now)
@@ -49,8 +55,13 @@ public static class AiData
         var interested = (await db.CustomerProductInterests.AsNoTracking().Where(i => i.ProductId == productId && customerIds.Contains(i.CustomerId)).Select(i => i.CustomerId).ToListAsync()).ToHashSet();
         var samples = (await db.SampleDistributions.AsNoTracking().Where(d => d.ProductId == productId && customerIds.Contains(d.CustomerId) && d.DistributedAt >= since)
             .GroupBy(d => d.CustomerId).Select(g => new { Id = g.Key, Units = g.Sum(d => d.Quantity) }).ToListAsync()).ToDictionary(x => x.Id, x => x.Units);
+        var hasSales = await db.SalesFacts.AnyAsync();
+        var bought = hasSales
+            ? (await db.SalesFacts.AsNoTracking().Where(x => x.ProductId == productId && x.CustomerId != null && customerIds.Contains(x.CustomerId.Value) && x.SaleDate >= DateOnly.FromDateTime(since))
+                .GroupBy(x => x.CustomerId!.Value).Select(g => new { Id = g.Key, N = g.Count() }).ToListAsync()).ToDictionary(x => x.Id, x => x.N)
+            : new Dictionary<Guid, int>();
         return customerIds.ToDictionary(id => id, id => new ProductFacts(productId, mentions.TryGetValue(id, out var m) ? m.Total : 0,
-            mentions.TryGetValue(id, out var m2) ? m2.Positive : 0, interested.Contains(id), samples.GetValueOrDefault(id)));
+            mentions.TryGetValue(id, out var m2) ? m2.Positive : 0, interested.Contains(id), samples.GetValueOrDefault(id), hasSales ? bought.GetValueOrDefault(id) : null));
     }
 
     public static async Task<List<HeldStock>> Holdings(AppDbContext db, Guid holderId)

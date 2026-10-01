@@ -5,7 +5,9 @@ namespace DasEngage.Api.Ai;
 /// <summary>What we know about a customer, gathered from visits, call reports, samples and tasks.</summary>
 public record CustomerFacts(Guid Id, string Name, CustomerType Type, Segment Segment, int TargetVisitsPerMonth, int ProductInterestCount,
     double? Latitude, double? Longitude, Guid? TerritoryId,
-    int Visits90, DateTime? LastVisitAt, IReadOnlyList<string?> RecentOutcomes, int SampleUnits90, int OpenTasks);
+    int Visits90, DateTime? LastVisitAt, IReadOnlyList<string?> RecentOutcomes, int SampleUnits90, int OpenTasks,
+    /// <summary>Invoiced revenue in the last 90 days, from the ERP. Null when no ERP sales data exists at all (the factor is then left out).</summary>
+    decimal? Revenue90 = null);
 
 public record Factor(string Name, double Points, double Max, string Explanation);
 
@@ -49,7 +51,15 @@ public static class CustomerScorer
         var samples = f.SampleUnits90 > 0 ? 10.0 : 0;
         factors.Add(new Factor("Sample uptake", samples, 10, f.SampleUnits90 > 0 ? $"{f.SampleUnits90} sample unit(s) given in 90 days." : "No samples given in 90 days."));
 
-        var engagement = (int)Math.Round(recency + frequency + sentiment + samples);
+        // Buying is the strongest sign of a working relationship, once ERP invoices are available to say who buys.
+        var purchases = 0.0;
+        if (f.Revenue90 is { } revenue)
+        {
+            purchases = revenue > 0 ? 10 : 0;
+            factors.Add(new Factor("Purchases", purchases, 10, revenue > 0 ? $"Invoiced {revenue:N0} in the last 90 days." : "No invoices in the last 90 days."));
+        }
+
+        var engagement = (int)Math.Min(100, Math.Round(recency + frequency + sentiment + samples + purchases));
         factors.Insert(0, new Factor("Potential", potential, 100, $"{f.Segment} segment{(f.ProductInterestCount > 0 ? $", {f.ProductInterestCount} product interest(s)" : "")}."));
 
         var overall = (int)Math.Round(0.4 * potential + 0.6 * engagement);
@@ -139,7 +149,9 @@ public static class NextBestActions
     }
 }
 
-public record ProductFacts(Guid ProductId, int Mentions180, int PositiveMentions180, bool Interested, int SampleUnits180);
+public record ProductFacts(Guid ProductId, int Mentions180, int PositiveMentions180, bool Interested, int SampleUnits180,
+    /// <summary>Invoice lines for this product in the last 180 days. Null when there is no ERP sales data.</summary>
+    int? Purchases180 = null);
 
 public record Opportunity(Guid CustomerId, string Name, string Likelihood, double Probability, List<Factor> Factors);
 
@@ -168,6 +180,8 @@ public static class OpportunityScorer
         var recent = f.LastVisitAt is { } l && (now - l).TotalDays <= 30;
         Add("Recent contact", 0.6, recent ? 1 : 0, recent ? "Visited in the last 30 days." : "Not visited in the last 30 days.");
         Add("Samples", 0.5, p.SampleUnits180 > 0 ? 1 : 0, p.SampleUnits180 > 0 ? $"{p.SampleUnits180} sample unit(s) given." : "No samples of this product given.");
+
+        if (p.Purchases180 is { } bought) Add("Bought it before", 1.0, bought > 0 ? 1 : 0, bought > 0 ? $"{bought} invoice line(s) for this product in 180 days." : "No purchases of this product in 180 days.");
 
         var prob = 1 / (1 + Math.Exp(-z));
         return new Opportunity(f.Id, f.Name, prob >= 0.65 ? "High" : prob >= 0.4 ? "Medium" : "Low", Math.Round(prob, 2), factors);

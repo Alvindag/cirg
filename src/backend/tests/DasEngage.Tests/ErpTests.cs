@@ -321,4 +321,26 @@ public class ErpTests : IClassFixture<ErpFactory>
         var monthly = await c.Admin.GetFromJsonAsync<JsonElement>($"/api/v1/dashboards/revenue?{Q(120)}");
         Assert.Equal("month", monthly.GetProperty("granularity").GetString());
     }
+
+    [Fact]
+    public async Task Customer_scores_use_invoices_once_the_erp_has_supplied_them()
+    {
+        var c = await Setup();
+        var product = await Product(c, "AMX500", "Amoxil");
+        var terr = (await Json(await c.Admin.PostAsJsonAsync("/api/v1/admin/territories", new TerritoryDto(null, "T" + c.Tenant, null, null)))).GetProperty("id").GetGuid();
+        var buyer = await Customer(c, "Buyer Pharmacy", terr: terr, account: "B1");
+        await Customer(c, "Quiet Pharmacy", terr: terr, account: "Q1");
+
+        var before = await c.Admin.GetFromJsonAsync<JsonElement>($"/api/v1/ai/customers/{buyer}/score");
+        Assert.DoesNotContain(before.GetProperty("factors").EnumerateArray(), f => f.GetProperty("name").GetString() == "Purchases");
+
+        await ImportJson(c.Admin, "sales", new[] { new ErpSale("S1", "i", D(-10), "B1", "AMX500", 5, 900m, null) });
+        var after = await c.Admin.GetFromJsonAsync<JsonElement>($"/api/v1/ai/customers/{buyer}/score");
+        Assert.Equal(10, after.GetProperty("factors").EnumerateArray().Single(f => f.GetProperty("name").GetString() == "Purchases").GetProperty("points").GetDecimal());
+
+        var opps = await c.Admin.GetFromJsonAsync<JsonElement>($"/api/v1/ai/opportunities?productId={product}");
+        var items = opps.GetProperty("items").EnumerateArray().ToDictionary(i => i.GetProperty("name").GetString()!);
+        Assert.True(items["Buyer Pharmacy"].GetProperty("probability").GetDouble() > items["Quiet Pharmacy"].GetProperty("probability").GetDouble());
+        Assert.Contains(items["Buyer Pharmacy"].GetProperty("factors").EnumerateArray(), f => f.GetProperty("name").GetString() == "Bought it before");
+    }
 }

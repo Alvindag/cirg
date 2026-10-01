@@ -105,6 +105,38 @@ public class ScoringTests
     }
 
     [Fact]
+    public void Purchases_count_only_when_erp_sales_data_exists_and_never_push_engagement_past_100()
+    {
+        var none = CustomerScorer.Score(Facts(), Now);
+        Assert.DoesNotContain(none.Factors, f => f.Name == "Purchases"); // no ERP: the factor is not shown at all
+
+        var buying = CustomerScorer.Score(Facts() with { Revenue90 = 12500m }, Now);
+        var f = buying.Factors.Single(x => x.Name == "Purchases");
+        Assert.Equal(10, f.Points);
+        Assert.Contains("12,500", f.Explanation);
+        Assert.InRange(buying.Engagement, 0, 100);
+
+        var idle = CustomerScorer.Score(Facts(visits: 1, lastDaysAgo: 40, samples: 0) with { Revenue90 = 0m }, Now);
+        var bought = CustomerScorer.Score(Facts(visits: 1, lastDaysAgo: 40, samples: 0) with { Revenue90 = 500m }, Now);
+        Assert.Equal(0, idle.Factors.Single(x => x.Name == "Purchases").Points);
+        Assert.Equal(idle.Engagement + 10, bought.Engagement);
+    }
+
+    [Fact]
+    public void Having_bought_the_product_raises_the_opportunity_and_unknown_purchases_change_nothing()
+    {
+        var f = Facts();
+        var baseline = OpportunityScorer.Score(f, new ProductFacts(Guid.NewGuid(), 2, 1, true, 0), Now);
+        var unknown = OpportunityScorer.Score(f, new ProductFacts(Guid.NewGuid(), 2, 1, true, 0, null), Now);
+        var bought = OpportunityScorer.Score(f, new ProductFacts(Guid.NewGuid(), 2, 1, true, 0, 4), Now);
+        var never = OpportunityScorer.Score(f, new ProductFacts(Guid.NewGuid(), 2, 1, true, 0, 0), Now);
+        Assert.Equal(baseline.Probability, unknown.Probability);
+        Assert.True(bought.Probability > never.Probability);
+        Assert.Contains(bought.Factors, x => x.Name == "Bought it before");
+        Assert.DoesNotContain(baseline.Factors, x => x.Name == "Bought it before");
+    }
+
+    [Fact]
     public void An_important_customer_who_has_gone_quiet_is_flagged_at_risk()
     {
         var s = CustomerScorer.Score(Facts(visits: 0, lastDaysAgo: 120, outcomes: new string?[] { "Negative" }, samples: 0), Now);
