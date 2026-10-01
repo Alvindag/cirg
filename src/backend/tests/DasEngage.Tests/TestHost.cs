@@ -13,6 +13,19 @@ using Microsoft.IdentityModel.Tokens;
 
 namespace DasEngage.Tests;
 
+public class MemoryBlobStore : IBlobStore
+{
+    private readonly System.Collections.Concurrent.ConcurrentDictionary<string, byte[]> _files = new();
+    public async Task PutAsync(string key, Stream content, string contentType, CancellationToken ct = default)
+    {
+        using var ms = new MemoryStream();
+        await content.CopyToAsync(ms, ct);
+        _files[key] = ms.ToArray();
+    }
+    public Task<Stream?> OpenReadAsync(string key, CancellationToken ct = default) =>
+        Task.FromResult<Stream?>(_files.TryGetValue(key, out var b) ? new MemoryStream(b) : null);
+}
+
 public class ApiFactory : WebApplicationFactory<Program>
 {
     public const string Key = "test-signing-key-0123456789abcdef-0123456789";
@@ -31,6 +44,8 @@ public class ApiFactory : WebApplicationFactory<Program>
             s.RemoveAll<DbContextOptions<AppDbContext>>();
             s.RemoveAll<DbContextOptions>();
             s.AddDbContext<AppDbContext>(o => o.UseInMemoryDatabase(_db));
+            s.RemoveAll<IBlobStore>();
+            s.AddSingleton<IBlobStore>(new MemoryBlobStore());
         });
     }
 

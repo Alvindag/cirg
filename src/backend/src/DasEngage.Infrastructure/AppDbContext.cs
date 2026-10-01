@@ -29,6 +29,7 @@ public class AppDbContext : DbContext
     public DbSet<CallReportProduct> CallReportProducts => Set<CallReportProduct>();
     public DbSet<FollowUpTask> Tasks => Set<FollowUpTask>();
     public DbSet<GpsPing> GpsPings => Set<GpsPing>();
+    public DbSet<Attachment> Attachments => Set<Attachment>();
     public DbSet<AuditLog> AuditLogs => Set<AuditLog>();
 
     protected override void OnModelCreating(ModelBuilder b)
@@ -42,6 +43,7 @@ public class AppDbContext : DbContext
         b.Entity<Visit>().HasIndex(x => new { x.TenantId, x.RepId, x.CheckInAt });
         b.Entity<CallReport>().HasIndex(x => new { x.TenantId, x.UpdatedAt });
         b.Entity<GpsPing>().HasIndex(x => new { x.TenantId, x.RepId, x.RecordedAt });
+        b.Entity<Attachment>().HasIndex(x => new { x.TenantId, x.VisitId });
         b.Entity<AppUser>().HasIndex(x => new { x.TenantId, x.ExternalId }).IsUnique();
         b.Entity<Tenant>().HasIndex(x => x.ExternalTenantId).IsUnique();
         b.Entity<AuditLog>().HasIndex(x => new { x.TenantId, x.Id });
@@ -59,6 +61,7 @@ public class AppDbContext : DbContext
         b.Entity<CallReportProduct>().HasQueryFilter(e => e.TenantId == CurrentTenantId && e.DeletedAt == null);
         b.Entity<FollowUpTask>().HasQueryFilter(e => e.TenantId == CurrentTenantId && e.DeletedAt == null);
         b.Entity<GpsPing>().HasQueryFilter(e => e.TenantId == CurrentTenantId && e.DeletedAt == null);
+        b.Entity<Attachment>().HasQueryFilter(e => e.TenantId == CurrentTenantId && e.DeletedAt == null);
         b.Entity<AuditLog>().HasQueryFilter(e => e.TenantId == CurrentTenantId);
     }
 

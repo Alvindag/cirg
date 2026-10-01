@@ -15,6 +15,7 @@ public static class Endpoints
         MapDashboards(api);
         MapAdmin(api);
         AdminUsers.Map(api);
+        AttachmentEndpoints.Map(api);
     }
 
     // ---------- Customers ----------

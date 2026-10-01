@@ -27,6 +27,14 @@ builder.Services.AddDbContext<AppDbContext>(o =>
 //   Auth:RequiredScope   delegated scope the mobile/web apps request (default access_as_user)
 // Auth:DevSigningKey enables a symmetric key for local development and tests ONLY.
 // Settings are read when the options are built (not here) so that test hosts can override configuration.
+// File storage for photos, voice notes and signatures: Storage:Provider = local (default) or azure.
+builder.Services.AddSingleton<IBlobStore>(sp =>
+{
+    var c = sp.GetRequiredService<IConfiguration>().GetSection("Storage");
+    return c["Provider"]?.ToLowerInvariant() == "azure"
+        ? new AzureBlobStore(c["ConnectionString"], c["AccountUrl"], c["Container"] ?? "attachments")
+        : new LocalBlobStore(c["LocalPath"] ?? Path.Combine(Path.GetTempPath(), "das-engage-attachments"));
+});
 builder.Services.AddMemoryCache();
 builder.Services.AddScoped<Microsoft.AspNetCore.Authentication.IClaimsTransformation, AppClaimsTransformation>();
 builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme).AddJwtBearer();

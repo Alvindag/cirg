@@ -8,6 +8,8 @@ public enum Segment { A, B, C, Unclassified }
 
 public enum VisitStatus { Planned, InProgress, Completed, Missed, Cancelled }
 
+public enum AttachmentKind { Photo, VoiceNote, Signature }
+
 public enum FollowUpStatus { Open, Done, Cancelled }
 
 /// <summary>Base for all tenant-owned, syncable rows. Ids are client-generatable (UUID) for offline creation.</summary>
@@ -163,4 +165,26 @@ public class AuditLog
     public string? Changes { get; set; }
     public string? PrevHash { get; set; }
     public string Hash { get; set; } = "";
+}
+
+/// <summary>
+/// A photo, voice note or signature captured during a visit. The file lives in blob storage; this row is the audited metadata.
+/// For signatures, <see cref="RecordHash"/> binds signer, meaning, time, visit and image together (electronic-signature record).
+/// </summary>
+public class Attachment : TenantEntity
+{
+    public AttachmentKind Kind { get; set; }
+    public Guid RepId { get; set; }
+    public Guid VisitId { get; set; }
+    public Guid? CallReportId { get; set; }
+    public Guid CustomerId { get; set; }
+    public string FileName { get; set; } = "";
+    public string ContentType { get; set; } = "";
+    public long SizeBytes { get; set; }
+    public string Sha256 { get; set; } = "";
+    public string StorageKey { get; set; } = "";
+    public DateTime CapturedAt { get; set; }
+    public string? SignerName { get; set; }
+    public string? Meaning { get; set; }
+    public string? RecordHash { get; set; }
 }
