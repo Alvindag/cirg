@@ -50,7 +50,7 @@ public class ApiTests : IClassFixture<ApiFactory>
     [Fact]
     public async Task Reps_only_see_customers_in_their_territory()
     {
-        var mgr = _f.ClientFor(T1, Guid.NewGuid(), "AreaManager");
+        var mgr = _f.ClientFor(T1, Guid.NewGuid(), "NationalSalesManager");
         var mine = await CreateCustomer(mgr, Cust("In territory", Terr1));
         var other = await CreateCustomer(mgr, Cust("Elsewhere", Terr2));
         var rep = _f.ClientFor(T1, Rep1, "Rep", Terr1);
@@ -61,7 +61,7 @@ public class ApiTests : IClassFixture<ApiFactory>
     [Fact]
     public async Task Reps_cannot_delete_customers()
     {
-        var mgr = _f.ClientFor(T1, Guid.NewGuid(), "AreaManager");
+        var mgr = _f.ClientFor(T1, Guid.NewGuid(), "NationalSalesManager");
         var id = await CreateCustomer(mgr, Cust("Keep me", Terr1));
         var rep = _f.ClientFor(T1, Rep1, "Rep", Terr1);
         Assert.Equal(HttpStatusCode.Forbidden, (await rep.DeleteAsync($"/api/v1/customers/{id}")).StatusCode);
@@ -70,7 +70,7 @@ public class ApiTests : IClassFixture<ApiFactory>
     [Fact]
     public async Task CheckIn_flags_geofence_and_is_idempotent()
     {
-        var mgr = _f.ClientFor(T1, Guid.NewGuid(), "AreaManager");
+        var mgr = _f.ClientFor(T1, Guid.NewGuid(), "NationalSalesManager");
         var cust = await CreateCustomer(mgr, Cust("Korle Bu", Terr1, 5.5365, -0.2271));
         var rep = _f.ClientFor(T1, Rep1, "Rep", Terr1);
         var visitId = Guid.NewGuid();
@@ -91,7 +91,7 @@ public class ApiTests : IClassFixture<ApiFactory>
     [Fact]
     public async Task Full_visit_flow_via_sync_push_and_pull()
     {
-        var mgr = _f.ClientFor(T1, Guid.NewGuid(), "AreaManager");
+        var mgr = _f.ClientFor(T1, Guid.NewGuid(), "NationalSalesManager");
         var cust = await CreateCustomer(mgr, Cust("Sync Clinic", Terr1));
         var rep = _f.ClientFor(T1, Rep1, "Rep", Terr1);
 
