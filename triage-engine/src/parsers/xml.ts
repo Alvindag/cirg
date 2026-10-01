@@ -28,7 +28,7 @@ export async function parseXml(file: Blob, hooks: ParseHooks): Promise<void> {
     if (rec) {
       if (name === 'Event') { const r = rec; rec = null; hooks.onRecord(r) }
       else if (name === 'Data' && dataName) { if (!(dataName in rec)) rec[dataName] = text.trim(); dataName = null }
-      else if (['EventID', 'Computer', 'Channel'].includes(name)) rec[name] = text.trim()
+      else if (['EventID', 'Computer', 'Channel', 'EventRecordID'].includes(name)) rec[name] = text.trim()
     }
     text = ''
   })

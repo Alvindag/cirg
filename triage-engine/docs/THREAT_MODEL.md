@@ -23,6 +23,8 @@ Scope: the browser application in `triage-engine/`. Assets: the analysed log dat
 | 7 | Command injection via copied remediation commands | Escaping + quoting lint; commands are labelled, disruptive ones flagged; never auto-run | `engine.test.ts` (escaping suite) |
 | 8 | Sensitive data leaking through shared reports | Opt-in pseudonymization of accounts/hosts/domains/SIDs/IPs, command lines removed, source file name removed. **Limits:** pseudonymization, not anonymization; timestamps, event IDs, process names, rule names and counts remain | `report.test.ts` / `exportHtml.test.ts` leak checks, gate (downloaded files) |
 | 9 | Malicious EVTX exploiting the parser | Parsing is inside a WASM sandbox in a worker, chunk by chunk, Rust memory-safe code; corrupt chunks become "malformed" counts. **Limits:** untested against real-world malformed corpora; `cargo audit` has not been run | `evtx.test.ts` (corrupt chunk) |
+| 11 | Exported report altered after the fact | SHA-256 content hash in the report, `scripts/verify-report.mjs`, source-file SHA-256 for chain of custody. **Limits:** integrity only, not authenticity: sign the file separately | `audit.test.ts` (tamper detection), gate (verifier on a downloaded report) |
+| 12 | Overstated compliance claims | Control references are labelled indicative everywhere they appear; `docs/COMPLIANCE.md` lists what is not covered | `audit.test.ts`, report limitations |
 | 10 | Misleading results (false confidence) | Coverage notes (e.g. no command lines in 4688), "lower bound" flags, limitations section, explicit statement that absence of findings is not proof | `report.test.ts` |
 
 ## Reviewed and accepted

@@ -11,8 +11,10 @@ const COMPUTERS_MAX = 5000
 const REASON_MAX = 20
 
 export interface IngestOptions {
-  onProgress?: (p: { bytes: number; events: number; rejected: number }) => void
+  onProgress?: (p: { bytes: number; events: number; rejected: number; phase?: string }) => void
   isCancelled?: () => boolean
+  /** false = second pass: skip all aggregation (only feed events to onEvent). Default true. */
+  summarize?: boolean
   /** Override sniffing (used by tests / user override). */
   format?: LogFormat
   name?: string
@@ -33,9 +35,13 @@ export async function ingest(
 
   const s: IngestSummary = {
     format, bytes: file.size, totalRecords: 0, parsedEvents: 0, rejected: 0, rejectReasons: {},
-    firstTs: null, lastTs: null, byEventId: {}, proc4688: 0, proc4688WithCmd: 0, computers: [], computersTruncated: false, sample: [], elapsedMs: 0,
+    firstTs: null, lastTs: null, byEventId: {}, proc4688: 0, proc4688WithCmd: 0,
+    hourly: {}, hourlyTruncated: false, recordIds: { count: 0, min: Infinity, max: -Infinity, computers: 0, channels: 0 }, computers: [], computersTruncated: false, sample: [], elapsedMs: 0,
   }
   const computers = new Set<string>()
+  const channels = new Set<string>()
+  const summarize = opts.summarize !== false
+  const MAX_HOURS = 24 * 400
   let lastReport = 0
   let bytes = 0
 
@@ -52,15 +58,26 @@ export async function ingest(
       } else {
         const e = r.event
         s.parsedEvents++
-        s.byEventId[e.eventId] = (s.byEventId[e.eventId] ?? 0) + 1
-        if (e.eventId === 4688) { s.proc4688++; if (e.commandLine) s.proc4688WithCmd++ }
-        if (s.firstTs === null || e.ts < s.firstTs) s.firstTs = e.ts
-        if (s.lastTs === null || e.ts > s.lastTs) s.lastTs = e.ts
-        if (e.computer) {
-          if (computers.size < COMPUTERS_MAX) computers.add(e.computer)
-          else if (!computers.has(e.computer)) s.computersTruncated = true
+        if (summarize) {
+          s.byEventId[e.eventId] = (s.byEventId[e.eventId] ?? 0) + 1
+          if (e.eventId === 4688) { s.proc4688++; if (e.commandLine) s.proc4688WithCmd++ }
+          if (s.firstTs === null || e.ts < s.firstTs) s.firstTs = e.ts
+          if (s.lastTs === null || e.ts > s.lastTs) s.lastTs = e.ts
+          const hr = Math.floor(e.ts / 3_600_000)
+          if (hr in s.hourly) s.hourly[hr]!++
+          else if (Object.keys(s.hourly).length < MAX_HOURS) s.hourly[hr] = 1
+          else s.hourlyTruncated = true
+          if (e.recordId !== undefined) {
+            const ri = s.recordIds
+            ri.count++; if (e.recordId < ri.min) ri.min = e.recordId; if (e.recordId > ri.max) ri.max = e.recordId
+          }
+          if (e.channel && channels.size < 8) channels.add(e.channel)
+          if (e.computer) {
+            if (computers.size < COMPUTERS_MAX) computers.add(e.computer)
+            else if (!computers.has(e.computer)) s.computersTruncated = true
+          }
+          if (s.sample.length < SAMPLE_MAX) s.sample.push(e)
         }
-        if (s.sample.length < SAMPLE_MAX) s.sample.push(e)
         onEvent?.(e)
       }
       const now = performance.now()
@@ -78,6 +95,9 @@ export async function ingest(
 
   if (isCancelled()) return null
   s.computers = [...computers].sort()
+  s.recordIds.computers = computers.size
+  s.recordIds.channels = channels.size
+  if (s.recordIds.count === 0) { s.recordIds.min = 0; s.recordIds.max = 0 }
   s.elapsedMs = Math.round(performance.now() - t0)
   opts.onProgress?.({ bytes: file.size, events: s.parsedEvents, rejected: s.rejected })
   return s

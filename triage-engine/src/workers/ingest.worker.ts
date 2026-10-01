@@ -18,7 +18,7 @@ self.onmessage = async (ev: MessageEvent<ToWorker>) => {
     const total = file.size
     const result = await analyze(file, msg.packs, {
       isCancelled: () => cancelled,
-      onProgress: (p) => post({ type: 'progress', total, ...p }),
+      onProgress: (p) => post({ type: 'progress', total, ...p, phase: p.phase ?? 'Analyzing' }),
     })
     post(result ? { type: 'done', result } : { type: 'cancelled' })
   } catch (e) {

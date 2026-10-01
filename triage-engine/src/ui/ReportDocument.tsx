@@ -1,3 +1,4 @@
+import { describeAuditChanges } from '../core/audit/auditCodes'
 import type { Report, ReportCommand, ReportEvent, ReportFinding } from '../core/report/model'
 
 const fmt = (iso: string | null) => (iso ? iso.replace('T', ' ').replace(/\.\d+Z$/, 'Z').replace(/Z$/, ' UTC') : '—')
@@ -8,8 +9,10 @@ function Sev({ s }: { s: string }) { return <span className={`rsev rsev-${s.toLo
 
 function evidenceDetail(e: ReportEvent): string {
   const f = e.fields
-  const main = f['commandLine'] ?? f['newProcessName'] ?? f['processName'] ?? f['serviceName'] ?? (f['logonType'] !== undefined ? `LogonType ${f['logonType']}` : undefined)
-  return [main, f['targetServerName'] ? `→ ${f['targetServerName']}` : undefined].filter(Boolean).join(' ') || '—'
+  const apc = f['auditPolicyChanges']
+  const main = f['commandLine'] ?? f['newProcessName'] ?? f['processName'] ?? f['serviceName'] ?? (apc ? describeAuditChanges(String(apc)) : undefined)
+    ?? (f['logonType'] !== undefined ? `LogonType ${f['logonType']}${f['authenticationPackage'] ? ` ${f['authenticationPackage']}` : ''}` : undefined)
+  return [main, f['targetServerName'] ? `→ ${f['targetServerName']}` : undefined, f['workstationName'] ? `from ${f['workstationName']}` : undefined].filter(Boolean).join(' ') || '—'
 }
 function EvidenceTable({ rows, total }: { rows: ReportEvent[]; total: number }) {
   const shown = rows.slice(0, MAX_EVIDENCE_ROWS)
@@ -30,7 +33,8 @@ function Command({ c }: { c: ReportCommand }) {
   return (
     <li>
       <strong>{c.title}</strong>{c.risk === 'disruptive' && <> <span className="rbadge">DISRUPTIVE: obtain approval first</span></>}
-      {c.command && <pre><code>{c.command}</code></pre>}
+      {c.command && c.shell === 'manual' && <p>{c.command}</p>}
+      {c.command && c.shell !== 'manual' && <pre><code>{c.command}</code></pre>}
       {c.unfilled.length > 0 && <p className="note">Fill in manually: {c.unfilled.join(', ')}</p>}
     </li>
   )
@@ -76,6 +80,9 @@ export function ReportDocument({ report: r }: { report: Report }) {
         <p className="rkicker">CONFIDENTIAL · SECURITY INCIDENT TRIAGE</p>
         <h1>Windows Security Event Log Triage Report</h1>
         <p className="meta">Generated {fmt(r.generatedAt)} by {r.tool.name} v{r.tool.version} · schema {r.schemaVersion}</p>
+        {(r.case.id || r.case.analyst || r.case.organisation) && (
+          <p className="meta">{[r.case.id && `Case ${r.case.id}`, r.case.analyst && `Analyst: ${r.case.analyst}`, r.case.organisation && r.case.organisation].filter(Boolean).join(' · ')}</p>
+        )}
         <p className={`rnotice${r.redaction.applied ? ' redacted' : ''}`} role="note"><strong>{r.redaction.applied ? 'Redacted report. ' : 'Contains sensitive data. '}</strong>{r.redaction.note}</p>
         <nav aria-label="Report sections"><ol>
           <li><a href="#exec">Executive summary</a></li><li><a href="#deep">Technical deep dive</a></li>
@@ -179,12 +186,58 @@ export function ReportDocument({ report: r }: { report: Report }) {
 
       <section id="appendix" aria-labelledby="app-h">
         <h2 id="app-h">5. Appendix</h2>
-        <h3>Methodology</h3>
-        <p>Events were parsed locally in the browser, normalised, evaluated against the rule packs below, and correlated into chains by shared sessions, hosts, accounts, IPs and process IDs. ATT&amp;CK data: {r.methodology.attackVersion}. No log data was transmitted off the analyst&apos;s machine.</p>
-        <table><caption>Rule packs</caption><thead><tr><th scope="col">Pack</th><th scope="col">Version</th><th scope="col">Rules</th></tr></thead>
-          <tbody>{r.methodology.rulePacks.map((p) => <tr key={p.id}><td>{p.name} ({p.id})</td><td>{p.version}</td><td>{p.rules}</td></tr>)}</tbody></table>
+
+        <h3>5.1 Methodology</h3>
+        <p>Events were parsed locally in the browser, normalised, evaluated against the rule packs below ({r.methodology.passes === 2 ? 'two-pass correlation was used' : 'single pass'}), and correlated into chains by shared sessions, hosts, accounts, IPs and process IDs. ATT&amp;CK data: {r.methodology.attackVersion}. No log data was transmitted off the analyst&apos;s machine.</p>
+        <table><caption>Rule packs (content hashes allow the exact rules to be reproduced)</caption><thead><tr><th scope="col">Pack</th><th scope="col">Version</th><th scope="col">Rules</th><th scope="col">SHA-256</th></tr></thead>
+          <tbody>{r.methodology.rulePacks.map((p) => <tr key={p.id}><td>{p.name} ({p.id})</td><td>{p.version}</td><td>{p.rules}</td><td className="wrap"><code>{p.sha256}</code></td></tr>)}</tbody></table>
         {r.methodology.ruleLoadErrors.length > 0 && (<><h4>Rule load errors (these rules did not run)</h4><ul>{r.methodology.ruleLoadErrors.map((e, i) => <li key={i}>{e}</li>)}</ul></>)}
-        <h3>Limitations</h3>
+
+        <h3>5.2 Evidence integrity and chain of custody</h3>
+        <table>
+          <caption>Provenance of this analysis</caption>
+          <tbody>
+            <tr><th scope="row">Source file SHA-256</th><td className="wrap"><code>{r.source.sha256 || 'not computed'}</code></td></tr>
+            <tr><th scope="row">Source size</th><td>{r.source.sizeBytes.toLocaleString()} bytes</td></tr>
+            <tr><th scope="row">Analysis tool</th><td>{r.tool.name} v{r.tool.version}</td></tr>
+            <tr><th scope="row">Report generated</th><td>{fmt(r.generatedAt)}</td></tr>
+            <tr><th scope="row">Report content SHA-256</th><td className="wrap"><code>{r.integrity.contentSha256}</code></td></tr>
+            <tr><th scope="row">Record-number continuity</th><td>{r.loggingAssessment.recordIntegrity.note}</td></tr>
+          </tbody>
+        </table>
+        <p className="note">The content hash covers this report&apos;s data (the JSON export without its integrity block; verify with <code>scripts/verify-report.mjs</code>). It proves the file was not altered after export, not who produced it: sign the file separately if you need authenticity. Keep the original log file, and compare its SHA-256 with the value above.</p>
+
+        <h3>5.3 Audit logging assessment</h3>
+        <p>{r.loggingAssessment.summary.observed} of {r.loggingAssessment.summary.evaluated} evaluated audit areas were observed in a {r.loggingAssessment.windowHours.toFixed(1)}-hour window. Log source: {r.loggingAssessment.role === 'dc' ? 'domain controller' : r.loggingAssessment.role === 'member' ? 'workstation or member server' : 'unknown role'}{r.loggingAssessment.roleInferred ? ' (inferred)' : ''}. &quot;Possible gap&quot; means an event type that normally appears constantly was absent, so the audit setting is probably off. Missing rare events is normal.</p>
+        <table>
+          <caption>Audit areas</caption>
+          <thead><tr><th scope="col">Area</th><th scope="col">Event IDs</th><th scope="col">Observed</th><th scope="col">Status</th><th scope="col">Note</th></tr></thead>
+          <tbody>{r.loggingAssessment.rows.map((x) => (
+            <tr key={x.id}><td>{x.area}</td><td>{x.eventIds.join(', ')}</td><td>{x.observed.toLocaleString()}</td>
+              <td>{x.status === 'observed' ? 'Observed' : x.status === 'possible-gap' ? 'POSSIBLE GAP' : x.status === 'not-evaluated' ? 'Not evaluated' : 'Not observed'}</td>
+              <td>{x.note}{x.status === 'possible-gap' && x.enable ? <> Enable: <code>{x.enable}</code></> : null}</td></tr>
+          ))}</tbody>
+        </table>
+        <p><strong>Process command lines:</strong> {r.loggingAssessment.commandLine.note}{r.loggingAssessment.commandLine.percent !== null ? ` (${r.loggingAssessment.commandLine.percent}% of ${r.loggingAssessment.commandLine.processEvents.toLocaleString()} process-creation events)` : ''}</p>
+        <p><strong>Periods with no events:</strong> {r.loggingAssessment.logGapsNote}</p>
+        {r.loggingAssessment.logGaps.length > 0 && (
+          <table><caption>Longest gaps</caption><thead><tr><th scope="col">From (UTC)</th><th scope="col">To (UTC)</th><th scope="col">Hours</th></tr></thead>
+            <tbody>{r.loggingAssessment.logGaps.map((g, i) => <tr key={i}><td>{fmt(g.from)}</td><td>{fmt(g.to)}</td><td>{g.hours}</td></tr>)}</tbody></table>
+        )}
+
+        <h3>5.4 Control mapping (indicative)</h3>
+        <p className="note">Which framework controls the detections and logging areas above are relevant to. This points reviewers at evidence; it is not an assessment of compliance, which depends on your organisation&apos;s processes and an assessor&apos;s judgement. Verify identifiers against the current edition of each framework.</p>
+        {r.controlMapping.length === 0 ? <p>No controls to list.</p> : r.controlMapping.map((fw) => (
+          <table key={fw.framework}>
+            <caption>{fw.frameworkName}</caption>
+            <thead><tr><th scope="col">Control</th><th scope="col">Relevant detections (rules)</th><th scope="col">Logging areas observed</th></tr></thead>
+            <tbody>{fw.controls.map((c) => (
+              <tr key={c.id}><td>{c.id}{c.title ? `: ${c.title}` : ''}</td><td>{c.ruleIds.length ? `${c.ruleIds.join(', ')} (${c.findingIds.length} finding${c.findingIds.length === 1 ? '' : 's'})` : '—'}</td><td>{c.loggingAreas.join('; ') || '—'}</td></tr>
+            ))}</tbody>
+          </table>
+        ))}
+
+        <h3>5.5 Limitations</h3>
         <ul>{r.limitations.map((l, i) => <li key={i}>{l}</li>)}</ul>
       </section>
     </article>

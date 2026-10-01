@@ -10,6 +10,7 @@ Strictly client-side. Log data is never uploaded, stored (Local/Session storage,
 | 2 | Rule engine (`match`, `threshold`), Ajv standalone validation, starter rule pack, ATT&CK mapping, rule tester UI | **Done** (gate passing) |
 | 3 | Correlation engine (`sequence` rules), attack-chain builder, explainable risk scoring, EVTX via WASM | **Done** (gate passing) |
 | 4 | Report (exec summary / deep dive / context / next steps), JSON + SIEM NDJSON + HTML + print-PDF export, redaction, a11y and security hardening | **Done** (gate passing) |
+| 5 | Fixes from real DC/workstation data; two-pass correlation; audit logging assessment; evidence integrity; framework control mapping | **Done** (gate passing); see `COMPLIANCE.md` |
 
 ## Phase 2: rule engine (as built)
 
@@ -26,6 +27,23 @@ Strictly client-side. Log data is never uploaded, stored (Local/Session storage,
 - Rules can only reference the canonical fields in `core/rules/compile.ts` (`FIELD_NAMES`). Fields such as Kerberos ticket encryption type are not yet normalized, so CRED-002 is a heuristic only.
 - AUTH-004 evaluates IPv4 only.
 - Rule packs from other people are untrusted input, but a malicious pack can still generate noise or hide detections via `suppress`. Review packs before use.
+
+## Phase 5: fixes from real data, audit and compliance support (as built)
+
+**Fixes found by running on a real Windows Server 2016 DC and a Windows 11 workstation** (each has a regression test that was confirmed to fail against the old behaviour):
+- *Chains* need a sequence match or 2+ medium-or-higher findings; one medium finding plus context noise is not a chain.
+- *Low/info match rules* collapse to one finding per host (15 explicit-credential events had become 8 findings).
+- *Audit-policy changes (4719)* are split by direction using `AuditPolicyChanges`: removed = **high** (AUD-003), only added = **info** (AUD-004, typically an admin enabling logging), unknown = medium (AUD-002). The executive summary no longer advises reverting a change an administrator just made: containment is recommended only for chains and high/critical findings, otherwise it says *verify first*.
+- *Manual instructions* render as prose, not code blocks. 4648 evidence shows the calling process and target server.
+- *AUTH-006 blind spot*: a busy account's thousands of successful logons hit a per-step memory cap, so a real brute-force success could be missed. Sequence rules may now mark a selective `guard` step. **Pass 1** collects only guard events (plus match/threshold rules); **pass 2** re-reads the file and collects the other steps only within `within` of a guard event (binary search over guard timestamps). Memory stays bounded and the result is order-independent. Pass 2 runs only when pass 1 found a candidate, so clean data is read once. All five starter sequence rules declare a guard.
+
+**Audit logging assessment** (`core/audit/coverage.ts`): classifies each audit area as *frequent* (absence over 6+ hours means the setting is probably off: "possible gap"), *occasional* (verify) or *rare* (absence is normal: log cleared, service installed). Domain-controller-only areas (Kerberos, NTLM validation) are evaluated only when the role is known (auto-detected from Kerberos/NTLM events, or chosen by the analyst). Also reported: command-line coverage of 4688, periods with no events (4+ hours), and EventRecordID continuity (applicable only for a single computer and log). Short windows are never called gaps.
+
+**Evidence integrity** (`core/hash/sha256.ts`, report `source`, `methodology`, `integrity`): streaming SHA-256 of the source file; SHA-256 of every rule pack; analysis passes; case ID, analyst and organisation; and a content hash of the report verifiable with `scripts/verify-report.mjs` (integrity, not authenticity).
+
+**Control mapping** (`core/audit/controls.ts`, `controls` on rules, report 5.4): every starter rule maps to NIST 800-53, 800-171, CSF 2.0, ISO 27001:2022, PCI DSS 4.0, CIS v8, SOC 2 and HIPAA references. Mappings are indicative; see `COMPLIANCE.md` for exactly what is and is not claimed.
+
+Report schema is now **1.1** (new: `case`, `source.sha256`, `loggingAssessment`, `controlMapping`, `integrity`, `methodology.passes`, rule-pack hashes, finding `controls`).
 
 ## Phase 4: reporting, export and hardening (as built)
 
@@ -46,7 +64,7 @@ Strictly client-side. Log data is never uploaded, stored (Local/Session storage,
 **Accessibility:** skip link, landmarks, native `<details>` disclosure widgets, labelled controls, table captions and `scope`, severity always shown as text (never color alone), live regions for progress/status, visible focus. An axe-core scan (WCAG 2.0/2.1/2.2 A and AA rules) runs in the browser gate against the app in light and dark mode and against the exported report. Automated scans catch roughly a third of accessibility issues: a manual screen-reader and keyboard pass is still recommended before wide rollout.
 
 ### Known limits (Phase 4)
-- The report does not include a hash of the source file (SubtleCrypto cannot hash a stream incrementally, and a full in-memory read of 100 MB+ files is exactly what this tool avoids). Record file hashes with your evidence-handling tooling.
+- (Resolved in Phase 5: the source file is now hashed by a streaming SHA-256.)
 - Print layout is verified by producing a PDF in Chromium, not by visual review in every browser.
 - The ECS-style NDJSON has not been ingested into a live Elastic/Sentinel/Splunk instance in this repo's tests.
 

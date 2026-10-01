@@ -14,7 +14,7 @@ const ev = (o: Partial<CanonicalEvent> & { eventId: number }): CanonicalEvent =>
 const run = (events: CanonicalEvent[], extra = '') => {
   const { comp } = buildRules([])
   const eng = new RuleEngine(comp.rules)
-  events.forEach((e) => eng.process(e))
+  eng.processAll(events)
   return eng.finalize()
 }
 const ids = (events: CanonicalEvent[]) => run(events).findings.map((f) => f.ruleId)
@@ -113,12 +113,22 @@ describe('real-world noise handling', () => {
     const r = (await analyze(new Blob([csv]), [], { format: 'csv' }))!
     expect(r.findings[0]!.evidence[0]).toMatchObject({ processName: 'C:\\Windows\\System32\\consent.exe', targetServerName: 'localhost' })
   })
-  it('rule text no longer carries stale phase notes and AUD-002 covers both directions of change', () => {
+  it('rule text: no stale phase notes; audit-policy rules distinguish removed / added / unknown', () => {
     const pack = JSON.stringify(defaultPack)
     expect(pack).not.toMatch(/Phase 3/)
-    const aud = (defaultPack as { rules: { id: string; context: { summary: string; falsePositives: string[] } }[] }).rules.find((r) => r.id === 'AUD-002')!
-    expect(aud.context.summary).toMatch(/strengthen/i)
-    expect(aud.context.falsePositives.join()).toMatch(/enabling auditing/i)
+    const rules = (defaultPack as { rules: { id: string; severity: string; context: { summary: string; falsePositives: string[] } }[] }).rules
+    const [unknown, removed, added] = ['AUD-002', 'AUD-003', 'AUD-004'].map((id) => rules.find((r) => r.id === id)!)
+    expect(unknown!.context.summary).toMatch(/Changes made/)
+    expect([removed!.severity, added!.severity]).toEqual(['high', 'info'])
+    expect(unknown!.context.falsePositives.join()).toMatch(/enabling auditing/i)
+  })
+  it('REGRESSION (real DC data): enabling auditing is info, removing it is high, unknown direction stays medium', () => {
+    const e = (changes?: string) => ev({ eventId: 4719, subjectUserName: 'Administrator', ...(changes ? { auditPolicyChanges: changes } : {}) })
+    expect(ids([e('%%8448, %%8450')])).toEqual(['AUD-004'])
+    expect(ids([e('%%8449')])).toEqual(['AUD-003'])
+    expect(ids([e('%%8448, %%8451')])).toEqual(['AUD-003']) // mixed: removal wins
+    expect(ids([e()])).toEqual(['AUD-002'])
+    expect(run([e('%%8449')]).findings[0]!.severity).toBe('high')
   })
 })
 

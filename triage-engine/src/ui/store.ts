@@ -14,6 +14,7 @@ interface State {
   total: number
   events: number
   rejected: number
+  stage: string
   result: AnalysisResult | null
   error: string | null
   customPacks: CustomPack[]
@@ -33,7 +34,7 @@ function killWorker() {
   worker = null
 }
 
-const run = { phase: 'idle' as Phase, fileName: '', bytes: 0, total: 0, events: 0, rejected: 0, result: null, error: null }
+const run = { phase: 'idle' as Phase, fileName: '', bytes: 0, total: 0, events: 0, rejected: 0, stage: '', result: null, error: null }
 
 export const useStore = create<State>((set, get) => ({
   ...run,
@@ -43,7 +44,7 @@ export const useStore = create<State>((set, get) => ({
     worker = createIngestWorker(new URL(ingestWorkerUrl, self.location.href))
     worker.onmessage = (e: MessageEvent<FromWorker>) => {
       const m = e.data
-      if (m.type === 'progress') set({ bytes: m.bytes, total: m.total, events: m.events, rejected: m.rejected })
+      if (m.type === 'progress') set({ bytes: m.bytes, total: m.total, events: m.events, rejected: m.rejected, stage: m.phase })
       else if (m.type === 'done') { set({ phase: 'done', result: m.result }); killWorker() }
       else if (m.type === 'cancelled') { set({ ...run }); killWorker() }
       else if (m.type === 'error') { set({ phase: 'error', error: m.message }); killWorker() }

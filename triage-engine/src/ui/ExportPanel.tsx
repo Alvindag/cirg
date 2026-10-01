@@ -2,18 +2,22 @@ import { useEffect, useState } from 'react'
 import { createPortal } from 'react-dom'
 import type { AnalysisResult } from '../core/analysis'
 import { reportToJson, reportToNdjson } from '../core/report/exports'
+import type { HostRole } from '../core/audit/coverage'
 import { buildReport, type Report } from '../core/report/model'
 import { ReportDocument } from './ReportDocument'
 import { buildStandaloneHtml } from './exportHtml'
 import { downloadText, stamp } from './download'
 
-export function ExportPanel({ result, fileName }: { result: AnalysisResult; fileName: string }) {
+export function ExportPanel({ result, fileName, hostRole }: { result: AnalysisResult; fileName: string; hostRole: HostRole }) {
   const [redact, setRedact] = useState(false)
   const [busy, setBusy] = useState<string | null>(null)
   const [msg, setMsg] = useState<string | null>(null)
   const [printing, setPrinting] = useState<Report | null>(null)
+  const [caseId, setCaseId] = useState('')
+  const [analyst, setAnalyst] = useState('')
+  const [org, setOrg] = useState('')
 
-  const make = () => buildReport(result, { redact, generatedAt: new Date(), sourceName: fileName })
+  const make = () => buildReport(result, { redact, generatedAt: new Date(), sourceName: fileName, hostRole, caseInfo: { id: caseId, analyst, organisation: org } })
   const run = async (label: string, fn: () => Promise<void> | void) => {
     setBusy(label); setMsg(null)
     try { await fn(); setMsg(`${label} saved.`) } catch (e) { setMsg(`${label} failed: ${e instanceof Error ? e.message : 'unknown error'}`) } finally { setBusy(null) }
@@ -32,6 +36,12 @@ export function ExportPanel({ result, fileName }: { result: AnalysisResult; file
   return (
     <section aria-labelledby="export-h" className="exportp">
       <h3 id="export-h">Report and export</h3>
+      <fieldset className="casef">
+        <legend>Case details (optional, included in the report; kept in memory only)</legend>
+        <label>Case or ticket ID <input value={caseId} maxLength={120} onChange={(e) => setCaseId(e.target.value)} autoComplete="off" /></label>
+        <label>Analyst <input value={analyst} maxLength={120} onChange={(e) => setAnalyst(e.target.value)} autoComplete="off" /></label>
+        <label>Organisation <input value={org} maxLength={120} onChange={(e) => setOrg(e.target.value)} autoComplete="off" /></label>
+      </fieldset>
       <label className="check"><input type="checkbox" checked={redact} onChange={(e) => setRedact(e.target.checked)} />
         {' '}Redact usernames, hostnames, domains, SIDs, IP addresses and command lines (pseudonymize) before exporting</label>
       <div className="btnrow">

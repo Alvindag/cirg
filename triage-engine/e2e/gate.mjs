@@ -5,6 +5,7 @@ import path from 'node:path'
 import os from 'node:os'
 import { buildEvtx } from './evtxBuilder.mjs'
 import crypto from 'node:crypto'
+import { spawnSync } from 'node:child_process'
 const AXE = fs.readFileSync(path.resolve('node_modules/axe-core/axe.min.js'), 'utf8')
 
 const srv = await serve(path.resolve('dist'))
@@ -141,10 +142,17 @@ await page.emulateMedia({ colorScheme: 'light' })
 
 // ---- Exports
 const dl = async (label) => { const [d] = await Promise.all([page.waitForEvent('download', { timeout: 15000 }), page.click(`button:has-text("${label}")`)]); const f = path.join(tmp, d.suggestedFilename()); await d.saveAs(f); return { name: d.suggestedFilename(), text: fs.readFileSync(f, 'utf8'), f } }
+await page.fill('label:has-text("Case or ticket ID") input', 'INC-2026-0001')
+await page.fill('label:has-text("Analyst") input', 'Gate Tester')
 const json = await dl('Download JSON')
 const rep = JSON.parse(json.text)
-check('JSON export: valid, versioned, generated filename (no log data in name)', rep.schema === 'windows-security-triage-report' && rep.schemaVersion === '1.0' && /^triage-report-\d{8}-\d{6}Z\.json$/.test(json.name))
+check('JSON export: valid, versioned, generated filename (no log data in name)', rep.schema === 'windows-security-triage-report' && rep.schemaVersion === '1.1' && /^triage-report-\d{8}-\d{6}Z\.json$/.test(json.name))
 check('JSON export: has summary, chains, findings, ATT&CK coverage, limitations', rep.executiveSummary.risk.score > 0 && rep.chains.length >= 2 && rep.findings.length >= 5 && rep.attackCoverage.length > 0 && rep.limitations.length > 0)
+check('JSON export: source SHA-256 equals the real file hash (chain of custody)', rep.source.sha256 === crypto.createHash('sha256').update(fs.readFileSync(csv)).digest('hex'))
+check('JSON export: case details, rule-pack hashes, two-pass flag present', rep.case.id === 'INC-2026-0001' && rep.case.analyst === 'Gate Tester' && rep.methodology.rulePacks.every((p) => /^[0-9a-f]{64}$/.test(p.sha256)) && [1, 2].includes(rep.methodology.passes))
+check('JSON export: logging assessment and control mapping for 8 frameworks', rep.loggingAssessment.rows.length >= 10 && rep.controlMapping.length === 8)
+const ver = spawnSync('node', ['scripts/verify-report.mjs', json.f, csv], { encoding: 'utf8' })
+check('scripts/verify-report.mjs passes on the downloaded report + original file', ver.status === 0 && /report content hash matches/.test(ver.stdout) && /original log SHA-256 matches/.test(ver.stdout))
 check('JSON export (not redacted) keeps real hosts and IPs for the analyst', json.text.includes('DC01') && json.text.includes('203.0.113.9'))
 const nd = await dl('Download SIEM alerts')
 const ndl = nd.text.trim().split('\n').map((l) => JSON.parse(l))

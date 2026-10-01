@@ -45,13 +45,21 @@ const top = (m: Map<string, number>): [string, number][] => [...m].sort((a, b) =
 const topEntities = (en: Entities) => ({ users: top(en.users), hosts: top(en.hosts), ips: top(en.ips) })
 const UNKNOWN_HOST = '(unknown host)'
 
+/** Is there a value in sorted `g` within +/- `w` of `t`? (binary search) */
+function nearGuard(g: number[], t: number, w: number): boolean {
+  let lo = 0, hi = g.length
+  while (lo < hi) { const mid = (lo + hi) >>> 1; if (g[mid]! < t - w) lo = mid + 1; else hi = mid }
+  return lo < g.length && g[lo]! <= t + w
+}
+
 interface HostBucket { stamps: number[]; evidence: CanonicalEvent[]; maxIdx: number; suppressed: number }
 interface Group {
   values: Record<string, string>
   stamps: number[]; distinct: string[]
   events: CanonicalEvent[]
 }
-interface SeqBucket { steps: Map<string, CanonicalEvent[]> }
+/** guardTs: timestamps of every guard-step event in the bucket (sorted before pass 2). */
+interface SeqBucket { steps: Map<string, CanonicalEvent[]>; guardTs?: number[] }
 interface RuleRt {
   c: CompiledRule
   evals: number; ms: number; disabled: boolean
@@ -95,16 +103,35 @@ export class RuleEngine {
     this.byEvent.clear()
   }
 
-  process(e: CanonicalEvent): void {
-    this.processed++
+  /** True when some guard-step rule found candidate buckets in pass 1: only then is a second read of the input needed. */
+  needsSecondPass(): boolean {
+    for (const rt of this.rts) if (rt.c.sequence?.guardId && rt.buckets && rt.buckets.size > 0) return true
+    return false
+  }
+
+  /** Convenience for in-memory input: runs pass 1, and pass 2 if needed, exactly as analyze() does for files. */
+  processAll(events: Iterable<CanonicalEvent>): void {
+    const list = [...events]
+    for (const e of list) this.process(e, 1)
+    if (this.needsSecondPass()) { this.beginSecondPass(); for (const e of list) this.process(e, 2) }
+  }
+
+  /** Call between the passes. */
+  beginSecondPass(): void {
+    for (const rt of this.rts) if (rt.c.sequence?.guardId && rt.buckets) for (const b of rt.buckets.values()) b.guardTs?.sort((x, y) => x - y)
+  }
+
+  /** phase 1: everything except non-guard steps of guard rules. phase 2: only those steps, and only near a guard event. */
+  process(e: CanonicalEvent, phase: 1 | 2 = 1): void {
+    if (phase === 1) this.processed++
     const list = this.byEvent.get(e.eventId)
     if (!list) return
     for (const rt of list) {
       if (rt.disabled) continue
       const sampled = (++rt.evals & 127) === 0
       const t0 = sampled ? performance.now() : 0
-      if (rt.buckets) this.evalSequence(rt, e)
-      else this.evalRule(rt, e)
+      if (rt.buckets) this.evalSequence(rt, e, phase)
+      else if (phase === 1) this.evalRule(rt, e)
       if (sampled) {
         rt.ms += (performance.now() - t0) * 128 // extrapolate from 1-in-128 timing
         if (rt.ms > this.lim.ruleTimeBudgetMs) { rt.disabled = true; this.disabledForTime.push(rt.c.def.id) }
@@ -167,18 +194,26 @@ export class RuleEngine {
     return seq.keys[k]!.scope === 'host' ? `${e.computer ?? ''}\u0001${s}` : s
   }
 
-  private evalSequence(rt: RuleRt, e: CanonicalEvent) {
+  private evalSequence(rt: RuleRt, e: CanonicalEvent, phase: 1 | 2) {
     const seq = rt.c.sequence!
+    const guarded = !!seq.guardId
+    if (phase === 2 && !guarded) return
     for (const step of seq.steps) {
+      const isGuard = step.id === seq.guardId
+      if (guarded && (phase === 1) !== isGuard) continue // pass 1: guard events only; pass 2: the other steps only
       if (!step.eventIds.has(e.eventId) || !step.predicate(e)) continue
       const key = this.keyValue(seq, 0, step.id, e)
       if (key === undefined) continue
       let b = rt.buckets!.get(key)
       if (!b) {
+        if (phase === 2) continue // pass 2 never creates buckets: no guard event, no chain
         if (rt.buckets!.size >= this.lim.seqBucketsPerRule) { rt.capped = true; continue }
         b = { steps: new Map() }
         rt.buckets!.set(key, b)
       }
+      if (isGuard) { b.guardTs ??= []; if (b.guardTs.length < this.lim.maxStampsPerGroup) b.guardTs.push(e.ts); else rt.capped = true }
+      // Pass 2: only events within `within` of some guard event can take part in a chain.
+      if (phase === 2 && !nearGuard(b.guardTs!, e.ts, seq.withinMs)) continue
       let list = b.steps.get(step.id)
       if (!list) { list = []; b.steps.set(step.id, list) }
       if (list.length >= this.lim.seqEventsPerStep || rt.seqTotal >= this.lim.seqEventsPerRule) { rt.capped = true; continue }
@@ -195,7 +230,7 @@ export class RuleEngine {
     for (const rt of this.rts) {
       const def = rt.c.def
       const attack = def.attack.map((a) => ({ ...a, tacticName: tacticName(a.tactic), techniqueName: techniqueName(a.technique) }))
-      const base: BaseFinding = { ruleId: def.id, ruleName: def.name, packId: rt.c.packId, severity: def.severity, confidence: def.confidence ?? 0.5, attack, context: def.context, response: def.response }
+      const base: BaseFinding = { ruleId: def.id, ruleName: def.name, packId: rt.c.packId, severity: def.severity, confidence: def.confidence ?? 0.5, attack, context: def.context, response: def.response, controls: def.controls }
       let found: Finding[] = []
       if (rt.hosts) for (const [host, b] of rt.hosts) found.push(...this.episodes(host, b, base))
       else if (rt.groups) for (const g of rt.groups.values()) found.push(...this.bursts(rt, g, base))
@@ -210,7 +245,7 @@ export class RuleEngine {
     out.sort((a, b) => SEVERITY_RANK[b.severity] - SEVERITY_RANK[a.severity] || b.confidence - a.confidence || b.count - a.count)
     const stats: EngineStats = {
       eventsProcessed: this.processed, rulesActive: this.rts.length - this.disabledForTime.length,
-      rulesDisabledForTime: this.disabledForTime, findingsTruncated: truncated, capped,
+      rulesDisabledForTime: this.disabledForTime, findingsTruncated: truncated, capped, passes: 1,
     }
     return { findings: out, stats }
   }

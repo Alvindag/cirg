@@ -14,7 +14,7 @@ const run = (events: CanonicalEvent[], pack?: object) => {
   const { comp, report } = buildRules(pack ? [{ name: 'x.json', text: JSON.stringify(pack), format: 'json' }] : [])
   expect(report.errors).toEqual([])
   const eng = new RuleEngine(comp.rules)
-  events.forEach((e) => eng.process(e))
+  eng.processAll(events)
   return eng.finalize()
 }
 const ids = (events: CanonicalEvent[]) => run(events).findings.map((f) => f.ruleId)

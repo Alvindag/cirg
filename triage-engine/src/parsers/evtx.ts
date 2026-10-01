@@ -46,6 +46,7 @@ export function evtxJsonToFlat(doc: unknown): FlatRecord | null {
     TimeCreated: attrs('TimeCreated')['SystemTime'],
     Computer: val(sys['Computer']),
     Channel: val(sys['Channel']),
+    EventRecordID: val(sys['EventRecordID']),
     ExecutionProcessID: attrs('Execution')['ProcessID'],
   }
   flattenInto(ev['EventData'], rec)

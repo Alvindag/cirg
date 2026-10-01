@@ -14,6 +14,8 @@ export interface RuleContext { summary?: string; falsePositives?: string[]; mali
 export interface RuleDef {
   id: string; name: string; enabled?: boolean; kind: 'match' | 'threshold' | 'sequence'
   severity: Severity; confidence?: number; tags?: string[]
+  /** Indicative framework control references, "framework:id" (see core/audit/controls.ts). */
+  controls?: string[]
   attack: { tactic: string; technique: string }[]
   when: Record<string, unknown>
   suppress?: Condition[]
@@ -46,9 +48,12 @@ export interface CompiledStep {
   optional: boolean
   negate: boolean
   min: number
+  guard: boolean
 }
 export interface CompiledSequence {
   steps: CompiledStep[]
+  /** The selective step that gates collection of the others (two-pass mode), if declared. */
+  guardId?: string
   withinMs: number
   ordered: boolean
   /** keys[0] is the bucket (primary) key; the rest are equality constraints checked inside a bucket. */
@@ -74,6 +79,7 @@ export interface Finding {
   suppressed: number
   context?: RuleContext
   response?: RuleDef['response']
+  controls?: string[]
 }
 
 export interface EngineStats {
@@ -83,4 +89,6 @@ export interface EngineStats {
   findingsTruncated: string[]
   /** Rules whose in-memory correlation/evidence caps were hit: results for these are lower bounds. */
   capped: string[]
+  /** 1, or 2 when a second read of the file was needed to collect correlated steps near guard events. */
+  passes: number
 }

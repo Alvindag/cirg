@@ -16,7 +16,8 @@
     "pretest": "node scripts/build-validator.mjs --check",
     "build:evtx": "node scripts/build-evtx.mjs",
     "sbom": "node scripts/sbom.mjs",
-    "start": "npm run build && node scripts/serve.mjs"
+    "start": "npm run build && node scripts/serve.mjs",
+    "verify-report": "node scripts/verify-report.mjs"
   },
   "dependencies": {
     "papaparse": "5.7.0",

@@ -32,7 +32,7 @@ export class Pseudonymizer {
   event(e: CanonicalEvent): CanonicalEvent {
     const o: CanonicalEvent = { eventId: e.eventId, ts: e.ts }
     const copy = <K extends keyof CanonicalEvent>(k: K) => { if (e[k] !== undefined) (o as unknown as Record<string, unknown>)[k] = e[k] }
-    for (const k of ['channel', 'subjectLogonId', 'targetLogonId', 'logonType', 'processId', 'newProcessId', 'ipPort', 'status', 'subStatus', 'authenticationPackage', 'serviceName'] as const) copy(k)
+    for (const k of ['channel', 'recordId', 'auditPolicyChanges', 'subjectLogonId', 'targetLogonId', 'logonType', 'processId', 'newProcessId', 'ipPort', 'status', 'subStatus', 'authenticationPackage', 'serviceName'] as const) copy(k)
     if (e.computer) o.computer = this.host(e.computer)
     if (e.workstationName) o.workstationName = this.host(e.workstationName)
     if (e.subjectUserName) o.subjectUserName = this.user(e.subjectUserName)

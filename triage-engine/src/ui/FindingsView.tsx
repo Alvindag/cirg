@@ -1,11 +1,20 @@
 import { useState } from 'react'
 import type { Finding } from '../core/rules/types'
 import { renderAction } from '../core/rules/render'
+import { describeAuditChanges } from '../core/audit/auditCodes'
 import type { CanonicalEvent } from '../core/types'
 
 const fmtTs = (t: number) => new Date(t).toISOString().replace('T', ' ').slice(0, 19) + 'Z'
 export const fmtTime = fmtTs
 const SEV_LABEL = { critical: 'CRITICAL', high: 'HIGH', medium: 'MEDIUM', low: 'LOW', info: 'INFO' } as const
+
+function evidenceDetail(e: CanonicalEvent): string {
+  const main = e.commandLine ?? e.newProcessName ?? e.processName ?? e.serviceName
+    ?? (e.auditPolicyChanges ? describeAuditChanges(e.auditPolicyChanges) : undefined)
+    ?? (e.logonType !== undefined ? `LogonType ${e.logonType}${e.authenticationPackage ? ` ${e.authenticationPackage}` : ''}` : undefined)
+  const extra = [e.targetServerName ? `→ ${e.targetServerName}` : undefined, e.workstationName ? `from ${e.workstationName}` : undefined]
+  return [main, ...extra].filter(Boolean).join(' ') || '—'
+}
 
 function Evidence({ rows }: { rows: CanonicalEvent[] }) {
   return (
@@ -18,7 +27,7 @@ function Evidence({ rows }: { rows: CanonicalEvent[] }) {
             <tr key={i}>
               <td>{fmtTs(e.ts)}</td><td>{e.eventId}</td><td>{e.computer ?? '—'}</td>
               <td>{e.targetUserName ?? e.subjectUserName ?? '—'}</td><td>{e.ipAddress ?? '—'}</td>
-              <td className="wrap"><code>{[e.commandLine ?? e.newProcessName ?? e.processName ?? e.serviceName ?? (e.logonType !== undefined ? `LogonType ${e.logonType}` : undefined), e.targetServerName ? `→ ${e.targetServerName}` : undefined].filter(Boolean).join(' ') || '—'}</code></td>
+              <td className="wrap"><code>{evidenceDetail(e)}</code></td>
             </tr>
           ))}
         </tbody>
@@ -57,7 +66,8 @@ function Commands({ f }: { f: Finding }) {
               return (
                 <li key={k}>
                   <strong>{r.title}</strong>{r.risk === 'disruptive' && <span className="badge warnb"> disruptive: confirm before running</span>}
-                  {r.command && (
+                  {r.command && r.shell === 'manual' && <p>{r.command}</p>}
+                  {r.command && r.shell !== 'manual' && (
                     <div className="cmd">
                       <pre><code>{r.command}</code></pre>
                       <button onClick={() => copy(r.command!, key)}>{copied === key ? 'Copied' : 'Copy'}</button>

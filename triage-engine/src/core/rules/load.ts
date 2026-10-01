@@ -1,6 +1,7 @@
 import YAML from 'yaml'
 import validatePack from '../../generated/validateRules'
 import { TACTICS, TECHNIQUES } from '../attack'
+import { CONTROLS, FRAMEWORKS, parseControl } from '../audit/controls'
 import { compileRule } from './compile'
 import type { CompiledRule, RulePack } from './types'
 
@@ -41,6 +42,10 @@ export function loadPack(text: string, format: 'json' | 'yaml', label = 'pack'):
     const w = r.when as Record<string, unknown>
     const shape = 'steps' in w ? 'sequence' : 'groupBy' in w ? 'threshold' : 'match'
     if (shape !== r.kind) errors.push(`${label}: rule ${r.id} has kind "${r.kind}" but its "when" block is a ${shape} spec`)
+    for (const c of r.controls ?? []) {
+      if (!(parseControl(c).framework in FRAMEWORKS)) errors.push(`${label}: rule ${r.id} references unknown framework in control "${c}" (known: ${Object.keys(FRAMEWORKS).join(', ')})`)
+      else if (!(c in CONTROLS)) warnings.push(`${label}: rule ${r.id} control ${c} is not in the bundled catalog (its title will be omitted)`)
+    }
     for (const a of r.attack) {
       if (!(a.tactic in TACTICS)) errors.push(`${label}: rule ${r.id} references unknown ATT&CK tactic ${a.tactic}`)
       if (!(a.technique in TECHNIQUES)) warnings.push(`${label}: rule ${r.id} technique ${a.technique} is not in the bundled ATT&CK subset (name will be omitted)`)

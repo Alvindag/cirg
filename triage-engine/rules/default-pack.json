@@ -95,16 +95,30 @@
             "risk": "read-only"
           }
         ]
-      }
+      },
+      "controls": [
+        "nist-800-53:AU-9",
+        "nist-800-53:AU-12",
+        "nist-800-171:3.3.8",
+        "nist-csf-2:PR.PS-04",
+        "nist-csf-2:DE.CM-09",
+        "iso-27001:A.8.15",
+        "pci-dss-4:10.2.1.6",
+        "pci-dss-4:10.3.2",
+        "cis-v8:8.2",
+        "soc2:CC7.2",
+        "hipaa:164.312(b)"
+      ]
     },
     {
       "id": "AUD-002",
-      "name": "Audit policy changed",
+      "name": "Audit policy changed (direction not recorded in the export)",
       "kind": "match",
       "severity": "medium",
       "confidence": 0.4,
       "tags": [
-        "anti-forensics"
+        "anti-forensics",
+        "config-change"
       ],
       "attack": [
         {
@@ -115,12 +129,17 @@
       "when": {
         "eventIds": [
           4719
-        ]
+        ],
+        "condition": {
+          "field": "auditPolicyChanges",
+          "op": "exists",
+          "value": false
+        }
       },
       "context": {
-        "summary": "The audit policy was changed. This can weaken what future activity records (attackers do this to hide) or strengthen it (administrators enabling auditing). Open the event's \"Changes made\" to see which, and confirm it matches a planned change.",
+        "summary": "The audit policy was changed, but this export does not include the AuditPolicyChanges field, so it is unknown whether auditing was added or removed. Open the event in Event Viewer and read \"Changes made\" (Success/Failure added or removed).",
         "falsePositives": [
-          "An administrator enabling auditing (auditpol or Group Policy), for example to turn on process command-line logging",
+          "An administrator enabling auditing (auditpol or Group Policy)",
           "Group Policy refresh applying a legitimate baseline",
           "Security hardening projects"
         ],
@@ -128,6 +147,79 @@
           "Success/Failure auditing REMOVED for logon, process creation or account management",
           "Change made by a non-admin or service account",
           "Change shortly before other suspicious activity"
+        ]
+      },
+      "response": {
+        "investigate": [
+          {
+            "title": "Check what changed: read 'Changes made' in event 4719 and compare with your change records",
+            "shell": "manual",
+            "command": "Event Viewer > Windows Logs > Security > filter Event ID 4719 > Details. %%8448/%%8450 = Success/Failure added; %%8449/%%8451 = removed.",
+            "risk": "read-only"
+          },
+          {
+            "title": "Review the effective audit policy",
+            "shell": "powershell",
+            "command": "auditpol /get /category:*",
+            "risk": "read-only"
+          }
+        ]
+      },
+      "controls": [
+        "nist-800-53:AU-12",
+        "nist-800-53:CM-6",
+        "nist-800-171:3.3.1",
+        "nist-csf-2:PR.PS-04",
+        "iso-27001:A.8.15",
+        "iso-27001:A.8.9",
+        "pci-dss-4:10.2.1.2",
+        "pci-dss-4:10.2.1.6",
+        "cis-v8:8.2",
+        "cis-v8:8.5",
+        "soc2:CC7.2",
+        "soc2:CC8.1",
+        "hipaa:164.312(b)"
+      ]
+    },
+    {
+      "id": "AUD-003",
+      "name": "Audit logging REMOVED by a policy change",
+      "kind": "match",
+      "severity": "high",
+      "confidence": 0.7,
+      "tags": [
+        "anti-forensics",
+        "config-change"
+      ],
+      "attack": [
+        {
+          "tactic": "TA0005",
+          "technique": "T1562.002"
+        }
+      ],
+      "when": {
+        "eventIds": [
+          4719
+        ],
+        "condition": {
+          "field": "auditPolicyChanges",
+          "op": "regex",
+          "value": "%%(8449|8451)|removed"
+        }
+      },
+      "context": {
+        "summary": "An audit policy change removed Success or Failure auditing for a subcategory. Attackers disable auditing to hide later activity.",
+        "falsePositives": [
+          "Planned reduction of noisy audit categories documented in a change record",
+          "Group Policy replacing a local configuration with a different baseline"
+        ],
+        "maliciousIndicators": [
+          "Auditing removed for logon, process creation, account management or object access",
+          "Change made outside a change window or by an unexpected account",
+          "Followed by other suspicious activity on the same host"
+        ],
+        "references": [
+          "https://attack.mitre.org/techniques/T1562/002/"
         ]
       },
       "response": {
@@ -141,13 +233,100 @@
         ],
         "remediate": [
           {
-            "title": "Reapply the baseline audit policy via Group Policy",
+            "title": "Restore the baseline audit policy ONLY if the change was not authorized",
             "shell": "manual",
-            "command": "gpupdate /force on {{computer}} after confirming the GPO is correct.",
+            "command": "Re-apply the approved baseline through Group Policy on {{computer}} and record who changed it.",
             "risk": "disruptive"
           }
         ]
-      }
+      },
+      "controls": [
+        "nist-800-53:AU-12",
+        "nist-800-53:CM-6",
+        "nist-800-171:3.3.1",
+        "nist-csf-2:PR.PS-04",
+        "iso-27001:A.8.15",
+        "iso-27001:A.8.9",
+        "pci-dss-4:10.2.1.2",
+        "pci-dss-4:10.2.1.6",
+        "cis-v8:8.2",
+        "cis-v8:8.5",
+        "soc2:CC7.2",
+        "soc2:CC8.1",
+        "hipaa:164.312(b)"
+      ]
+    },
+    {
+      "id": "AUD-004",
+      "name": "Audit logging ENABLED or strengthened by a policy change",
+      "kind": "match",
+      "severity": "info",
+      "confidence": 0.2,
+      "tags": [
+        "config-change",
+        "context"
+      ],
+      "attack": [
+        {
+          "tactic": "TA0005",
+          "technique": "T1562.002"
+        }
+      ],
+      "when": {
+        "eventIds": [
+          4719
+        ],
+        "condition": {
+          "all": [
+            {
+              "field": "auditPolicyChanges",
+              "op": "regex",
+              "value": "%%(8448|8450)|added"
+            },
+            {
+              "not": {
+                "field": "auditPolicyChanges",
+                "op": "regex",
+                "value": "%%(8449|8451)|removed"
+              }
+            }
+          ]
+        }
+      },
+      "context": {
+        "summary": "An audit policy change only ADDED Success or Failure auditing. This usually means an administrator enabled logging (for example process command-line auditing). It is recorded for the audit trail and does not raise an alert on its own.",
+        "falsePositives": [
+          "Almost always legitimate: enabling auditing as part of a logging baseline"
+        ],
+        "maliciousIndicators": [
+          "Auditing added by an unexpected account, which may be an attacker preparing noisy cover or testing privileges"
+        ]
+      },
+      "response": {
+        "investigate": [
+          {
+            "title": "Confirm the change matches an approved request",
+            "shell": "manual",
+            "command": "Compare the time and account of this change with your change records.",
+            "risk": "read-only"
+          }
+        ]
+      },
+      "controls": [
+        "nist-800-53:AU-12",
+        "nist-800-53:CM-6",
+        "nist-800-171:3.3.1",
+        "nist-csf-2:PR.PS-04",
+        "iso-27001:A.8.15",
+        "iso-27001:A.8.9",
+        "pci-dss-4:10.2.1.2",
+        "pci-dss-4:10.2.1.6",
+        "cis-v8:8.2",
+        "cis-v8:8.5",
+        "soc2:CC7.2",
+        "soc2:CC8.1",
+        "hipaa:164.312(b)"
+      ]
     },
     {
       "id": "AUTH-001",
@@ -210,7 +389,24 @@
             "risk": "disruptive"
           }
         ]
-      }
+      },
+      "controls": [
+        "nist-800-53:AC-7",
+        "nist-800-53:AU-6",
+        "nist-800-53:SI-4",
+        "nist-800-171:3.1.8",
+        "nist-800-171:3.3.5",
+        "nist-csf-2:DE.CM-03",
+        "nist-csf-2:DE.AE-02",
+        "iso-27001:A.8.5",
+        "iso-27001:A.8.16",
+        "pci-dss-4:10.2.1.4",
+        "pci-dss-4:8.3.4",
+        "cis-v8:8.11",
+        "soc2:CC6.1",
+        "soc2:CC7.2",
+        "hipaa:164.308(a)(1)(ii)(D)"
+      ]
     },
     {
       "id": "AUTH-002",
@@ -268,7 +464,24 @@
             "risk": "disruptive"
           }
         ]
-      }
+      },
+      "controls": [
+        "nist-800-53:AC-7",
+        "nist-800-53:AU-6",
+        "nist-800-53:SI-4",
+        "nist-800-171:3.1.8",
+        "nist-800-171:3.3.5",
+        "nist-csf-2:DE.CM-03",
+        "nist-csf-2:DE.AE-02",
+        "iso-27001:A.8.5",
+        "iso-27001:A.8.16",
+        "pci-dss-4:10.2.1.4",
+        "pci-dss-4:8.3.4",
+        "cis-v8:8.11",
+        "soc2:CC6.1",
+        "soc2:CC7.2",
+        "hipaa:164.308(a)(1)(ii)(D)"
+      ]
     },
     {
       "id": "AUTH-003",
@@ -310,7 +523,18 @@
           "Target server is a remote host (not localhost), especially a domain controller or file server the user never uses",
           "Many different target servers in a short time"
         ]
-      }
+      },
+      "controls": [
+        "nist-800-53:AC-6",
+        "nist-800-53:AU-2",
+        "nist-800-171:3.1.5",
+        "nist-800-171:3.1.6",
+        "nist-csf-2:DE.CM-03",
+        "iso-27001:A.8.2",
+        "pci-dss-4:10.2.1.2",
+        "cis-v8:5.4",
+        "soc2:CC6.3"
+      ]
     },
     {
       "id": "AUTH-004",
@@ -402,7 +626,18 @@
             "risk": "disruptive"
           }
         ]
-      }
+      },
+      "controls": [
+        "nist-800-53:AC-17",
+        "nist-800-53:SI-4",
+        "nist-csf-2:DE.CM-03",
+        "iso-27001:A.8.16",
+        "iso-27001:A.8.20",
+        "pci-dss-4:10.2.1.4",
+        "cis-v8:6.4",
+        "soc2:CC6.1",
+        "soc2:CC7.2"
+      ]
     },
     {
       "id": "AUTH-005",
@@ -462,7 +697,15 @@
           "Admin account authenticating to many hosts in a short time",
           "Workstation-to-workstation NTLM"
         ]
-      }
+      },
+      "controls": [
+        "nist-800-53:IA-5",
+        "nist-800-53:SI-4",
+        "nist-csf-2:DE.CM-03",
+        "iso-27001:A.8.5",
+        "cis-v8:4.1",
+        "soc2:CC7.2"
+      ]
     },
     {
       "id": "PRIV-001",
@@ -508,7 +751,18 @@
         "falsePositives": [
           "Every logon by a member of Administrators"
         ]
-      }
+      },
+      "controls": [
+        "nist-800-53:AC-6",
+        "nist-800-53:AU-2",
+        "nist-800-171:3.1.5",
+        "nist-800-171:3.1.6",
+        "nist-csf-2:PR.AA-05",
+        "iso-27001:A.8.2",
+        "pci-dss-4:10.2.1.2",
+        "cis-v8:5.4",
+        "soc2:CC6.3"
+      ]
     },
     {
       "id": "PERS-001",
@@ -564,7 +818,18 @@
             "risk": "disruptive"
           }
         ]
-      }
+      },
+      "controls": [
+        "nist-800-53:CM-6",
+        "nist-800-53:SI-4",
+        "nist-csf-2:DE.CM-09",
+        "iso-27001:A.8.9",
+        "iso-27001:A.8.16",
+        "pci-dss-4:10.2.1.7",
+        "cis-v8:8.5",
+        "soc2:CC7.2",
+        "soc2:CC8.1"
+      ]
     },
     {
       "id": "PERS-002",
@@ -611,7 +876,18 @@
             "risk": "read-only"
           }
         ]
-      }
+      },
+      "controls": [
+        "nist-800-53:CM-6",
+        "nist-800-53:SI-4",
+        "nist-csf-2:DE.CM-09",
+        "iso-27001:A.8.9",
+        "iso-27001:A.8.16",
+        "pci-dss-4:10.2.1.7",
+        "cis-v8:8.5",
+        "soc2:CC7.2",
+        "soc2:CC8.1"
+      ]
     },
     {
       "id": "ACC-001",
@@ -662,7 +938,21 @@
             "risk": "disruptive"
           }
         ]
-      }
+      },
+      "controls": [
+        "nist-800-53:AC-2",
+        "nist-800-53:AU-6",
+        "nist-800-171:3.1.5",
+        "nist-csf-2:DE.CM-03",
+        "iso-27001:A.5.16",
+        "iso-27001:A.8.2",
+        "pci-dss-4:10.2.1.5",
+        "pci-dss-4:10.2.1.2",
+        "cis-v8:5.4",
+        "soc2:CC6.2",
+        "soc2:CC6.3",
+        "hipaa:164.312(a)(1)"
+      ]
     },
     {
       "id": "ACC-002",
@@ -724,7 +1014,21 @@
             "risk": "disruptive"
           }
         ]
-      }
+      },
+      "controls": [
+        "nist-800-53:AC-2",
+        "nist-800-53:AU-6",
+        "nist-800-171:3.1.5",
+        "nist-csf-2:DE.CM-03",
+        "iso-27001:A.5.16",
+        "iso-27001:A.8.2",
+        "pci-dss-4:10.2.1.5",
+        "pci-dss-4:10.2.1.2",
+        "cis-v8:5.4",
+        "soc2:CC6.2",
+        "soc2:CC6.3",
+        "hipaa:164.312(a)(1)"
+      ]
     },
     {
       "id": "EXEC-001",
@@ -842,7 +1146,23 @@
             "risk": "disruptive"
           }
         ]
-      }
+      },
+      "controls": [
+        "nist-800-53:SI-4",
+        "nist-800-53:SI-3",
+        "nist-800-53:IR-4",
+        "nist-800-171:3.14.6",
+        "nist-800-171:3.14.7",
+        "nist-csf-2:DE.CM-09",
+        "nist-csf-2:DE.AE-02",
+        "iso-27001:A.8.7",
+        "iso-27001:A.8.16",
+        "pci-dss-4:10.4.1",
+        "cis-v8:8.5",
+        "cis-v8:10.1",
+        "soc2:CC7.2",
+        "soc2:CC7.3"
+      ]
     },
     {
       "id": "EXEC-002",
@@ -931,7 +1251,23 @@
             "risk": "disruptive"
           }
         ]
-      }
+      },
+      "controls": [
+        "nist-800-53:SI-4",
+        "nist-800-53:SI-3",
+        "nist-800-53:IR-4",
+        "nist-800-171:3.14.6",
+        "nist-800-171:3.14.7",
+        "nist-csf-2:DE.CM-09",
+        "nist-csf-2:DE.AE-02",
+        "iso-27001:A.8.7",
+        "iso-27001:A.8.16",
+        "pci-dss-4:10.4.1",
+        "cis-v8:8.5",
+        "cis-v8:10.1",
+        "soc2:CC7.2",
+        "soc2:CC7.3"
+      ]
     },
     {
       "id": "EXEC-003",
@@ -1000,7 +1336,23 @@
             "risk": "disruptive"
           }
         ]
-      }
+      },
+      "controls": [
+        "nist-800-53:SI-4",
+        "nist-800-53:SI-3",
+        "nist-800-53:IR-4",
+        "nist-800-171:3.14.6",
+        "nist-800-171:3.14.7",
+        "nist-csf-2:DE.CM-09",
+        "nist-csf-2:DE.AE-02",
+        "iso-27001:A.8.7",
+        "iso-27001:A.8.16",
+        "pci-dss-4:10.4.1",
+        "cis-v8:8.5",
+        "cis-v8:10.1",
+        "soc2:CC7.2",
+        "soc2:CC7.3"
+      ]
     },
     {
       "id": "CRED-001",
@@ -1089,7 +1441,23 @@
             "risk": "disruptive"
           }
         ]
-      }
+      },
+      "controls": [
+        "nist-800-53:SI-4",
+        "nist-800-53:SI-3",
+        "nist-800-53:IR-4",
+        "nist-800-171:3.14.6",
+        "nist-800-171:3.14.7",
+        "nist-csf-2:DE.CM-09",
+        "nist-csf-2:DE.AE-02",
+        "iso-27001:A.8.7",
+        "iso-27001:A.8.16",
+        "pci-dss-4:10.4.1",
+        "cis-v8:8.5",
+        "cis-v8:10.1",
+        "soc2:CC7.2",
+        "soc2:CC7.3"
+      ]
     },
     {
       "id": "CRED-002",
@@ -1146,7 +1514,15 @@
           "RC4 (0x17) ticket encryption",
           "Requests from a workstation not used for admin work"
         ]
-      }
+      },
+      "controls": [
+        "nist-800-53:IA-5",
+        "nist-800-53:SI-4",
+        "nist-csf-2:DE.CM-03",
+        "iso-27001:A.8.5",
+        "cis-v8:8.5",
+        "soc2:CC7.2"
+      ]
     },
     {
       "id": "DISC-001",
@@ -1210,7 +1586,23 @@
           "Several discovery commands in quick succession",
           "Run from a user or service account that is not an admin"
         ]
-      }
+      },
+      "controls": [
+        "nist-800-53:SI-4",
+        "nist-800-53:SI-3",
+        "nist-800-53:IR-4",
+        "nist-800-171:3.14.6",
+        "nist-800-171:3.14.7",
+        "nist-csf-2:DE.CM-09",
+        "nist-csf-2:DE.AE-02",
+        "iso-27001:A.8.7",
+        "iso-27001:A.8.16",
+        "pci-dss-4:10.4.1",
+        "cis-v8:8.5",
+        "cis-v8:10.1",
+        "soc2:CC7.2",
+        "soc2:CC7.3"
+      ]
     },
     {
       "id": "EVAS-001",
@@ -1298,7 +1690,23 @@
             "risk": "disruptive"
           }
         ]
-      }
+      },
+      "controls": [
+        "nist-800-53:SI-4",
+        "nist-800-53:SI-3",
+        "nist-800-53:IR-4",
+        "nist-800-171:3.14.6",
+        "nist-800-171:3.14.7",
+        "nist-csf-2:DE.CM-09",
+        "nist-csf-2:DE.AE-02",
+        "iso-27001:A.8.7",
+        "iso-27001:A.8.16",
+        "pci-dss-4:10.4.1",
+        "cis-v8:8.5",
+        "cis-v8:10.1",
+        "soc2:CC7.2",
+        "soc2:CC7.3"
+      ]
     },
     {
       "id": "IMP-001",
@@ -1376,7 +1784,18 @@
             "risk": "disruptive"
           }
         ]
-      }
+      },
+      "controls": [
+        "nist-800-53:CP-9",
+        "nist-800-53:SI-4",
+        "nist-800-53:IR-4",
+        "nist-csf-2:DE.CM-09",
+        "iso-27001:A.8.13",
+        "iso-27001:A.8.16",
+        "cis-v8:11.2",
+        "soc2:CC7.2",
+        "soc2:CC7.4"
+      ]
     },
     {
       "id": "LAT-001",
@@ -1436,6 +1855,7 @@
             "eventIds": [
               4688
             ],
+            "guard": true,
             "condition": {
               "field": "commandLine",
               "op": "regex",
@@ -1456,7 +1876,20 @@
         "falsePositives": [
           "Configuration management and approved admin automation"
         ]
-      }
+      },
+      "controls": [
+        "nist-800-53:SI-4",
+        "nist-800-53:AU-6",
+        "nist-800-171:3.3.5",
+        "nist-800-171:3.14.6",
+        "nist-csf-2:DE.AE-03",
+        "nist-csf-2:DE.CM-09",
+        "iso-27001:A.8.16",
+        "pci-dss-4:10.4.1",
+        "cis-v8:8.11",
+        "soc2:CC7.2",
+        "soc2:CC7.3"
+      ]
     },
     {
       "id": "AUTH-006",
@@ -1504,6 +1937,7 @@
             "eventIds": [
               4625
             ],
+            "guard": true,
             "min": 5
           },
           {
@@ -1543,7 +1977,24 @@
             "risk": "disruptive"
           }
         ]
-      }
+      },
+      "controls": [
+        "nist-800-53:AC-7",
+        "nist-800-53:AU-6",
+        "nist-800-53:SI-4",
+        "nist-800-171:3.1.8",
+        "nist-800-171:3.3.5",
+        "nist-csf-2:DE.CM-03",
+        "nist-csf-2:DE.AE-02",
+        "iso-27001:A.8.5",
+        "iso-27001:A.8.16",
+        "pci-dss-4:10.2.1.4",
+        "pci-dss-4:8.3.4",
+        "cis-v8:8.11",
+        "soc2:CC6.1",
+        "soc2:CC7.2",
+        "hipaa:164.308(a)(1)(ii)(D)"
+      ]
     },
     {
       "id": "ACC-003",
@@ -1582,7 +2033,8 @@
             "id": "create",
             "eventIds": [
               4720
-            ]
+            ],
+            "guard": true
           },
           {
             "id": "add",
@@ -1627,7 +2079,21 @@
             "risk": "disruptive"
           }
         ]
-      }
+      },
+      "controls": [
+        "nist-800-53:AC-2",
+        "nist-800-53:AU-6",
+        "nist-800-171:3.1.5",
+        "nist-csf-2:DE.CM-03",
+        "iso-27001:A.5.16",
+        "iso-27001:A.8.2",
+        "pci-dss-4:10.2.1.5",
+        "pci-dss-4:10.2.1.2",
+        "cis-v8:5.4",
+        "soc2:CC6.2",
+        "soc2:CC6.3",
+        "hipaa:164.312(a)(1)"
+      ]
     },
     {
       "id": "LAT-002",
@@ -1680,7 +2146,8 @@
             "id": "svc",
             "eventIds": [
               4697
-            ]
+            ],
+            "guard": true
           }
         ]
       },
@@ -1712,7 +2179,20 @@
             "risk": "disruptive"
           }
         ]
-      }
+      },
+      "controls": [
+        "nist-800-53:SI-4",
+        "nist-800-53:AU-6",
+        "nist-800-171:3.3.5",
+        "nist-800-171:3.14.6",
+        "nist-csf-2:DE.AE-03",
+        "nist-csf-2:DE.CM-09",
+        "iso-27001:A.8.16",
+        "pci-dss-4:10.4.1",
+        "cis-v8:8.11",
+        "soc2:CC7.2",
+        "soc2:CC7.3"
+      ]
     },
     {
       "id": "EVAS-002",
@@ -1752,7 +2232,8 @@
             "id": "clear",
             "eventIds": [
               1102
-            ]
+            ],
+            "guard": true
           }
         ]
       },
@@ -1775,7 +2256,19 @@
             "risk": "disruptive"
           }
         ]
-      }
+      },
+      "controls": [
+        "nist-800-53:AU-9",
+        "nist-800-53:SI-4",
+        "nist-800-171:3.3.8",
+        "nist-csf-2:PR.PS-04",
+        "iso-27001:A.8.15",
+        "pci-dss-4:10.2.1.6",
+        "pci-dss-4:10.3.2",
+        "cis-v8:8.2",
+        "soc2:CC7.2",
+        "hipaa:164.312(b)"
+      ]
     }
   ]
 }

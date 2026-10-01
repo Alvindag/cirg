@@ -5,6 +5,8 @@ import { FindingCard } from './FindingsView'
 import { ChainCard, ExecutiveSummary } from './ChainsView'
 import { RulesPanel } from './RulesPanel'
 import { ExportPanel } from './ExportPanel'
+import { LoggingPanel } from './LoggingPanel'
+import type { HostRole } from '../core/audit/coverage'
 import { SEVERITY_RANK, type Severity } from '../core/rules/types'
 
 const fmtBytes = (n: number) => (n > 1e9 ? `${(n / 1e9).toFixed(2)} GB` : n > 1e6 ? `${(n / 1e6).toFixed(1)} MB` : `${Math.round(n / 1e3)} KB`)
@@ -16,6 +18,7 @@ export function App() {
   const input = useRef<HTMLInputElement>(null)
   const [drag, setDrag] = useState(false)
   const [minSev, setMinSev] = useState<Severity>('info')
+  const [hostRole, setHostRole] = useState<HostRole>('auto')
   const pick = (f?: File | null) => { if (f) s.start(f) }
   const pct = s.total ? Math.min(100, Math.round((s.bytes / s.total) * 100)) : 0
   const r = s.result
@@ -57,7 +60,7 @@ export function App() {
 
       {s.phase === 'running' && (
         <section aria-live="polite">
-          <p>Analyzing <strong>{s.fileName}</strong>: {fmtBytes(s.bytes)} of {fmtBytes(s.total)}</p>
+          <p>{s.stage || 'Analyzing'}: <strong>{s.fileName}</strong>, {fmtBytes(s.bytes)} of {fmtBytes(s.total)}</p>
           <progress max={100} value={pct} aria-label="Progress" />
           <p>{s.events.toLocaleString()} events parsed · {s.rejected.toLocaleString()} rejected</p>
           <button onClick={s.cancel}>Cancel</button>
@@ -86,7 +89,8 @@ export function App() {
           )}
 
           <ExecutiveSummary r={r} />
-          <ExportPanel result={r} fileName={s.fileName} />
+          <LoggingPanel result={r} role={hostRole} onRole={setHostRole} />
+          <ExportPanel result={r} fileName={s.fileName} hostRole={hostRole} />
 
           <h3>Attack chains</h3>
           {r.chains.length === 0

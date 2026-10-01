@@ -6,6 +6,7 @@ import { reportToJson, reportToNdjson } from '../src/core/report/exports'
 import { buildReport } from '../src/core/report/model'
 import { Pseudonymizer } from '../src/core/report/redact'
 import { analyze } from '../src/core/analysis'
+import { assessLogging } from '../src/core/audit/coverage'
 import { intrusionResult, SENSITIVE } from './helpers/scenario'
 
 const ajv = addFormats(new Ajv2020({ allErrors: true, strict: false }))
@@ -27,6 +28,7 @@ describe('report model', () => {
     expect(r.executiveSummary.risk.score).toBeGreaterThan(0)
     expect(r.executiveSummary.topThreats.length).toBeGreaterThan(0)
     expect(r.executiveSummary.headline).toMatch(/attack chain/)
+    expect(r.schemaVersion).toBe('1.1')
     expect(r.chains.length).toBeGreaterThanOrEqual(1)                       // technical deep dive
     expect(r.attackCoverage.map((t) => t.tactic)).toEqual(expect.arrayContaining(['TA0006', 'TA0008']))
     const f = r.findings.find((x) => x.ruleId === 'EXEC-001')!
@@ -47,10 +49,32 @@ describe('report model', () => {
   })
   it('flags logging gaps: no 4688 command lines', async () => {
     const r = (await analyze(new Blob(['EventID,TimeGenerated,Computer,NewProcessName\n4688,2025-03-01T10:00:00Z,A,C:\\x.exe\n']), [], { format: 'csv' }))!
-    expect(r.coverage.notes.join()).toMatch(/none carried a command line/)
+    expect(assessLogging(r.summary, r.ruleEvents).commandLine.status).toBe('absent')
     const rep = buildReport(r, { redact: false, generatedAt: NOW, sourceName: 'x' })
-    expect(rep.limitations.join()).toMatch(/command-line detections could not run/)
+    expect(rep.limitations.join()).toMatch(/command-line detections cannot run/)
     expect(rep.executiveSummary.headline).toMatch(/No detection rules matched/)
+  })
+})
+
+describe('recommended actions (real DC report: advised reverting the auditing the admin had just enabled)', () => {
+  const run = async (csv: string) => buildReport((await analyze(new Blob([csv]), [], { format: 'csv' }))!, { redact: false, generatedAt: NOW, sourceName: 'x.csv' })
+  const head = 'EventID,TimeGenerated,Computer,SubjectUserName,AuditPolicyChanges\n'
+  it('a policy change of unknown direction recommends VERIFYING, never reverting', async () => {
+    const r = await run(head + '4719,2025-03-01T10:00:00Z,DC1,Administrator,\n')
+    const text = r.executiveSummary.recommendedActions.join(' ')
+    expect(text).toMatch(/verify before acting/i)
+    expect(text).not.toMatch(/Reapply|Restore the baseline/i)
+  })
+  it('auditing that was only ADDED is info: no containment advice at all', async () => {
+    const r = await run(head + '4719,2025-03-01T10:00:00Z,DC1,Administrator,"%%8448, %%8450"\n')
+    expect(r.findings.map((f) => [f.ruleId, f.severity])).toEqual([['AUD-004', 'info']])
+    expect(r.executiveSummary.recommendedActions.join(' ')).not.toMatch(/baseline/i)
+    expect(r.executiveSummary.risk.label).toBe('Informational')
+  })
+  it('auditing REMOVED is high and does recommend containment, conditioned on authorization', async () => {
+    const r = await run(head + '4719,2025-03-01T10:00:00Z,DC1,Administrator,%%8449\n')
+    expect(r.findings[0]).toMatchObject({ ruleId: 'AUD-003', severity: 'high' })
+    expect(r.executiveSummary.recommendedActions.join(' ')).toMatch(/Restore the baseline audit policy ONLY if the change was not authorized/)
   })
 })
 

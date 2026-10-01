@@ -3,7 +3,7 @@ import type { CompiledRule, CompiledSequence, Condition, Op, Predicate, RuleDef 
 
 /** Canonical fields a rule may reference (anything else is a load-time error, catching typos). */
 export const FIELD_NAMES = [
-  'eventId', 'ts', 'channel', 'computer', 'subjectUserSid', 'subjectUserName', 'subjectDomainName', 'subjectLogonId',
+  'eventId', 'ts', 'channel', 'computer', 'recordId', 'auditPolicyChanges', 'subjectUserSid', 'subjectUserName', 'subjectDomainName', 'subjectLogonId',
   'targetUserSid', 'targetUserName', 'targetDomainName', 'targetLogonId', 'memberSid', 'logonType', 'processId', 'newProcessId',
   'newProcessName', 'parentProcessName', 'commandLine', 'processName', 'targetServerName', 'ipAddress', 'ipPort', 'workstationName', 'status',
   'subStatus', 'authenticationPackage', 'serviceName',
@@ -151,7 +151,7 @@ export function compileRule(def: RuleDef, packId: string, lists: Record<string, 
 interface SeqWhen {
   within: string; ordered?: boolean
   correlateOn: { name: string; scope?: 'host' | 'global'; bind: Record<string, string> }[]
-  steps: { id: string; eventIds: number[]; condition?: Condition; optional?: boolean; negate?: boolean; min?: number }[]
+  steps: { id: string; eventIds: number[]; condition?: Condition; optional?: boolean; negate?: boolean; min?: number; guard?: boolean }[]
 }
 
 function compileSequence(def: RuleDef, packId: string, lists: Record<string, string[]>, suppress: Predicate | null): CompiledRule {
@@ -164,10 +164,13 @@ function compileSequence(def: RuleDef, packId: string, lists: Record<string, str
     if (st.negate && st.optional) throw new RuleCompileError(`${where}: step "${st.id}" cannot be both negate and optional`)
     if (st.negate && st.min && st.min > 1) throw new RuleCompileError(`${where}: negate step "${st.id}" cannot set min`)
     return {
-      id: st.id, eventIds: new Set(st.eventIds), optional: !!st.optional, negate: !!st.negate, min: st.min ?? 1,
+      id: st.id, eventIds: new Set(st.eventIds), optional: !!st.optional, negate: !!st.negate, min: st.min ?? 1, guard: !!st.guard,
       predicate: st.condition ? compileCondition(st.condition, lists, `${where}.steps[${i}].condition`) : () => true,
     }
   })
+  const guards = steps.filter((s) => s.guard)
+  if (guards.length > 1) throw new RuleCompileError(`${where}: at most one step may be marked guard`)
+  if (guards[0] && (guards[0].optional || guards[0].negate)) throw new RuleCompileError(`${where}: guard step "${guards[0].id}" must be a required step`)
   if (!steps.some((s) => !s.optional && !s.negate)) throw new RuleCompileError(`${where}: needs at least one required step`)
   if (steps[0]!.optional || steps[0]!.negate) throw new RuleCompileError(`${where}: the first step must be required (it anchors the sequence)`)
   const keys = w.correlateOn.map((k, i) => {
@@ -182,7 +185,7 @@ function compileSequence(def: RuleDef, packId: string, lists: Record<string, str
   for (const s of steps) {
     if (!keys[0]!.bind.has(s.id)) throw new RuleCompileError(`${where}: step "${s.id}" is not bound in the primary correlation key "${keys[0]!.name}" (every step must bind the first correlateOn entry)`)
   }
-  const sequence: CompiledSequence = { steps, withinMs: parseDuration(w.within), ordered: w.ordered !== false, keys }
+  const sequence: CompiledSequence = { steps, guardId: guards[0]?.id, withinMs: parseDuration(w.within), ordered: w.ordered !== false, keys }
   const eventIds = new Set<number>()
   for (const s of steps) for (const id of s.eventIds) eventIds.add(id)
   return { def, packId, eventIds, predicate: () => true, suppress, sequence }

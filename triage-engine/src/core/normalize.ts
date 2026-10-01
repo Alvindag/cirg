@@ -5,6 +5,8 @@ const ALIASES: Record<string, string[]> = {
   eventId: ['eventid', 'eventcode', 'id', 'event_id'],
   ts: ['timegenerated', 'timecreated', 'systemtime', 'time', 'timestamp', 'eventtime', 'datetime', 'utctime'],
   channel: ['channel', 'logname', 'sourcetype'],
+  recordId: ['eventrecordid', 'recordnumber', 'recordid'],
+  auditPolicyChanges: ['auditpolicychanges'],
   computer: ['computer', 'computername', 'host', 'hostname', 'devicename'],
   subjectUserSid: ['subjectusersid'],
   subjectUserName: ['subjectusername'],
@@ -127,7 +129,7 @@ export function normalize(rec: FlatRecord, index: number): NormalizeResult {
 
   const ev: CanonicalEvent = { eventId, ts, src: { index } }
   const S = ['channel', 'computer', 'subjectUserSid', 'subjectUserName', 'subjectDomainName', 'targetUserSid',
-    'targetUserName', 'targetDomainName', 'memberSid', 'newProcessName', 'parentProcessName', 'commandLine', 'processName', 'targetServerName', 'ipAddress',
+    'targetUserName', 'targetDomainName', 'memberSid', 'auditPolicyChanges', 'newProcessName', 'parentProcessName', 'commandLine', 'processName', 'targetServerName', 'ipAddress',
     'workstationName', 'status', 'subStatus', 'authenticationPackage', 'serviceName'] as const
   for (const f of S) {
     const v = str(picked[f])
@@ -137,7 +139,7 @@ export function normalize(rec: FlatRecord, index: number): NormalizeResult {
     const v = str(picked[f])
     if (v !== undefined) ev[f] = v.toLowerCase() // join keys: canonical case
   }
-  for (const f of ['logonType', 'processId', 'newProcessId', 'ipPort'] as const) {
+  for (const f of ['logonType', 'processId', 'newProcessId', 'ipPort', 'recordId'] as const) {
     const v = num(picked[f])
     if (v !== undefined) ev[f] = v
   }

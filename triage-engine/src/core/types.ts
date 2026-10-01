@@ -7,6 +7,10 @@ export interface CanonicalEvent {
   ts: number
   channel?: string
   computer?: string
+  /** EventRecordID: sequential per log; gaps can indicate removed or overwritten records. */
+  recordId?: number
+  /** 4719: raw AuditPolicyChanges codes (e.g. %%8448 = Success added). */
+  auditPolicyChanges?: string
   subjectUserSid?: string
   subjectUserName?: string
   subjectDomainName?: string
@@ -63,6 +67,13 @@ export interface IngestSummary {
   /** Process-creation (4688) events seen / those carrying a command line. Detects disabled command-line auditing. */
   proc4688: number
   proc4688WithCmd: number
+  /** Event counts per UTC hour (hour index = floor(ts / 3600000)); used to find periods with no events. */
+  hourly: Record<number, number>
+  hourlyTruncated: boolean
+  /** EventRecordID statistics (only meaningful for a single computer + channel). */
+  recordIds: { count: number; min: number; max: number; computers: number; channels: number }
+  /** SHA-256 of the source file, computed by streaming (chain of custody). */
+  sha256?: string
   computers: string[]
   computersTruncated: boolean
   sample: CanonicalEvent[]
@@ -75,7 +86,7 @@ export type ToWorker =
   | { type: 'destroy' }
 
 export type FromWorker =
-  | { type: 'progress'; bytes: number; total: number; events: number; rejected: number }
+  | { type: 'progress'; bytes: number; total: number; events: number; rejected: number; phase: string }
   | { type: 'done'; result: AnalysisResult }
   | { type: 'cancelled' }
   | { type: 'error'; message: string }

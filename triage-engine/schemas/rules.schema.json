@@ -33,6 +33,7 @@
         "severity": { "enum": ["info", "low", "medium", "high", "critical"] },
         "confidence": { "type": "number", "minimum": 0, "maximum": 1, "default": 0.5 },
         "tags": { "type": "array", "items": { "type": "string" } },
+        "controls": { "type": "array", "items": { "type": "string", "pattern": "^[a-z0-9-]+:[A-Za-z0-9.()_-]+$" }, "maxItems": 40, "description": "Indicative framework control references, e.g. nist-800-53:AU-6, pci-dss-4:10.4.1. Used for report control mapping; not an assessment." },
         "attack": {
           "type": "array", "minItems": 1,
           "items": { "type": "object", "required": ["tactic", "technique"], "properties": {
@@ -89,7 +90,7 @@
         "steps": { "type": "array", "minItems": 2, "items": { "type": "object", "required": ["id", "eventIds"],
           "properties": { "id": { "type": "string" }, "eventIds": { "type": "array", "items": { "type": "integer" } },
             "condition": { "$ref": "#/$defs/condition" }, "optional": { "type": "boolean", "default": false },
-            "negate": { "type": "boolean" }, "min": { "type": "integer", "default": 1 } } } },
+            "negate": { "type": "boolean" }, "min": { "type": "integer", "default": 1 }, "guard": { "type": "boolean", "description": "Mark the rarest, most selective step. Pass 1 collects only guard events; pass 2 collects the other steps only near them. Keeps memory bounded when other steps are high-volume (e.g. every 4624). At most one per rule; must be a required step." } } } },
         "ordered": { "type": "boolean", "default": true } } }
   }
 }
