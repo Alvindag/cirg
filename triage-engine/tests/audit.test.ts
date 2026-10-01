@@ -34,6 +34,13 @@ describe('audit logging assessment', () => {
     expect(a.rows.find((r) => r.id === 'clear')!.affectedRules).toEqual([]) // absent log-clear is good news, not a blocked rule
     expect(a.summary.possibleGaps).toBe(2)
   })
+  it('new DC areas (lockouts, replication-rights access, directory changes) are assessed, with hints', () => {
+    const a = assessLogging(summary({ byEventId: { 4624: 5, 4768: 3 } }), RULES, 'dc')
+    expect(rows(a)).toMatchObject({ lockout: 'not-observed', dsaccess: 'not-observed', dschange: 'not-observed' })
+    expect(a.rows.find((r) => r.id === 'dsaccess')!.hint).toMatch(/SACL/)
+    expect(rows(assessLogging(summary({ byEventId: { 4624: 5 } }), RULES))['dsaccess']).toBe('not-evaluated')   // DC-only, role unknown
+    expect(rows(assessLogging(summary({ byEventId: { 4624: 5, 4740: 2, 4662: 1 } }), RULES, 'dc'))).toMatchObject({ lockout: 'observed', dsaccess: 'observed' })
+  })
   it('infers a domain controller from Kerberos/NTLM events; unknown role leaves DC-only rows not evaluated', () => {
     expect(assessLogging(summary({ byEventId: { 4624: 1, 4768: 1 } }), RULES).role).toBe('dc')
     const u = assessLogging(summary({ byEventId: { 4624: 5 } }), RULES)

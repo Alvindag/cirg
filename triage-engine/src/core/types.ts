@@ -26,6 +26,10 @@ export interface CanonicalEvent {
   newProcessName?: string
   parentProcessName?: string
   commandLine?: string
+  /** 4768/4769: Kerberos ticket encryption type (0x17 = RC4-HMAC, 0x12 = AES256). */
+  ticketEncryptionType?: string
+  /** 4662: GUIDs of the directory properties/rights accessed. */
+  objectProperties?: string
   /** Process that performed the action (e.g. 4648 ProcessName), distinct from the newly created process in 4688. */
   processName?: string
   /** 4648: the server the explicit credentials were used against. */

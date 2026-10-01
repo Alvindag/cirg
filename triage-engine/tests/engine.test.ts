@@ -95,6 +95,48 @@ describe('threshold rules', () => {
   })
 })
 
+describe('extended DC detections (lockout, RC4 Kerberoasting, DCSync)', () => {
+  const lock = (user: string, caller: string, min = 0) => ev({ eventId: 4740, ts: T0 + min * 60_000, targetUserName: user, targetDomainName: caller, computer: 'DC1' })
+  it('AUTH-007: a lockout is a low, per-host finding; other events are ignored', () => {
+    expect(run([lock('bob', 'WKS1')]).findings.map((f) => [f.ruleId, f.severity])).toEqual([['AUTH-007', 'low']])
+    expect(ids([ev({ eventId: 4625, targetUserName: 'bob' })])).not.toContain('AUTH-007')
+  })
+  it('AUTH-008: 3+ DIFFERENT accounts locked out by one computer within 30 minutes', () => {
+    expect(ids([lock('a', 'WKS1', 0), lock('b', 'WKS1', 5), lock('c', 'WKS1', 10)])).toContain('AUTH-008')
+    expect(ids([lock('a', 'WKS1', 0), lock('a', 'WKS1', 5), lock('a', 'WKS1', 10)])).not.toContain('AUTH-008')           // one account repeatedly
+    expect(ids([lock('a', 'W1', 0), lock('b', 'W2', 5), lock('c', 'W3', 10)])).not.toContain('AUTH-008')                // different callers
+    expect(ids([lock('a', 'WKS1', 0), lock('b', 'WKS1', 20), lock('c', 'WKS1', 45)])).not.toContain('AUTH-008')         // outside the window
+    expect(run([lock('a', 'WKS1', 0), lock('b', 'WKS1', 5), lock('c', 'WKS1', 10)]).findings.find((f) => f.ruleId === 'AUTH-008')).toMatchObject({ distinctCount: 3, group: { targetDomainName: 'WKS1' } })
+  })
+  const tgs = (svc: string, enc: string, min = 0, user = 'u@D') => ev({ eventId: 4769, ts: T0 + min * 6000, targetUserName: user, ipAddress: '10.0.0.9', serviceName: svc, ticketEncryptionType: enc })
+  it('CRED-003: 5+ distinct services requested with RC4 (0x17); AES, machine accounts and krbtgt do not count', () => {
+    const rc4 = (n: number) => Array.from({ length: n }, (_, i) => tgs(`svc${i}`, '0x17', i))
+    expect(ids(rc4(5))).toContain('CRED-003')
+    expect(ids(rc4(4))).not.toContain('CRED-003')
+    expect(ids(Array.from({ length: 8 }, (_, i) => tgs(`svc${i}`, '0x12', i)))).not.toContain('CRED-003')                 // AES256
+    expect(ids(Array.from({ length: 8 }, (_, i) => tgs(`HOST${i}$`, '0x17', i)))).not.toContain('CRED-003')               // machine accounts
+    expect(ids([...rc4(3), tgs('krbtgt', '0x17', 4), tgs('krbtgt', '0x17', 5)])).not.toContain('CRED-003')
+    expect(run(rc4(6)).findings.find((f) => f.ruleId === 'CRED-003')).toMatchObject({ severity: 'high', distinctCount: 6 })
+  })
+  const REAL_PROPS = '%%7688\n\t\t{1131f6ad-9c07-11d1-f79f-00c04fc2dcd2}\n\t\t{19195a5b-6da0-11d0-afd3-00c04fd930c9}\n\t'
+  it('CRED-004: DCSync rights used by a user account fire; DC computer accounts, other properties and unrelated 4662s do not', () => {
+    const e = (props: string, user: string) => ev({ eventId: 4662, subjectUserName: user, objectProperties: props, computer: 'DC1' })
+    const f = run([e(REAL_PROPS, 'jsmith')]).findings.find((x) => x.ruleId === 'CRED-004')!
+    expect(f).toMatchObject({ severity: 'critical' })
+    expect(f.attack[0]).toMatchObject({ technique: 'T1003.006', techniqueName: 'DCSync' })
+    expect(ids([e('{1131f6aa-9c07-11d1-f79f-00c04fc2dcd2}', 'jsmith')])).toContain('CRED-004')                              // Get-Changes
+    expect(ids([e('{89E95B76-444D-4C62-991A-0FACBEDA640C}', 'jsmith')])).toContain('CRED-004')                              // filtered set, upper case
+    expect(ids([e(REAL_PROPS, 'DC2$')])).not.toContain('CRED-004')                                                           // normal DC-to-DC replication
+    expect(ids([e('{bf967aba-0de6-11d0-a285-00c04fd8d565}', 'jsmith')])).not.toContain('CRED-004')                          // some other property
+  })
+  it('the new fields survive a real-format XML parse (EventData Properties / TicketEncryptionType)', async () => {
+    const xml = `<Events><Event><System><EventID>4662</EventID><TimeCreated SystemTime="2025-03-01T10:00:00.000Z"/><Computer>DC1</Computer><Channel>Security</Channel></System><EventData><Data Name="SubjectUserName">jsmith</Data><Data Name="Properties">%%7688
+		{1131f6ad-9c07-11d1-f79f-00c04fc2dcd2}</Data></EventData></Event></Events>`
+    const r = (await analyze(new Blob([xml]), [], { format: 'xml' }))!
+    expect(r.findings.map((f) => f.ruleId)).toContain('CRED-004')
+  })
+})
+
 describe('real-world noise handling', () => {
   it('REGRESSION: low/info rules collapse to ONE finding per host over the whole period (was 8 findings for 15 events)', () => {
     const hours = [0, 0, 0, 3, 3, 3, 9, 20, 30]  // bursts separated by far more than an hour

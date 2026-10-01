@@ -43,6 +43,8 @@ Strictly client-side. Log data is never uploaded, stored (Local/Session storage,
 
 **Control mapping** (`core/audit/controls.ts`, `controls` on rules, report 5.4): every starter rule maps to NIST 800-53, 800-171, CSF 2.0, ISO 27001:2022, PCI DSS 4.0, CIS v8, SOC 2 and HIPAA references. Mappings are indicative; see `COMPLIANCE.md` for exactly what is and is not claimed.
 
+**Extended DC detections:** account lockout (AUTH-007) and lockout storm from one source (AUTH-008), Kerberoasting with RC4 tickets using the new `ticketEncryptionType` field (CRED-003), and DCSync via 4662 replication-right GUIDs from a non-computer account (CRED-004, new field `objectProperties`, T1003.006). Audit areas for lockouts, directory-service access and changes were added to the assessment with hints (the 4662 rule is blind without an audit entry on the domain object: see `AUDIT_SETUP.md`).
+
 Report schema is now **1.1** (new: `case`, `source.sha256`, `loggingAssessment`, `controlMapping`, `integrity`, `methodology.passes`, rule-pack hashes, finding `controls`).
 
 ## Phase 4: reporting, export and hardening (as built)

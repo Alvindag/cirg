@@ -27,7 +27,8 @@
       "DnsAdmins",
       "Print Operators"
     ],
-    "approvedAdminAccounts": []
+    "approvedAdminAccounts": [],
+    "approvedReplicationAccounts": []
   },
   "rules": [
     {
@@ -2290,6 +2291,344 @@
         "cis-v8:8.2",
         "soc2:CC7.2",
         "hipaa:164.312(b)"
+      ]
+    },
+    {
+      "id": "AUTH-007",
+      "name": "Account locked out",
+      "kind": "match",
+      "severity": "low",
+      "confidence": 0.3,
+      "tags": [
+        "noisy",
+        "bruteforce"
+      ],
+      "attack": [
+        {
+          "tactic": "TA0006",
+          "technique": "T1110"
+        }
+      ],
+      "when": {
+        "eventIds": [
+          4740
+        ]
+      },
+      "context": {
+        "summary": "An account was locked out after too many failed logons. In the event, the target domain field names the computer that caused the lockout.",
+        "falsePositives": [
+          "A user with an expired or mistyped password, or a stale saved credential on a phone, mapped drive, service or scheduled task",
+          "Password changes that have not reached every device"
+        ],
+        "maliciousIndicators": [
+          "Many different accounts locked out in a short time (see AUTH-008)",
+          "Lockouts caused by a computer the user never uses",
+          "Locked-out admin or service accounts"
+        ]
+      },
+      "response": {
+        "investigate": [
+          {
+            "title": "List recent lockouts and the computers that caused them",
+            "shell": "kql",
+            "command": "SecurityEvent | where EventID == 4740 | project TimeGenerated, TargetUserName, CallerComputer = TargetDomainName | order by TimeGenerated desc",
+            "risk": "read-only"
+          },
+          {
+            "title": "Find the source of the stale credential",
+            "shell": "manual",
+            "command": "Check {{targetDomainName}} for services, scheduled tasks, mapped drives or saved credentials still using the old password for {{targetUserName}}.",
+            "risk": "read-only"
+          }
+        ]
+      },
+      "controls": [
+        "nist-800-53:AC-7",
+        "nist-800-53:AU-6",
+        "nist-800-53:SI-4",
+        "nist-800-171:3.1.8",
+        "nist-800-171:3.3.5",
+        "nist-csf-2:DE.CM-03",
+        "nist-csf-2:DE.AE-02",
+        "iso-27001:A.8.5",
+        "iso-27001:A.8.16",
+        "pci-dss-4:10.2.1.4",
+        "pci-dss-4:8.3.4",
+        "cis-v8:8.11",
+        "soc2:CC6.1",
+        "soc2:CC7.2",
+        "hipaa:164.308(a)(1)(ii)(D)"
+      ]
+    },
+    {
+      "id": "AUTH-008",
+      "name": "Several accounts locked out from one source (password spraying)",
+      "kind": "threshold",
+      "severity": "medium",
+      "confidence": 0.6,
+      "tags": [
+        "bruteforce",
+        "spray"
+      ],
+      "attack": [
+        {
+          "tactic": "TA0006",
+          "technique": "T1110.003"
+        }
+      ],
+      "when": {
+        "eventIds": [
+          4740
+        ],
+        "groupBy": [
+          "targetDomainName"
+        ],
+        "distinct": "targetUserName",
+        "count": 3,
+        "window": "30m"
+      },
+      "context": {
+        "summary": "Three or more different accounts were locked out within 30 minutes by the same computer, a typical result of password spraying or credential stuffing against Active Directory.",
+        "falsePositives": [
+          "A misconfigured server or application using one outdated service password for many accounts",
+          "A shared kiosk or terminal server where users mistype passwords"
+        ],
+        "maliciousIndicators": [
+          "The source computer is a workstation or an unknown device",
+          "Lockouts follow a wave of failed logons from the same IP (AUTH-001/002)",
+          "Source is outside normal working hours"
+        ]
+      },
+      "response": {
+        "investigate": [
+          {
+            "title": "Find failed logons from the same source around the same time",
+            "shell": "kql",
+            "command": "SecurityEvent | where EventID == 4625 and (WorkstationName == \"{{targetDomainName}}\" or Computer == \"{{targetDomainName}}\") | summarize count() by TargetUserName, IpAddress",
+            "risk": "read-only"
+          }
+        ],
+        "remediate": [
+          {
+            "title": "Isolate or disconnect the source computer if it is not expected to be authenticating",
+            "shell": "manual",
+            "command": "Review {{targetDomainName}} with its owner; isolate it if the activity is unexplained.",
+            "risk": "disruptive"
+          }
+        ]
+      },
+      "controls": [
+        "nist-800-53:AC-7",
+        "nist-800-53:AU-6",
+        "nist-800-53:SI-4",
+        "nist-800-171:3.1.8",
+        "nist-800-171:3.3.5",
+        "nist-csf-2:DE.CM-03",
+        "nist-csf-2:DE.AE-02",
+        "iso-27001:A.8.5",
+        "iso-27001:A.8.16",
+        "pci-dss-4:10.2.1.4",
+        "pci-dss-4:8.3.4",
+        "cis-v8:8.11",
+        "soc2:CC6.1",
+        "soc2:CC7.2",
+        "hipaa:164.308(a)(1)(ii)(D)"
+      ]
+    },
+    {
+      "id": "CRED-003",
+      "name": "Many RC4 service tickets requested by one account (Kerberoasting)",
+      "kind": "threshold",
+      "severity": "high",
+      "confidence": 0.55,
+      "tags": [
+        "credential-access"
+      ],
+      "attack": [
+        {
+          "tactic": "TA0006",
+          "technique": "T1558.003"
+        }
+      ],
+      "when": {
+        "eventIds": [
+          4769
+        ],
+        "condition": {
+          "all": [
+            {
+              "field": "ticketEncryptionType",
+              "op": "eq",
+              "value": "0x17"
+            },
+            {
+              "not": {
+                "field": "serviceName",
+                "op": "endsWith",
+                "value": "$"
+              }
+            },
+            {
+              "not": {
+                "field": "serviceName",
+                "op": "eq",
+                "value": "krbtgt"
+              }
+            }
+          ]
+        },
+        "groupBy": [
+          "targetUserName",
+          "ipAddress"
+        ],
+        "distinct": "serviceName",
+        "count": 5,
+        "window": "10m"
+      },
+      "context": {
+        "summary": "Service tickets encrypted with RC4 (0x17) for five or more distinct service accounts in ten minutes. RC4 tickets are the easiest to crack offline, which is why Kerberoasting tools request them. Complements CRED-002, which does not need the encryption type.",
+        "falsePositives": [
+          "Legacy applications and old service accounts that genuinely still use RC4",
+          "Scanners and admin tools enumerating SPNs"
+        ],
+        "maliciousIndicators": [
+          "Requests come from a workstation of a user with no reason to touch these services",
+          "Targets include privileged service accounts",
+          "Followed by a logon with one of the targeted accounts from a new location"
+        ]
+      },
+      "response": {
+        "investigate": [
+          {
+            "title": "List the services this account requested tickets for",
+            "shell": "kql",
+            "command": "SecurityEvent | where EventID == 4769 and TicketEncryptionType == \"0x17\" and TargetUserName == \"{{targetUserName}}\" | summarize count() by ServiceName",
+            "risk": "read-only"
+          }
+        ],
+        "remediate": [
+          {
+            "title": "Rotate passwords of the targeted service accounts and move them to AES / gMSA",
+            "shell": "manual",
+            "command": "Reset the passwords of the service accounts requested by {{targetUserName}} and enforce AES encryption (or gMSA) for them.",
+            "risk": "disruptive"
+          }
+        ]
+      },
+      "controls": [
+        "nist-800-53:IA-5",
+        "nist-800-53:SI-4",
+        "nist-csf-2:DE.CM-03",
+        "iso-27001:A.8.5",
+        "cis-v8:8.5",
+        "soc2:CC7.2"
+      ]
+    },
+    {
+      "id": "CRED-004",
+      "name": "Directory replication rights used by a non-domain-controller account (DCSync)",
+      "kind": "match",
+      "severity": "critical",
+      "confidence": 0.75,
+      "tags": [
+        "credential-access",
+        "domain-controller"
+      ],
+      "attack": [
+        {
+          "tactic": "TA0006",
+          "technique": "T1003.006"
+        }
+      ],
+      "when": {
+        "eventIds": [
+          4662
+        ],
+        "condition": {
+          "all": [
+            {
+              "field": "objectProperties",
+              "op": "regex",
+              "value": "1131f6a[ad]-9c07-11d1-f79f-00c04fc2dcd2|89e95b76-444d-4c62-991a-0facbeda640c"
+            },
+            {
+              "not": {
+                "field": "subjectUserName",
+                "op": "endsWith",
+                "value": "$"
+              }
+            }
+          ]
+        }
+      },
+      "suppress": [
+        {
+          "field": "subjectUserName",
+          "op": "in",
+          "value": "$lists.approvedReplicationAccounts"
+        }
+      ],
+      "context": {
+        "summary": "A user (not a domain controller computer account) exercised the DS-Replication-Get-Changes(-All) rights, which lets it request password hashes for any account from a domain controller: the DCSync technique. Needs 'Directory Service Access' auditing and an audit entry on the domain object (see docs/AUDIT_SETUP.md).",
+        "falsePositives": [
+          "Azure AD Connect / Entra Connect sync accounts (names beginning MSOL_ or AAD_) performing password hash sync",
+          "Legitimate directory replication, migration or backup tools",
+          "Domain controller promotion by an administrator"
+        ],
+        "maliciousIndicators": [
+          "The requester is an ordinary user or admin account, and the source is a workstation",
+          "An account that was recently granted replication rights",
+          "Followed by logons with other accounts' credentials or a golden-ticket pattern"
+        ],
+        "references": [
+          "https://attack.mitre.org/techniques/T1003/006/"
+        ]
+      },
+      "response": {
+        "investigate": [
+          {
+            "title": "Who holds replication rights on the domain?",
+            "shell": "powershell",
+            "command": "Import-Module ActiveDirectory; (Get-Acl ('AD:' + (Get-ADDomain).DistinguishedName)).Access | Where-Object { $_.ObjectType -in '1131f6aa-9c07-11d1-f79f-00c04fc2dcd2','1131f6ad-9c07-11d1-f79f-00c04fc2dcd2' } | Select-Object IdentityReference,ObjectType,AccessControlType",
+            "risk": "read-only"
+          },
+          {
+            "title": "Find the logons made by this account around the event",
+            "shell": "kql",
+            "command": "SecurityEvent | where EventID in (4624, 4768, 4769) and (TargetUserName == \"{{subjectUserName}}\" or SubjectUserName == \"{{subjectUserName}}\") | order by TimeGenerated asc",
+            "risk": "read-only"
+          }
+        ],
+        "remediate": [
+          {
+            "title": "Disable the account pending investigation",
+            "shell": "powershell",
+            "command": "Disable-ADAccount -Identity '{{subjectUserName}}'",
+            "risk": "disruptive"
+          },
+          {
+            "title": "If the activity is confirmed malicious: reset the KRBTGT password twice and rotate privileged credentials",
+            "shell": "manual",
+            "command": "Follow your AD compromise recovery process: reset KRBTGT twice (with replication between), reset privileged and service account passwords, and review who holds replication rights.",
+            "risk": "disruptive"
+          }
+        ]
+      },
+      "controls": [
+        "nist-800-53:SI-4",
+        "nist-800-53:SI-3",
+        "nist-800-53:IR-4",
+        "nist-800-171:3.14.6",
+        "nist-800-171:3.14.7",
+        "nist-csf-2:DE.CM-09",
+        "nist-csf-2:DE.AE-02",
+        "iso-27001:A.8.7",
+        "iso-27001:A.8.16",
+        "pci-dss-4:10.4.1",
+        "cis-v8:8.5",
+        "cis-v8:10.1",
+        "soc2:CC7.2",
+        "soc2:CC7.3"
       ]
     }
   ]

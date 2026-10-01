@@ -30,6 +30,6 @@ Writing rules: see `rules/default-pack.json` for examples and `docs/ARCHITECTURE
 
 EVTX parser: `npm run build:evtx` rebuilds `evtx-wasm/` (Rust) into `src/evtx/*.generated.*` (committed). See docs/ARCHITECTURE.md.
 
-More: [Compliance and audit support](docs/COMPLIANCE.md) · [Architecture](docs/ARCHITECTURE.md) · [Threat model](docs/THREAT_MODEL.md) · [Deployment](docs/DEPLOYMENT.md)
+More: [Audit setup (what to enable)](docs/AUDIT_SETUP.md) · [Compliance and audit support](docs/COMPLIANCE.md) · [Architecture](docs/ARCHITECTURE.md) · [Threat model](docs/THREAT_MODEL.md) · [Deployment](docs/DEPLOYMENT.md)
 
 Verify an exported report: `node scripts/verify-report.mjs report.json original-log-file`

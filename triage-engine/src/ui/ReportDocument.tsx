@@ -217,7 +217,7 @@ export function ReportDocument({ report: r }: { report: Report }) {
           <tbody>{r.loggingAssessment.rows.map((x) => (
             <tr key={x.id}><td>{x.area}</td><td>{x.eventIds.join(', ')}</td><td>{x.observed.toLocaleString()}</td>
               <td>{x.status === 'observed' ? 'Observed' : x.status === 'possible-gap' ? 'POSSIBLE GAP' : x.status === 'not-evaluated' ? 'Not evaluated' : 'Not observed'}</td>
-              <td>{x.note}{x.status === 'possible-gap' && x.enable ? <> Enable: <code>{x.enable}</code></> : null}</td></tr>
+              <td>{x.note}{(x.status === 'possible-gap' || x.status === 'not-observed') && x.enable && x.expectation !== 'rare' ? <> Enable: <code>{x.enable}</code></> : null}{x.hint ? ` ${x.hint}` : ''}</td></tr>
           ))}</tbody>
         </table>
         <p><strong>Process command lines:</strong> {r.loggingAssessment.commandLine.note}{r.loggingAssessment.commandLine.percent !== null ? ` (${r.loggingAssessment.commandLine.percent}% of ${r.loggingAssessment.commandLine.processEvents.toLocaleString()} process-creation events)` : ''}</p>

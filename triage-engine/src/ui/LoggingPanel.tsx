@@ -25,7 +25,7 @@ export function LoggingPanel({ result, role, onRole }: { result: AnalysisResult;
             <thead><tr><th scope="col">Area</th><th scope="col">Event IDs</th><th scope="col">Observed</th><th scope="col">Status</th><th scope="col">Note</th></tr></thead>
             <tbody>{a.rows.map((r) => (
               <tr key={r.id}><td>{r.area}</td><td>{r.eventIds.join(', ')}</td><td>{r.observed.toLocaleString()}</td><td>{STATUS[r.status]}</td>
-                <td>{r.note}{r.status === 'possible-gap' && r.enable ? <> Enable: <code>{r.enable}</code></> : null}{r.affectedRules.length ? ` Rules without data: ${r.affectedRules.join(', ')}.` : ''}</td></tr>
+                <td>{r.note}{(r.status === 'possible-gap' || r.status === 'not-observed') && r.enable && r.expectation !== 'rare' ? <> Enable: <code>{r.enable}</code></> : null}{r.hint ? ` ${r.hint}` : ''}{r.affectedRules.length ? ` Rules without data: ${r.affectedRules.join(', ')}.` : ''}</td></tr>
             ))}</tbody>
           </table>
         </div>

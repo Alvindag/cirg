@@ -9,7 +9,7 @@ export const TACTICS: Record<string, string> = {
 }
 
 export const TECHNIQUES: Record<string, string> = {
-  T1003: 'OS Credential Dumping', 'T1003.001': 'LSASS Memory',
+  T1003: 'OS Credential Dumping', 'T1003.001': 'LSASS Memory', 'T1003.006': 'DCSync',
   T1021: 'Remote Services', 'T1021.001': 'Remote Desktop Protocol', 'T1021.002': 'SMB/Windows Admin Shares',
   T1047: 'Windows Management Instrumentation',
   T1053: 'Scheduled Task/Job', 'T1053.005': 'Scheduled Task',

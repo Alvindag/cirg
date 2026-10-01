@@ -4,7 +4,7 @@ export type HostRole = 'auto' | 'dc' | 'member'
 export type Expectation = 'frequent' | 'occasional' | 'rare'
 export type RowStatus = 'observed' | 'possible-gap' | 'not-observed' | 'not-evaluated'
 
-interface Area { id: string; area: string; eventIds: number[]; expectation: Expectation; dcOnly?: boolean; enable?: string; controls: string[] }
+interface Area { id: string; area: string; eventIds: number[]; expectation: Expectation; dcOnly?: boolean; enable?: string; hint?: string; controls: string[] }
 
 /** What a healthy, audited Windows system normally produces. "frequent" = absence over a day or more indicates the audit setting is probably off. */
 export const AREAS: Area[] = [
@@ -15,6 +15,9 @@ export const AREAS: Area[] = [
   { id: 'kerb-tgs', area: 'Kerberos service tickets (TGS)', eventIds: [4769], expectation: 'frequent', dcOnly: true, enable: 'auditpol /set /subcategory:"Kerberos Service Ticket Operations" /success:enable /failure:enable', controls: ['nist-800-53:AU-2', 'cis-v8:8.5', 'pci-dss-4:10.2.1'] },
   { id: 'ntlm', area: 'Credential validation (NTLM)', eventIds: [4776], expectation: 'occasional', dcOnly: true, enable: 'auditpol /set /subcategory:"Credential Validation" /success:enable /failure:enable', controls: ['nist-800-53:AU-2', 'cis-v8:8.5'] },
   { id: 'failed', area: 'Failed logons', eventIds: [4625], expectation: 'occasional', enable: 'auditpol /set /subcategory:"Logon" /success:enable /failure:enable', controls: ['nist-800-53:AC-7', 'pci-dss-4:10.2.1.4', 'nist-800-171:3.1.8'] },
+  { id: 'lockout', area: 'Account lockouts', eventIds: [4740], expectation: 'occasional', enable: 'auditpol /set /subcategory:"User Account Management" /success:enable /failure:enable', hint: 'Lockouts are logged by User Account Management on the domain controller.', controls: ['nist-800-53:AC-7', 'pci-dss-4:10.2.1.4', 'nist-800-171:3.1.8'] },
+  { id: 'dsaccess', area: 'Directory service access (replication rights)', eventIds: [4662], expectation: 'occasional', dcOnly: true, enable: 'auditpol /set /subcategory:"Directory Service Access" /success:enable', hint: 'Also needs an audit entry (SACL) on the domain object, otherwise nothing is logged. See docs/AUDIT_SETUP.md.', controls: ['nist-800-53:AU-2', 'nist-800-53:AU-12', 'cis-v8:8.5', 'pci-dss-4:10.2.1.2'] },
+  { id: 'dschange', area: 'Directory service changes', eventIds: [5136], expectation: 'occasional', dcOnly: true, enable: 'auditpol /set /subcategory:"Directory Service Changes" /success:enable', hint: 'Records changes to Active Directory objects and attributes.', controls: ['nist-800-53:AU-2', 'nist-800-53:AC-2', 'cis-v8:8.5', 'pci-dss-4:10.2.1.5'] },
   { id: 'explicit', area: 'Logon with explicit credentials', eventIds: [4648], expectation: 'occasional', enable: 'auditpol /set /subcategory:"Logon" /success:enable', controls: ['nist-800-53:AU-2', 'nist-800-171:3.3.2'] },
   { id: 'acct', area: 'User account management', eventIds: [4720, 4722, 4724, 4725, 4726, 4738], expectation: 'occasional', enable: 'auditpol /set /subcategory:"User Account Management" /success:enable /failure:enable', controls: ['nist-800-53:AC-2', 'pci-dss-4:10.2.1.5', 'iso-27001:A.5.16'] },
   { id: 'group', area: 'Security group changes', eventIds: [4728, 4729, 4732, 4733, 4756, 4757], expectation: 'occasional', enable: 'auditpol /set /subcategory:"Security Group Management" /success:enable', controls: ['nist-800-53:AC-2', 'pci-dss-4:10.2.1.2', 'iso-27001:A.8.2'] },
@@ -28,7 +31,7 @@ const DC_SIGNS = [4768, 4769, 4770, 4771, 4776, 5136, 4742]
 
 export interface AssessmentRow {
   id: string; area: string; eventIds: number[]; observed: number; expectation: Expectation; dcOnly: boolean
-  status: RowStatus; note: string; enable?: string; controls: string[]
+  status: RowStatus; note: string; enable?: string; hint?: string; controls: string[]
   /** Enabled rules that depend only on event IDs that were not observed. */
   affectedRules: string[]
 }
@@ -74,7 +77,7 @@ export function assessLogging(s: IngestSummary, ruleEvents: RuleEvents[], roleOp
     const affectedRules = status === 'possible-gap' || (status === 'not-observed' && a.expectation !== 'rare')
       ? ruleEvents.filter((r) => r.eventIds.length && r.eventIds.every((id) => missingIds.has(id) && a.eventIds.includes(id))).map((r) => r.ruleId)
       : []
-    return { id: a.id, area: a.area, eventIds: a.eventIds, observed, expectation: a.expectation, dcOnly: !!a.dcOnly, status, note, enable: a.enable, controls: a.controls, affectedRules }
+    return { id: a.id, area: a.area, eventIds: a.eventIds, observed, expectation: a.expectation, dcOnly: !!a.dcOnly, status, note, enable: a.enable, ...(a.hint ? { hint: a.hint } : {}), controls: a.controls, affectedRules }
   })
 
   const p = s.proc4688, c = s.proc4688WithCmd

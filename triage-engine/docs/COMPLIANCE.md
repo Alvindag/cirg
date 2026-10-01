@@ -21,7 +21,7 @@ All control identifiers are **indicative pointers** to relevant evidence. They a
 
 | Control area | Why it is out of scope | What to use |
 |---|---|---|
-| Log generation configuration (AU-12, CIS 8.2/8.5, PCI 10.2) | The tool *reports* gaps, it does not change audit policy | Group Policy / `auditpol`; the assessment lists the exact command |
+| Log generation configuration (AU-12, CIS 8.2/8.5, PCI 10.2) | The tool *reports* gaps, it does not change audit policy | Group Policy / `auditpol`; the assessment lists the exact command and `docs/AUDIT_SETUP.md` has the full baseline, DC and DCSync-auditing scripts |
 | Central collection and real-time alerting (CIS 8.9, 13.1; PCI 10.4.1 automation; SI-4 continuous) | It analyses files you give it, one at a time | A SIEM (Sentinel, Splunk, Elastic). The NDJSON export is ECS-style so alerts can be forwarded |
 | Retention (AU-11, CIS 8.10, PCI 10.5.1: 12 months, 3 immediately available) | The tool does not store anything. It reports only the window covered by each file | Log-retention configuration and archive process |
 | Time synchronisation (AU-8, PCI 10.6, ISO A.8.17) | It uses the timestamps in the logs (UTC) and cannot verify clock accuracy | NTP/Windows Time on the sources |
