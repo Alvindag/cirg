@@ -41,10 +41,23 @@ Roles: area/regional/national managers and admin. Sample: `samples/customers-imp
 - Area/regional managers must give a territory inside their scope for every row. A blank `target_visits_per_month` defaults from segment (A=4, B=2, C=1).
 - Excel files are not read directly; export to CSV first.
 
+## Attachments (photos, voice notes, signatures)
+`PUT /api/v1/attachments/{id}?kind=Photo|VoiceNote|Signature&visitId=…` with the file as the body, its `Content-Type`, and `X-Content-SHA256` (hex).
+Also `GET /attachments?visitId=`, `GET /attachments/{id}/content`, `DELETE /attachments/{id}` (not for signatures).
+- Uploads are idempotent on the client-generated id; a different file under the same id is refused (409). The server re-hashes the body and rejects a
+  mismatch (corrupted/truncated upload), checks type, size (photo 10 MB, voice 25 MB, signature 1 MB) and magic bytes, and only accepts uploads for
+  the caller's own visit that already exists on the server (otherwise 409, the app retries after the next sync).
+- Files go to `IBlobStore`: `Storage:Provider=azure` (`AccountUrl` + managed identity, or `ConnectionString`) or `local` (`LocalPath`).
+  Keys are generated server-side (`tenant/yyyy/MM/id.ext`); downloads are `attachment` with `nosniff` and a locked-down CSP.
+- A signature stores signer name, meaning and a `recordHash` = SHA-256 of `id|visitId|signer|meaning|capturedAt|fileSha256`, binding the image to who/what/when. It cannot be deleted.
+  This is an electronic-signature *record* for accountability, not a qualified signature; confirm legal weight under the Electronic Transactions Act, 2008 (Act 772).
+- Access follows the team scope (reps: own; managers: their subtree). All creates and deletes are in the audit log.
+- Photos can contain patient or other personal data: set a retention policy and storage-account lifecycle rules, and cover this in the data-protection assessment (Act 843).
+
 ## Not yet done (known gaps)
 - PostgreSQL row-level security policies (defence in depth) – add in a migration.
 - Entra sign-in is tested with locally signed tokens (the real Entra metadata endpoint is not reachable from the build environment); verify once against a real tenant.
 - No self-service tenant sign-up or tenant admin UI; customers are onboarded with `provision-tenant`.
 - Customer search uses `ILike` (PostgreSQL only), so it is not covered by the in-memory tests; run integration tests against Postgres (Testcontainers) before go-live.
-- Attachment/voice-note upload to Blob Storage, approval workflows, e-signatures, PostGIS spatial queries, Power BI reporting views.
+- Malware scanning of uploads, thumbnails, streaming uploads (bodies are buffered up to the size cap), approval workflows, e-signatures, PostGIS spatial queries, Power BI reporting views.
 - Sync pull is cursor-by-`UpdatedAt` (server clock); move to a monotonic version column if clock skew becomes an issue.

@@ -3531,6 +3531,923 @@ class GpsPingsCompanion extends UpdateCompanion<GpsPing> {
   }
 }
 
+class $AttachmentsTable extends Attachments
+    with TableInfo<$AttachmentsTable, Attachment> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $AttachmentsTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _idMeta = const VerificationMeta('id');
+  @override
+  late final GeneratedColumn<String> id = GeneratedColumn<String>(
+    'id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _visitIdMeta = const VerificationMeta(
+    'visitId',
+  );
+  @override
+  late final GeneratedColumn<String> visitId = GeneratedColumn<String>(
+    'visit_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _kindMeta = const VerificationMeta('kind');
+  @override
+  late final GeneratedColumn<String> kind = GeneratedColumn<String>(
+    'kind',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _localPathMeta = const VerificationMeta(
+    'localPath',
+  );
+  @override
+  late final GeneratedColumn<String> localPath = GeneratedColumn<String>(
+    'local_path',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _contentTypeMeta = const VerificationMeta(
+    'contentType',
+  );
+  @override
+  late final GeneratedColumn<String> contentType = GeneratedColumn<String>(
+    'content_type',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _sizeBytesMeta = const VerificationMeta(
+    'sizeBytes',
+  );
+  @override
+  late final GeneratedColumn<int> sizeBytes = GeneratedColumn<int>(
+    'size_bytes',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _sha256Meta = const VerificationMeta('sha256');
+  @override
+  late final GeneratedColumn<String> sha256 = GeneratedColumn<String>(
+    'sha256',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _capturedAtMeta = const VerificationMeta(
+    'capturedAt',
+  );
+  @override
+  late final GeneratedColumn<String> capturedAt = GeneratedColumn<String>(
+    'captured_at',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _fileNameMeta = const VerificationMeta(
+    'fileName',
+  );
+  @override
+  late final GeneratedColumn<String> fileName = GeneratedColumn<String>(
+    'file_name',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _signerNameMeta = const VerificationMeta(
+    'signerName',
+  );
+  @override
+  late final GeneratedColumn<String> signerName = GeneratedColumn<String>(
+    'signer_name',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _meaningMeta = const VerificationMeta(
+    'meaning',
+  );
+  @override
+  late final GeneratedColumn<String> meaning = GeneratedColumn<String>(
+    'meaning',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _durationMsMeta = const VerificationMeta(
+    'durationMs',
+  );
+  @override
+  late final GeneratedColumn<int> durationMs = GeneratedColumn<int>(
+    'duration_ms',
+    aliasedName,
+    true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _uploadStatusMeta = const VerificationMeta(
+    'uploadStatus',
+  );
+  @override
+  late final GeneratedColumn<String> uploadStatus = GeneratedColumn<String>(
+    'upload_status',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    defaultValue: const Constant('pending'),
+  );
+  static const VerificationMeta _uploadErrorMeta = const VerificationMeta(
+    'uploadError',
+  );
+  @override
+  late final GeneratedColumn<String> uploadError = GeneratedColumn<String>(
+    'upload_error',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _attemptsMeta = const VerificationMeta(
+    'attempts',
+  );
+  @override
+  late final GeneratedColumn<int> attempts = GeneratedColumn<int>(
+    'attempts',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(0),
+  );
+  static const VerificationMeta _uploadedAtMeta = const VerificationMeta(
+    'uploadedAt',
+  );
+  @override
+  late final GeneratedColumn<String> uploadedAt = GeneratedColumn<String>(
+    'uploaded_at',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  @override
+  List<GeneratedColumn> get $columns => [
+    id,
+    visitId,
+    kind,
+    localPath,
+    contentType,
+    sizeBytes,
+    sha256,
+    capturedAt,
+    fileName,
+    signerName,
+    meaning,
+    durationMs,
+    uploadStatus,
+    uploadError,
+    attempts,
+    uploadedAt,
+  ];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'attachments';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<Attachment> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('id')) {
+      context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
+    } else if (isInserting) {
+      context.missing(_idMeta);
+    }
+    if (data.containsKey('visit_id')) {
+      context.handle(
+        _visitIdMeta,
+        visitId.isAcceptableOrUnknown(data['visit_id']!, _visitIdMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_visitIdMeta);
+    }
+    if (data.containsKey('kind')) {
+      context.handle(
+        _kindMeta,
+        kind.isAcceptableOrUnknown(data['kind']!, _kindMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_kindMeta);
+    }
+    if (data.containsKey('local_path')) {
+      context.handle(
+        _localPathMeta,
+        localPath.isAcceptableOrUnknown(data['local_path']!, _localPathMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_localPathMeta);
+    }
+    if (data.containsKey('content_type')) {
+      context.handle(
+        _contentTypeMeta,
+        contentType.isAcceptableOrUnknown(
+          data['content_type']!,
+          _contentTypeMeta,
+        ),
+      );
+    } else if (isInserting) {
+      context.missing(_contentTypeMeta);
+    }
+    if (data.containsKey('size_bytes')) {
+      context.handle(
+        _sizeBytesMeta,
+        sizeBytes.isAcceptableOrUnknown(data['size_bytes']!, _sizeBytesMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_sizeBytesMeta);
+    }
+    if (data.containsKey('sha256')) {
+      context.handle(
+        _sha256Meta,
+        sha256.isAcceptableOrUnknown(data['sha256']!, _sha256Meta),
+      );
+    } else if (isInserting) {
+      context.missing(_sha256Meta);
+    }
+    if (data.containsKey('captured_at')) {
+      context.handle(
+        _capturedAtMeta,
+        capturedAt.isAcceptableOrUnknown(data['captured_at']!, _capturedAtMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_capturedAtMeta);
+    }
+    if (data.containsKey('file_name')) {
+      context.handle(
+        _fileNameMeta,
+        fileName.isAcceptableOrUnknown(data['file_name']!, _fileNameMeta),
+      );
+    }
+    if (data.containsKey('signer_name')) {
+      context.handle(
+        _signerNameMeta,
+        signerName.isAcceptableOrUnknown(data['signer_name']!, _signerNameMeta),
+      );
+    }
+    if (data.containsKey('meaning')) {
+      context.handle(
+        _meaningMeta,
+        meaning.isAcceptableOrUnknown(data['meaning']!, _meaningMeta),
+      );
+    }
+    if (data.containsKey('duration_ms')) {
+      context.handle(
+        _durationMsMeta,
+        durationMs.isAcceptableOrUnknown(data['duration_ms']!, _durationMsMeta),
+      );
+    }
+    if (data.containsKey('upload_status')) {
+      context.handle(
+        _uploadStatusMeta,
+        uploadStatus.isAcceptableOrUnknown(
+          data['upload_status']!,
+          _uploadStatusMeta,
+        ),
+      );
+    }
+    if (data.containsKey('upload_error')) {
+      context.handle(
+        _uploadErrorMeta,
+        uploadError.isAcceptableOrUnknown(
+          data['upload_error']!,
+          _uploadErrorMeta,
+        ),
+      );
+    }
+    if (data.containsKey('attempts')) {
+      context.handle(
+        _attemptsMeta,
+        attempts.isAcceptableOrUnknown(data['attempts']!, _attemptsMeta),
+      );
+    }
+    if (data.containsKey('uploaded_at')) {
+      context.handle(
+        _uploadedAtMeta,
+        uploadedAt.isAcceptableOrUnknown(data['uploaded_at']!, _uploadedAtMeta),
+      );
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {id};
+  @override
+  Attachment map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return Attachment(
+      id: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}id'],
+      )!,
+      visitId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}visit_id'],
+      )!,
+      kind: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}kind'],
+      )!,
+      localPath: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}local_path'],
+      )!,
+      contentType: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}content_type'],
+      )!,
+      sizeBytes: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}size_bytes'],
+      )!,
+      sha256: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}sha256'],
+      )!,
+      capturedAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}captured_at'],
+      )!,
+      fileName: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}file_name'],
+      ),
+      signerName: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}signer_name'],
+      ),
+      meaning: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}meaning'],
+      ),
+      durationMs: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}duration_ms'],
+      ),
+      uploadStatus: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}upload_status'],
+      )!,
+      uploadError: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}upload_error'],
+      ),
+      attempts: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}attempts'],
+      )!,
+      uploadedAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}uploaded_at'],
+      ),
+    );
+  }
+
+  @override
+  $AttachmentsTable createAlias(String alias) {
+    return $AttachmentsTable(attachedDatabase, alias);
+  }
+}
+
+class Attachment extends DataClass implements Insertable<Attachment> {
+  final String id;
+  final String visitId;
+  final String kind;
+  final String localPath;
+  final String contentType;
+  final int sizeBytes;
+  final String sha256;
+  final String capturedAt;
+  final String? fileName;
+  final String? signerName;
+  final String? meaning;
+  final int? durationMs;
+  final String uploadStatus;
+  final String? uploadError;
+  final int attempts;
+  final String? uploadedAt;
+  const Attachment({
+    required this.id,
+    required this.visitId,
+    required this.kind,
+    required this.localPath,
+    required this.contentType,
+    required this.sizeBytes,
+    required this.sha256,
+    required this.capturedAt,
+    this.fileName,
+    this.signerName,
+    this.meaning,
+    this.durationMs,
+    required this.uploadStatus,
+    this.uploadError,
+    required this.attempts,
+    this.uploadedAt,
+  });
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['id'] = Variable<String>(id);
+    map['visit_id'] = Variable<String>(visitId);
+    map['kind'] = Variable<String>(kind);
+    map['local_path'] = Variable<String>(localPath);
+    map['content_type'] = Variable<String>(contentType);
+    map['size_bytes'] = Variable<int>(sizeBytes);
+    map['sha256'] = Variable<String>(sha256);
+    map['captured_at'] = Variable<String>(capturedAt);
+    if (!nullToAbsent || fileName != null) {
+      map['file_name'] = Variable<String>(fileName);
+    }
+    if (!nullToAbsent || signerName != null) {
+      map['signer_name'] = Variable<String>(signerName);
+    }
+    if (!nullToAbsent || meaning != null) {
+      map['meaning'] = Variable<String>(meaning);
+    }
+    if (!nullToAbsent || durationMs != null) {
+      map['duration_ms'] = Variable<int>(durationMs);
+    }
+    map['upload_status'] = Variable<String>(uploadStatus);
+    if (!nullToAbsent || uploadError != null) {
+      map['upload_error'] = Variable<String>(uploadError);
+    }
+    map['attempts'] = Variable<int>(attempts);
+    if (!nullToAbsent || uploadedAt != null) {
+      map['uploaded_at'] = Variable<String>(uploadedAt);
+    }
+    return map;
+  }
+
+  AttachmentsCompanion toCompanion(bool nullToAbsent) {
+    return AttachmentsCompanion(
+      id: Value(id),
+      visitId: Value(visitId),
+      kind: Value(kind),
+      localPath: Value(localPath),
+      contentType: Value(contentType),
+      sizeBytes: Value(sizeBytes),
+      sha256: Value(sha256),
+      capturedAt: Value(capturedAt),
+      fileName: fileName == null && nullToAbsent
+          ? const Value.absent()
+          : Value(fileName),
+      signerName: signerName == null && nullToAbsent
+          ? const Value.absent()
+          : Value(signerName),
+      meaning: meaning == null && nullToAbsent
+          ? const Value.absent()
+          : Value(meaning),
+      durationMs: durationMs == null && nullToAbsent
+          ? const Value.absent()
+          : Value(durationMs),
+      uploadStatus: Value(uploadStatus),
+      uploadError: uploadError == null && nullToAbsent
+          ? const Value.absent()
+          : Value(uploadError),
+      attempts: Value(attempts),
+      uploadedAt: uploadedAt == null && nullToAbsent
+          ? const Value.absent()
+          : Value(uploadedAt),
+    );
+  }
+
+  factory Attachment.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return Attachment(
+      id: serializer.fromJson<String>(json['id']),
+      visitId: serializer.fromJson<String>(json['visitId']),
+      kind: serializer.fromJson<String>(json['kind']),
+      localPath: serializer.fromJson<String>(json['localPath']),
+      contentType: serializer.fromJson<String>(json['contentType']),
+      sizeBytes: serializer.fromJson<int>(json['sizeBytes']),
+      sha256: serializer.fromJson<String>(json['sha256']),
+      capturedAt: serializer.fromJson<String>(json['capturedAt']),
+      fileName: serializer.fromJson<String?>(json['fileName']),
+      signerName: serializer.fromJson<String?>(json['signerName']),
+      meaning: serializer.fromJson<String?>(json['meaning']),
+      durationMs: serializer.fromJson<int?>(json['durationMs']),
+      uploadStatus: serializer.fromJson<String>(json['uploadStatus']),
+      uploadError: serializer.fromJson<String?>(json['uploadError']),
+      attempts: serializer.fromJson<int>(json['attempts']),
+      uploadedAt: serializer.fromJson<String?>(json['uploadedAt']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'id': serializer.toJson<String>(id),
+      'visitId': serializer.toJson<String>(visitId),
+      'kind': serializer.toJson<String>(kind),
+      'localPath': serializer.toJson<String>(localPath),
+      'contentType': serializer.toJson<String>(contentType),
+      'sizeBytes': serializer.toJson<int>(sizeBytes),
+      'sha256': serializer.toJson<String>(sha256),
+      'capturedAt': serializer.toJson<String>(capturedAt),
+      'fileName': serializer.toJson<String?>(fileName),
+      'signerName': serializer.toJson<String?>(signerName),
+      'meaning': serializer.toJson<String?>(meaning),
+      'durationMs': serializer.toJson<int?>(durationMs),
+      'uploadStatus': serializer.toJson<String>(uploadStatus),
+      'uploadError': serializer.toJson<String?>(uploadError),
+      'attempts': serializer.toJson<int>(attempts),
+      'uploadedAt': serializer.toJson<String?>(uploadedAt),
+    };
+  }
+
+  Attachment copyWith({
+    String? id,
+    String? visitId,
+    String? kind,
+    String? localPath,
+    String? contentType,
+    int? sizeBytes,
+    String? sha256,
+    String? capturedAt,
+    Value<String?> fileName = const Value.absent(),
+    Value<String?> signerName = const Value.absent(),
+    Value<String?> meaning = const Value.absent(),
+    Value<int?> durationMs = const Value.absent(),
+    String? uploadStatus,
+    Value<String?> uploadError = const Value.absent(),
+    int? attempts,
+    Value<String?> uploadedAt = const Value.absent(),
+  }) => Attachment(
+    id: id ?? this.id,
+    visitId: visitId ?? this.visitId,
+    kind: kind ?? this.kind,
+    localPath: localPath ?? this.localPath,
+    contentType: contentType ?? this.contentType,
+    sizeBytes: sizeBytes ?? this.sizeBytes,
+    sha256: sha256 ?? this.sha256,
+    capturedAt: capturedAt ?? this.capturedAt,
+    fileName: fileName.present ? fileName.value : this.fileName,
+    signerName: signerName.present ? signerName.value : this.signerName,
+    meaning: meaning.present ? meaning.value : this.meaning,
+    durationMs: durationMs.present ? durationMs.value : this.durationMs,
+    uploadStatus: uploadStatus ?? this.uploadStatus,
+    uploadError: uploadError.present ? uploadError.value : this.uploadError,
+    attempts: attempts ?? this.attempts,
+    uploadedAt: uploadedAt.present ? uploadedAt.value : this.uploadedAt,
+  );
+  Attachment copyWithCompanion(AttachmentsCompanion data) {
+    return Attachment(
+      id: data.id.present ? data.id.value : this.id,
+      visitId: data.visitId.present ? data.visitId.value : this.visitId,
+      kind: data.kind.present ? data.kind.value : this.kind,
+      localPath: data.localPath.present ? data.localPath.value : this.localPath,
+      contentType: data.contentType.present
+          ? data.contentType.value
+          : this.contentType,
+      sizeBytes: data.sizeBytes.present ? data.sizeBytes.value : this.sizeBytes,
+      sha256: data.sha256.present ? data.sha256.value : this.sha256,
+      capturedAt: data.capturedAt.present
+          ? data.capturedAt.value
+          : this.capturedAt,
+      fileName: data.fileName.present ? data.fileName.value : this.fileName,
+      signerName: data.signerName.present
+          ? data.signerName.value
+          : this.signerName,
+      meaning: data.meaning.present ? data.meaning.value : this.meaning,
+      durationMs: data.durationMs.present
+          ? data.durationMs.value
+          : this.durationMs,
+      uploadStatus: data.uploadStatus.present
+          ? data.uploadStatus.value
+          : this.uploadStatus,
+      uploadError: data.uploadError.present
+          ? data.uploadError.value
+          : this.uploadError,
+      attempts: data.attempts.present ? data.attempts.value : this.attempts,
+      uploadedAt: data.uploadedAt.present
+          ? data.uploadedAt.value
+          : this.uploadedAt,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('Attachment(')
+          ..write('id: $id, ')
+          ..write('visitId: $visitId, ')
+          ..write('kind: $kind, ')
+          ..write('localPath: $localPath, ')
+          ..write('contentType: $contentType, ')
+          ..write('sizeBytes: $sizeBytes, ')
+          ..write('sha256: $sha256, ')
+          ..write('capturedAt: $capturedAt, ')
+          ..write('fileName: $fileName, ')
+          ..write('signerName: $signerName, ')
+          ..write('meaning: $meaning, ')
+          ..write('durationMs: $durationMs, ')
+          ..write('uploadStatus: $uploadStatus, ')
+          ..write('uploadError: $uploadError, ')
+          ..write('attempts: $attempts, ')
+          ..write('uploadedAt: $uploadedAt')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(
+    id,
+    visitId,
+    kind,
+    localPath,
+    contentType,
+    sizeBytes,
+    sha256,
+    capturedAt,
+    fileName,
+    signerName,
+    meaning,
+    durationMs,
+    uploadStatus,
+    uploadError,
+    attempts,
+    uploadedAt,
+  );
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is Attachment &&
+          other.id == this.id &&
+          other.visitId == this.visitId &&
+          other.kind == this.kind &&
+          other.localPath == this.localPath &&
+          other.contentType == this.contentType &&
+          other.sizeBytes == this.sizeBytes &&
+          other.sha256 == this.sha256 &&
+          other.capturedAt == this.capturedAt &&
+          other.fileName == this.fileName &&
+          other.signerName == this.signerName &&
+          other.meaning == this.meaning &&
+          other.durationMs == this.durationMs &&
+          other.uploadStatus == this.uploadStatus &&
+          other.uploadError == this.uploadError &&
+          other.attempts == this.attempts &&
+          other.uploadedAt == this.uploadedAt);
+}
+
+class AttachmentsCompanion extends UpdateCompanion<Attachment> {
+  final Value<String> id;
+  final Value<String> visitId;
+  final Value<String> kind;
+  final Value<String> localPath;
+  final Value<String> contentType;
+  final Value<int> sizeBytes;
+  final Value<String> sha256;
+  final Value<String> capturedAt;
+  final Value<String?> fileName;
+  final Value<String?> signerName;
+  final Value<String?> meaning;
+  final Value<int?> durationMs;
+  final Value<String> uploadStatus;
+  final Value<String?> uploadError;
+  final Value<int> attempts;
+  final Value<String?> uploadedAt;
+  final Value<int> rowid;
+  const AttachmentsCompanion({
+    this.id = const Value.absent(),
+    this.visitId = const Value.absent(),
+    this.kind = const Value.absent(),
+    this.localPath = const Value.absent(),
+    this.contentType = const Value.absent(),
+    this.sizeBytes = const Value.absent(),
+    this.sha256 = const Value.absent(),
+    this.capturedAt = const Value.absent(),
+    this.fileName = const Value.absent(),
+    this.signerName = const Value.absent(),
+    this.meaning = const Value.absent(),
+    this.durationMs = const Value.absent(),
+    this.uploadStatus = const Value.absent(),
+    this.uploadError = const Value.absent(),
+    this.attempts = const Value.absent(),
+    this.uploadedAt = const Value.absent(),
+    this.rowid = const Value.absent(),
+  });
+  AttachmentsCompanion.insert({
+    required String id,
+    required String visitId,
+    required String kind,
+    required String localPath,
+    required String contentType,
+    required int sizeBytes,
+    required String sha256,
+    required String capturedAt,
+    this.fileName = const Value.absent(),
+    this.signerName = const Value.absent(),
+    this.meaning = const Value.absent(),
+    this.durationMs = const Value.absent(),
+    this.uploadStatus = const Value.absent(),
+    this.uploadError = const Value.absent(),
+    this.attempts = const Value.absent(),
+    this.uploadedAt = const Value.absent(),
+    this.rowid = const Value.absent(),
+  }) : id = Value(id),
+       visitId = Value(visitId),
+       kind = Value(kind),
+       localPath = Value(localPath),
+       contentType = Value(contentType),
+       sizeBytes = Value(sizeBytes),
+       sha256 = Value(sha256),
+       capturedAt = Value(capturedAt);
+  static Insertable<Attachment> custom({
+    Expression<String>? id,
+    Expression<String>? visitId,
+    Expression<String>? kind,
+    Expression<String>? localPath,
+    Expression<String>? contentType,
+    Expression<int>? sizeBytes,
+    Expression<String>? sha256,
+    Expression<String>? capturedAt,
+    Expression<String>? fileName,
+    Expression<String>? signerName,
+    Expression<String>? meaning,
+    Expression<int>? durationMs,
+    Expression<String>? uploadStatus,
+    Expression<String>? uploadError,
+    Expression<int>? attempts,
+    Expression<String>? uploadedAt,
+    Expression<int>? rowid,
+  }) {
+    return RawValuesInsertable({
+      if (id != null) 'id': id,
+      if (visitId != null) 'visit_id': visitId,
+      if (kind != null) 'kind': kind,
+      if (localPath != null) 'local_path': localPath,
+      if (contentType != null) 'content_type': contentType,
+      if (sizeBytes != null) 'size_bytes': sizeBytes,
+      if (sha256 != null) 'sha256': sha256,
+      if (capturedAt != null) 'captured_at': capturedAt,
+      if (fileName != null) 'file_name': fileName,
+      if (signerName != null) 'signer_name': signerName,
+      if (meaning != null) 'meaning': meaning,
+      if (durationMs != null) 'duration_ms': durationMs,
+      if (uploadStatus != null) 'upload_status': uploadStatus,
+      if (uploadError != null) 'upload_error': uploadError,
+      if (attempts != null) 'attempts': attempts,
+      if (uploadedAt != null) 'uploaded_at': uploadedAt,
+      if (rowid != null) 'rowid': rowid,
+    });
+  }
+
+  AttachmentsCompanion copyWith({
+    Value<String>? id,
+    Value<String>? visitId,
+    Value<String>? kind,
+    Value<String>? localPath,
+    Value<String>? contentType,
+    Value<int>? sizeBytes,
+    Value<String>? sha256,
+    Value<String>? capturedAt,
+    Value<String?>? fileName,
+    Value<String?>? signerName,
+    Value<String?>? meaning,
+    Value<int?>? durationMs,
+    Value<String>? uploadStatus,
+    Value<String?>? uploadError,
+    Value<int>? attempts,
+    Value<String?>? uploadedAt,
+    Value<int>? rowid,
+  }) {
+    return AttachmentsCompanion(
+      id: id ?? this.id,
+      visitId: visitId ?? this.visitId,
+      kind: kind ?? this.kind,
+      localPath: localPath ?? this.localPath,
+      contentType: contentType ?? this.contentType,
+      sizeBytes: sizeBytes ?? this.sizeBytes,
+      sha256: sha256 ?? this.sha256,
+      capturedAt: capturedAt ?? this.capturedAt,
+      fileName: fileName ?? this.fileName,
+      signerName: signerName ?? this.signerName,
+      meaning: meaning ?? this.meaning,
+      durationMs: durationMs ?? this.durationMs,
+      uploadStatus: uploadStatus ?? this.uploadStatus,
+      uploadError: uploadError ?? this.uploadError,
+      attempts: attempts ?? this.attempts,
+      uploadedAt: uploadedAt ?? this.uploadedAt,
+      rowid: rowid ?? this.rowid,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (id.present) {
+      map['id'] = Variable<String>(id.value);
+    }
+    if (visitId.present) {
+      map['visit_id'] = Variable<String>(visitId.value);
+    }
+    if (kind.present) {
+      map['kind'] = Variable<String>(kind.value);
+    }
+    if (localPath.present) {
+      map['local_path'] = Variable<String>(localPath.value);
+    }
+    if (contentType.present) {
+      map['content_type'] = Variable<String>(contentType.value);
+    }
+    if (sizeBytes.present) {
+      map['size_bytes'] = Variable<int>(sizeBytes.value);
+    }
+    if (sha256.present) {
+      map['sha256'] = Variable<String>(sha256.value);
+    }
+    if (capturedAt.present) {
+      map['captured_at'] = Variable<String>(capturedAt.value);
+    }
+    if (fileName.present) {
+      map['file_name'] = Variable<String>(fileName.value);
+    }
+    if (signerName.present) {
+      map['signer_name'] = Variable<String>(signerName.value);
+    }
+    if (meaning.present) {
+      map['meaning'] = Variable<String>(meaning.value);
+    }
+    if (durationMs.present) {
+      map['duration_ms'] = Variable<int>(durationMs.value);
+    }
+    if (uploadStatus.present) {
+      map['upload_status'] = Variable<String>(uploadStatus.value);
+    }
+    if (uploadError.present) {
+      map['upload_error'] = Variable<String>(uploadError.value);
+    }
+    if (attempts.present) {
+      map['attempts'] = Variable<int>(attempts.value);
+    }
+    if (uploadedAt.present) {
+      map['uploaded_at'] = Variable<String>(uploadedAt.value);
+    }
+    if (rowid.present) {
+      map['rowid'] = Variable<int>(rowid.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('AttachmentsCompanion(')
+          ..write('id: $id, ')
+          ..write('visitId: $visitId, ')
+          ..write('kind: $kind, ')
+          ..write('localPath: $localPath, ')
+          ..write('contentType: $contentType, ')
+          ..write('sizeBytes: $sizeBytes, ')
+          ..write('sha256: $sha256, ')
+          ..write('capturedAt: $capturedAt, ')
+          ..write('fileName: $fileName, ')
+          ..write('signerName: $signerName, ')
+          ..write('meaning: $meaning, ')
+          ..write('durationMs: $durationMs, ')
+          ..write('uploadStatus: $uploadStatus, ')
+          ..write('uploadError: $uploadError, ')
+          ..write('attempts: $attempts, ')
+          ..write('uploadedAt: $uploadedAt, ')
+          ..write('rowid: $rowid')
+          ..write(')'))
+        .toString();
+  }
+}
+
 class $SyncStateTable extends SyncState
     with TableInfo<$SyncStateTable, SyncStateData> {
   @override
@@ -3749,6 +4666,7 @@ abstract class _$AppDatabase extends GeneratedDatabase {
   late final $CallReportsTable callReports = $CallReportsTable(this);
   late final $FollowUpTasksTable followUpTasks = $FollowUpTasksTable(this);
   late final $GpsPingsTable gpsPings = $GpsPingsTable(this);
+  late final $AttachmentsTable attachments = $AttachmentsTable(this);
   late final $SyncStateTable syncState = $SyncStateTable(this);
   @override
   Iterable<TableInfo<Table, Object?>> get allTables =>
@@ -3762,6 +4680,7 @@ abstract class _$AppDatabase extends GeneratedDatabase {
     callReports,
     followUpTasks,
     gpsPings,
+    attachments,
     syncState,
   ];
 }
@@ -5588,6 +6507,438 @@ typedef $$GpsPingsTableProcessedTableManager =
       GpsPing,
       PrefetchHooks Function()
     >;
+typedef $$AttachmentsTableCreateCompanionBuilder =
+    AttachmentsCompanion Function({
+      required String id,
+      required String visitId,
+      required String kind,
+      required String localPath,
+      required String contentType,
+      required int sizeBytes,
+      required String sha256,
+      required String capturedAt,
+      Value<String?> fileName,
+      Value<String?> signerName,
+      Value<String?> meaning,
+      Value<int?> durationMs,
+      Value<String> uploadStatus,
+      Value<String?> uploadError,
+      Value<int> attempts,
+      Value<String?> uploadedAt,
+      Value<int> rowid,
+    });
+typedef $$AttachmentsTableUpdateCompanionBuilder =
+    AttachmentsCompanion Function({
+      Value<String> id,
+      Value<String> visitId,
+      Value<String> kind,
+      Value<String> localPath,
+      Value<String> contentType,
+      Value<int> sizeBytes,
+      Value<String> sha256,
+      Value<String> capturedAt,
+      Value<String?> fileName,
+      Value<String?> signerName,
+      Value<String?> meaning,
+      Value<int?> durationMs,
+      Value<String> uploadStatus,
+      Value<String?> uploadError,
+      Value<int> attempts,
+      Value<String?> uploadedAt,
+      Value<int> rowid,
+    });
+
+class $$AttachmentsTableFilterComposer
+    extends Composer<_$AppDatabase, $AttachmentsTable> {
+  $$AttachmentsTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<String> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get visitId => $composableBuilder(
+    column: $table.visitId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get kind => $composableBuilder(
+    column: $table.kind,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get localPath => $composableBuilder(
+    column: $table.localPath,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get contentType => $composableBuilder(
+    column: $table.contentType,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get sizeBytes => $composableBuilder(
+    column: $table.sizeBytes,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get sha256 => $composableBuilder(
+    column: $table.sha256,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get capturedAt => $composableBuilder(
+    column: $table.capturedAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get fileName => $composableBuilder(
+    column: $table.fileName,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get signerName => $composableBuilder(
+    column: $table.signerName,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get meaning => $composableBuilder(
+    column: $table.meaning,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get durationMs => $composableBuilder(
+    column: $table.durationMs,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get uploadStatus => $composableBuilder(
+    column: $table.uploadStatus,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get uploadError => $composableBuilder(
+    column: $table.uploadError,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get attempts => $composableBuilder(
+    column: $table.attempts,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get uploadedAt => $composableBuilder(
+    column: $table.uploadedAt,
+    builder: (column) => ColumnFilters(column),
+  );
+}
+
+class $$AttachmentsTableOrderingComposer
+    extends Composer<_$AppDatabase, $AttachmentsTable> {
+  $$AttachmentsTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<String> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get visitId => $composableBuilder(
+    column: $table.visitId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get kind => $composableBuilder(
+    column: $table.kind,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get localPath => $composableBuilder(
+    column: $table.localPath,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get contentType => $composableBuilder(
+    column: $table.contentType,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get sizeBytes => $composableBuilder(
+    column: $table.sizeBytes,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get sha256 => $composableBuilder(
+    column: $table.sha256,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get capturedAt => $composableBuilder(
+    column: $table.capturedAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get fileName => $composableBuilder(
+    column: $table.fileName,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get signerName => $composableBuilder(
+    column: $table.signerName,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get meaning => $composableBuilder(
+    column: $table.meaning,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get durationMs => $composableBuilder(
+    column: $table.durationMs,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get uploadStatus => $composableBuilder(
+    column: $table.uploadStatus,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get uploadError => $composableBuilder(
+    column: $table.uploadError,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get attempts => $composableBuilder(
+    column: $table.attempts,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get uploadedAt => $composableBuilder(
+    column: $table.uploadedAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+}
+
+class $$AttachmentsTableAnnotationComposer
+    extends Composer<_$AppDatabase, $AttachmentsTable> {
+  $$AttachmentsTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<String> get id =>
+      $composableBuilder(column: $table.id, builder: (column) => column);
+
+  GeneratedColumn<String> get visitId =>
+      $composableBuilder(column: $table.visitId, builder: (column) => column);
+
+  GeneratedColumn<String> get kind =>
+      $composableBuilder(column: $table.kind, builder: (column) => column);
+
+  GeneratedColumn<String> get localPath =>
+      $composableBuilder(column: $table.localPath, builder: (column) => column);
+
+  GeneratedColumn<String> get contentType => $composableBuilder(
+    column: $table.contentType,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<int> get sizeBytes =>
+      $composableBuilder(column: $table.sizeBytes, builder: (column) => column);
+
+  GeneratedColumn<String> get sha256 =>
+      $composableBuilder(column: $table.sha256, builder: (column) => column);
+
+  GeneratedColumn<String> get capturedAt => $composableBuilder(
+    column: $table.capturedAt,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get fileName =>
+      $composableBuilder(column: $table.fileName, builder: (column) => column);
+
+  GeneratedColumn<String> get signerName => $composableBuilder(
+    column: $table.signerName,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get meaning =>
+      $composableBuilder(column: $table.meaning, builder: (column) => column);
+
+  GeneratedColumn<int> get durationMs => $composableBuilder(
+    column: $table.durationMs,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get uploadStatus => $composableBuilder(
+    column: $table.uploadStatus,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get uploadError => $composableBuilder(
+    column: $table.uploadError,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<int> get attempts =>
+      $composableBuilder(column: $table.attempts, builder: (column) => column);
+
+  GeneratedColumn<String> get uploadedAt => $composableBuilder(
+    column: $table.uploadedAt,
+    builder: (column) => column,
+  );
+}
+
+class $$AttachmentsTableTableManager
+    extends
+        RootTableManager<
+          _$AppDatabase,
+          $AttachmentsTable,
+          Attachment,
+          $$AttachmentsTableFilterComposer,
+          $$AttachmentsTableOrderingComposer,
+          $$AttachmentsTableAnnotationComposer,
+          $$AttachmentsTableCreateCompanionBuilder,
+          $$AttachmentsTableUpdateCompanionBuilder,
+          (
+            Attachment,
+            BaseReferences<_$AppDatabase, $AttachmentsTable, Attachment>,
+          ),
+          Attachment,
+          PrefetchHooks Function()
+        > {
+  $$AttachmentsTableTableManager(_$AppDatabase db, $AttachmentsTable table)
+    : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$AttachmentsTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$AttachmentsTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$AttachmentsTableAnnotationComposer($db: db, $table: table),
+          updateCompanionCallback:
+              ({
+                Value<String> id = const Value.absent(),
+                Value<String> visitId = const Value.absent(),
+                Value<String> kind = const Value.absent(),
+                Value<String> localPath = const Value.absent(),
+                Value<String> contentType = const Value.absent(),
+                Value<int> sizeBytes = const Value.absent(),
+                Value<String> sha256 = const Value.absent(),
+                Value<String> capturedAt = const Value.absent(),
+                Value<String?> fileName = const Value.absent(),
+                Value<String?> signerName = const Value.absent(),
+                Value<String?> meaning = const Value.absent(),
+                Value<int?> durationMs = const Value.absent(),
+                Value<String> uploadStatus = const Value.absent(),
+                Value<String?> uploadError = const Value.absent(),
+                Value<int> attempts = const Value.absent(),
+                Value<String?> uploadedAt = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => AttachmentsCompanion(
+                id: id,
+                visitId: visitId,
+                kind: kind,
+                localPath: localPath,
+                contentType: contentType,
+                sizeBytes: sizeBytes,
+                sha256: sha256,
+                capturedAt: capturedAt,
+                fileName: fileName,
+                signerName: signerName,
+                meaning: meaning,
+                durationMs: durationMs,
+                uploadStatus: uploadStatus,
+                uploadError: uploadError,
+                attempts: attempts,
+                uploadedAt: uploadedAt,
+                rowid: rowid,
+              ),
+          createCompanionCallback:
+              ({
+                required String id,
+                required String visitId,
+                required String kind,
+                required String localPath,
+                required String contentType,
+                required int sizeBytes,
+                required String sha256,
+                required String capturedAt,
+                Value<String?> fileName = const Value.absent(),
+                Value<String?> signerName = const Value.absent(),
+                Value<String?> meaning = const Value.absent(),
+                Value<int?> durationMs = const Value.absent(),
+                Value<String> uploadStatus = const Value.absent(),
+                Value<String?> uploadError = const Value.absent(),
+                Value<int> attempts = const Value.absent(),
+                Value<String?> uploadedAt = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => AttachmentsCompanion.insert(
+                id: id,
+                visitId: visitId,
+                kind: kind,
+                localPath: localPath,
+                contentType: contentType,
+                sizeBytes: sizeBytes,
+                sha256: sha256,
+                capturedAt: capturedAt,
+                fileName: fileName,
+                signerName: signerName,
+                meaning: meaning,
+                durationMs: durationMs,
+                uploadStatus: uploadStatus,
+                uploadError: uploadError,
+                attempts: attempts,
+                uploadedAt: uploadedAt,
+                rowid: rowid,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map(
+                (e) => (
+                  e.readTable<$AttachmentsTable, Attachment>(table),
+                  BaseReferences<_$AppDatabase, $AttachmentsTable, Attachment>(
+                    db,
+                    table,
+                    e,
+                  ),
+                ),
+              )
+              .toList(),
+          prefetchHooksCallback: null,
+        ),
+      );
+}
+
+typedef $$AttachmentsTableProcessedTableManager =
+    ProcessedTableManager<
+      _$AppDatabase,
+      $AttachmentsTable,
+      Attachment,
+      $$AttachmentsTableFilterComposer,
+      $$AttachmentsTableOrderingComposer,
+      $$AttachmentsTableAnnotationComposer,
+      $$AttachmentsTableCreateCompanionBuilder,
+      $$AttachmentsTableUpdateCompanionBuilder,
+      (
+        Attachment,
+        BaseReferences<_$AppDatabase, $AttachmentsTable, Attachment>,
+      ),
+      Attachment,
+      PrefetchHooks Function()
+    >;
 typedef $$SyncStateTableCreateCompanionBuilder = SyncStateCompanion Function({
   required String key,
   required String value,
@@ -5746,6 +7097,8 @@ class $AppDatabaseManager {
       $$FollowUpTasksTableTableManager(_db, _db.followUpTasks);
   $$GpsPingsTableTableManager get gpsPings =>
       $$GpsPingsTableTableManager(_db, _db.gpsPings);
+  $$AttachmentsTableTableManager get attachments =>
+      $$AttachmentsTableTableManager(_db, _db.attachments);
   $$SyncStateTableTableManager get syncState =>
       $$SyncStateTableTableManager(_db, _db.syncState);
 }

@@ -60,18 +60,33 @@ class ApiClient {
   Future<Map<String, dynamic>> pull(int sinceTicks) => _send((h) => _http.get(_uri('/sync/pull', {'since': '$sinceTicks'}), headers: h));
 
   Future<Map<String, dynamic>> push(Map<String, dynamic> payload) =>
-      _send((h) => _http.post(_uri('/sync/push'), headers: h, body: jsonEncode(payload)));
+      _send((h) => _http.post(_uri('/sync/push'), headers: {...h, 'Content-Type': 'application/json'}, body: jsonEncode(payload)));
 
   Future<Map<String, dynamic>> _send(Future<http.Response> Function(Map<String, String> headers) call) async {
-    Future<http.Response> attempt({bool force = false}) async {
-      final token = await accessToken(force: force);
-      if (token == null) throw ApiException(401, 'Not signed in.');
-      return call({'Authorization': 'Bearer $token', 'Content-Type': 'application/json'}).timeout(const Duration(seconds: 60));
-    }
-
-    var r = await attempt();
-    if (r.statusCode == 401) r = await attempt(force: true);
+    final r = await _request(call);
     if (r.statusCode < 200 || r.statusCode >= 300) throw ApiException(r.statusCode, r.body);
     return jsonDecode(r.body) as Map<String, dynamic>;
   }
+
+  /// Sends the request; a 401 triggers one forced token refresh and a retry. Does not throw on 4xx/5xx.
+  Future<http.Response> _request(Future<http.Response> Function(Map<String, String> headers) call,
+      {Duration timeout = const Duration(seconds: 60)}) async {
+    Future<http.Response> attempt({bool force = false}) async {
+      final token = await accessToken(force: force);
+      if (token == null) throw ApiException(401, 'Not signed in.');
+      return call({'Authorization': 'Bearer $token'}).timeout(timeout);
+    }
+
+    final r = await attempt();
+    return r.statusCode == 401 ? attempt(force: true) : r;
+  }
+
+  /// Uploads a file (photo, voice note, signature). Returns the response so the caller can tell permanent rejections (400/413/415)
+  /// from temporary failures.
+  Future<http.Response> putBytes(String path, List<int> bytes,
+          {required String contentType, required String sha256, Map<String, String>? query}) =>
+      _request(
+        (h) => _http.put(_uri(path, query), headers: {...h, 'Content-Type': contentType, 'X-Content-SHA256': sha256}, body: bytes),
+        timeout: const Duration(minutes: 3),
+      );
 }

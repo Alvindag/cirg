@@ -45,6 +45,10 @@ dependencies:
   flutter_secure_storage: ^11.2.0
   intl: ^0.20.3
   flutter_appauth: ^12.1.0
+  image_picker: ^1.2.3
+  record: ^7.1.1
+  audioplayers: ^6.8.1
+  crypto: ^3.0.7
 
 dev_dependencies:
   flutter_test:

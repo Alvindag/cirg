@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:io';
 
 import 'package:drift/drift.dart';
 
@@ -36,6 +37,7 @@ class SyncService {
     _running = true;
     try {
       final pushed = await _push();
+      await _uploadAttachments(); // after the push, so the visits they belong to exist on the server
       await _pull();
       return SyncResult(pushed: pushed, pulled: true);
     } on ApiException catch (e) {
@@ -126,6 +128,49 @@ class SyncService {
     });
     return count;
   }
+
+  static const _maxAttempts = 5;
+
+  /// Uploads captured media one file at a time. Permanent rejections mark the item failed (shown to the user) so one bad file never
+  /// blocks the queue; temporary problems (offline, 5xx, visit not on the server yet) leave it pending for the next sync.
+  Future<void> _uploadAttachments() async {
+    for (final a in await _db.pendingAttachments()) {
+      final file = File(a.localPath);
+      if (a.localPath.isEmpty || !await file.exists()) {
+        await _mark(a.id, 'failed', 'The file is missing from this device.');
+        continue;
+      }
+      final query = {
+        'kind': a.kind,
+        'visitId': a.visitId,
+        'capturedAt': a.capturedAt,
+        if (a.fileName != null) 'fileName': a.fileName!,
+        if (a.signerName != null) 'signerName': a.signerName!,
+        if (a.meaning != null) 'meaning': a.meaning!,
+      };
+      final r = await _api.putBytes('/attachments/${a.id}', await file.readAsBytes(),
+          contentType: a.contentType, sha256: a.sha256, query: query);
+      final code = r.statusCode;
+      if (code == 200 || code == 201) {
+        await (_db.update(_db.attachments)..where((x) => x.id.equals(a.id))).write(AttachmentsCompanion(
+            uploadStatus: const Value('uploaded'), uploadError: const Value(null), uploadedAt: Value(DateTime.now().toUtc().toIso8601String())));
+      } else if (code == 409 && r.body.contains('Visit not found')) {
+        continue; // visit not on the server yet; try again next sync
+      } else if (code == 400 || code == 403 || code == 409 || code == 413 || code == 415) {
+        await _mark(a.id, 'failed', r.body.isEmpty ? 'Rejected by the server ($code).' : r.body);
+      } else {
+        // 5xx and anything unexpected: transient, but give up on a file that keeps failing
+        final attempts = a.attempts + 1;
+        await (_db.update(_db.attachments)..where((x) => x.id.equals(a.id))).write(AttachmentsCompanion(
+            attempts: Value(attempts),
+            uploadStatus: Value(attempts >= _maxAttempts ? 'failed' : 'pending'),
+            uploadError: Value('Server error ($code).')));
+      }
+    }
+  }
+
+  Future<void> _mark(String id, String status, String error) => (_db.update(_db.attachments)..where((x) => x.id.equals(id)))
+      .write(AttachmentsCompanion(uploadStatus: Value(status), uploadError: Value(error)));
 
   Future<void> _pull() async {
     final since = int.tryParse(await _db.getState(_cursorKey) ?? '') ?? 0;

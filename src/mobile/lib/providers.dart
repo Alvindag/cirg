@@ -7,6 +7,7 @@ import 'package:http/http.dart' as http;
 import 'data/connection.dart';
 import 'data/database.dart';
 import 'services/api_client.dart';
+import 'services/attachment_service.dart';
 import 'services/auth_provider.dart';
 import 'services/location_service.dart';
 import 'services/session_manager.dart';
@@ -58,6 +59,7 @@ final apiClientProvider = Provider((ref) {
 });
 
 final syncServiceProvider = Provider((ref) => SyncService(ref.watch(databaseProvider), ref.watch(apiClientProvider)));
+final attachmentServiceProvider = Provider((ref) => AttachmentService(ref.watch(databaseProvider)));
 final visitServiceProvider = Provider((ref) => VisitService(ref.watch(databaseProvider), ref.watch(locationProvider)));
 
 class SyncStatus {
@@ -100,6 +102,7 @@ class SyncCoordinator extends Notifier<SyncStatus> {
           : 'Your session has expired. Please sign in again.');
       await ref.read(sessionManagerProvider).signOut();
     }
+    if (res.ok) await ref.read(attachmentServiceProvider).purgeUploaded();
     state = SyncStatus(lastSync: res.ok ? DateTime.now() : state.lastSync, lastError: res.error);
   }
 }

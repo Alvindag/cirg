@@ -75,6 +75,10 @@
 			</array>
 		</dict>
 	</array>
+	<key>NSCameraUsageDescription</key>
+	<string>DAS Engage takes photos you attach to a customer visit.</string>
+	<key>NSMicrophoneUsageDescription</key>
+	<string>DAS Engage records voice notes you attach to a customer visit.</string>
 	<key>NSLocationWhenInUseUsageDescription</key>
 	<string>DAS Engage records your location when you check in and out of customer visits.</string>
 </dict>

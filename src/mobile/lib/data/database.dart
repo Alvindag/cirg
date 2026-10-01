@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:io';
 
 import 'package:drift/drift.dart';
 
@@ -105,6 +106,29 @@ class GpsPings extends Table {
   Set<Column> get primaryKey => {id};
 }
 
+/// Photos, voice notes and signatures captured on a visit. The file is stored on the device until it is uploaded.
+class Attachments extends Table {
+  TextColumn get id => text()();
+  TextColumn get visitId => text()();
+  TextColumn get kind => text()(); // Photo | VoiceNote | Signature
+  TextColumn get localPath => text()(); // empty once the local copy was purged after upload
+  TextColumn get contentType => text()();
+  IntColumn get sizeBytes => integer()();
+  TextColumn get sha256 => text()();
+  TextColumn get capturedAt => text()();
+  TextColumn get fileName => text().nullable()();
+  TextColumn get signerName => text().nullable()();
+  TextColumn get meaning => text().nullable()();
+  IntColumn get durationMs => integer().nullable()();
+  TextColumn get uploadStatus => text().withDefault(const Constant('pending'))(); // pending | uploaded | failed
+  TextColumn get uploadError => text().nullable()();
+  IntColumn get attempts => integer().withDefault(const Constant(0))();
+  TextColumn get uploadedAt => text().nullable()();
+
+  @override
+  Set<Column> get primaryKey => {id};
+}
+
 class SyncState extends Table {
   TextColumn get key => text()();
   TextColumn get value => text()();
@@ -122,12 +146,19 @@ class PlanItem {
   bool get done => visit?.checkOutAt != null;
 }
 
-@DriftDatabase(tables: [Customers, Products, PlannedVisits, Visits, CallReports, FollowUpTasks, GpsPings, SyncState])
+@DriftDatabase(tables: [Customers, Products, PlannedVisits, Visits, CallReports, FollowUpTasks, GpsPings, Attachments, SyncState])
 class AppDatabase extends _$AppDatabase {
   AppDatabase(super.e);
 
   @override
-  int get schemaVersion => 1;
+  int get schemaVersion => 2;
+
+  @override
+  MigrationStrategy get migration => MigrationStrategy(
+        onUpgrade: (m, from, to) async {
+          if (from < 2) await m.createTable(attachments);
+        },
+      );
 
   // ---- reads ----
 
@@ -169,18 +200,42 @@ class AppDatabase extends _$AppDatabase {
   /// Number of local rows waiting to be uploaded.
   Stream<int> watchPendingCount() => customSelect(
         'SELECT (SELECT COUNT(*) FROM visits WHERE dirty = 1) + (SELECT COUNT(*) FROM call_reports WHERE dirty = 1) '
-        '+ (SELECT COUNT(*) FROM follow_up_tasks WHERE dirty = 1) + (SELECT COUNT(*) FROM gps_pings) AS n',
-        readsFrom: {visits, callReports, followUpTasks, gpsPings},
+        '+ (SELECT COUNT(*) FROM follow_up_tasks WHERE dirty = 1) + (SELECT COUNT(*) FROM gps_pings) '
+        "+ (SELECT COUNT(*) FROM attachments WHERE upload_status = 'pending') AS n",
+        readsFrom: {visits, callReports, followUpTasks, gpsPings, attachments},
       ).watchSingle().map((r) => r.read<int>('n'));
 
   Future<int> pendingCount() => watchPendingCount().first;
 
-  /// Removes every row (used when a different user signs in on this device).
-  Future<void> wipe() => transaction(() async {
-        for (final t in allTables) {
-          await delete(t).go();
-        }
-      });
+  /// Removes every row and the captured media files (used when a different user signs in on this device).
+  Future<void> wipe() async {
+    for (final a in await select(attachments).get()) {
+      await deleteFile(a.localPath);
+    }
+    await transaction(() async {
+      for (final t in allTables) {
+        await delete(t).go();
+      }
+    });
+  }
+
+  static Future<void> deleteFile(String path) async {
+    if (path.isEmpty) return;
+    try {
+      final f = File(path);
+      if (await f.exists()) await f.delete();
+    } catch (_) {}
+  }
+
+  // ---- attachments ----
+
+  Stream<List<Attachment>> watchAttachments(String visitId) => (select(attachments)
+        ..where((a) => a.visitId.equals(visitId))
+        ..orderBy([(a) => OrderingTerm.asc(a.capturedAt)]))
+      .watch();
+
+  Future<List<Attachment>> pendingAttachments() =>
+      (select(attachments)..where((a) => a.uploadStatus.equals('pending'))..orderBy([(a) => OrderingTerm.asc(a.capturedAt)])).get();
 
   // ---- sync state ----
 
