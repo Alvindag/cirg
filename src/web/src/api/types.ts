@@ -96,3 +96,21 @@ export interface AuditEntry {
   entityId: string
   changes: string | null
 }
+
+export interface ScoreRow { customerId: string; name: string; potential: number; engagement: number; overall: number; status: string; suggestedSegment: string | null }
+export interface Factor { name: string; points: number; max: number; explanation: string }
+export interface ScoreDetail extends ScoreRow { factors: Factor[] }
+
+export interface OpportunityItem { customerId: string; name: string; likelihood: 'High' | 'Medium' | 'Low'; probability: number; factors: Factor[] }
+export interface OpportunityResult { product: string; note: string; items: OpportunityItem[] }
+
+export interface TerritoryLoad { territoryId: string; name: string; customers: number; requiredCallsPerMonth: number; reps: number; capacityPerMonth: number; loadRatio: number; status: string }
+export interface MoveSuggestion { customerId: string; customerName: string; fromTerritoryId: string; toTerritoryId: string; callsPerMonth: number; distanceToCurrentKm: number; distanceToNewKm: number }
+export interface BalanceResult { territories: TerritoryLoad[]; suggestions: MoveSuggestion[] }
+
+export interface Governance {
+  configuration: { providerEnabled: boolean; provider: string; tenantOptIn: boolean; chatDeployment: string; transcriptionDeployment: string; dailyLimitPerUser: number; maxInputChars: number }
+  usageLast30Days: { feature: string; requests: number; failed: number; inputTokens: number; outputTokens: number; averageLatencyMs: number; accepted: number; rejected: number; pendingReview: number }[]
+  topUsers: { userId: string; requests: number }[]
+  safeguards: string[]
+}

@@ -12,6 +12,7 @@ export function Layout() {
         <nav aria-label="Main">
           <NavLink to="/" end>Overview</NavLink>
           <NavLink to="/customers">Customers</NavLink>
+          <NavLink to="/insights">Insights</NavLink>
           {manager && <NavLink to="/team">Team</NavLink>}
           {manager && <NavLink to="/samples">Samples</NavLink>}
           {manager && <NavLink to="/audit">Audit</NavLink>}

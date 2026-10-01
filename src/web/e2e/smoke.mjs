@@ -39,12 +39,16 @@ const routes = {
   'GET /samples/reports/stock': () => [
     { holderId: null, location: 'Warehouse', batchId: 'b1', productId: 'p1', batchNumber: 'AMX-2611', expiryDate: '2027-08-01', daysToExpiry: 300, status: 'Active', quantity: 4200, expired: false, expiringSoon: false, actionRequired: false },
     { holderId: 'rep-2', location: 'Rep', batchId: 'b0', productId: 'p1', batchNumber: 'AMX-2501', expiryDate: '2026-09-01', daysToExpiry: -30, status: 'Active', quantity: 25, expired: true, expiringSoon: false, actionRequired: true }],
+  'GET /ai/customers/scores': () => [
+    { customerId: 'c1', name: 'Dr Ama Boateng', potential: 90, engagement: 12, overall: 43, status: 'At risk', suggestedSegment: 'B' },
+    { customerId: 'c2', name: 'Ernest Chemists Osu', potential: 60, engagement: 80, overall: 72, status: 'Healthy', suggestedSegment: null }],
+  'GET /ai/customers/c1/score': () => ({ customerId: 'c1', name: 'Dr Ama Boateng', potential: 90, engagement: 12, overall: 43, status: 'At risk', suggestedSegment: 'B', factors: [
+    { name: 'Potential', points: 90, max: 100, explanation: 'A segment, 1 product interest(s).' }, { name: 'Recency', points: 0, max: 35, explanation: 'Last visited 120 day(s) ago.' }] }),
   'GET /admin/audit-logs': () => [{ id: 3, userId: 'me', at: new Date().toISOString(), action: 'create', entityType: 'SampleBatch', entityId: 'b1b1b1b1-0000', changes: null }],
 }
 
 const errors = []
 const browser = await chromium.launch({ executablePath: chrome, args: ['--no-sandbox'] })
-let failed = false
 try {
   const ctx = await browser.newContext({ viewport: { width: 1280, height: 900 } })
   await ctx.addInitScript(() => sessionStorage.setItem('das.devToken', 'test-token'))
@@ -86,6 +90,12 @@ try {
   await page.getByRole('tab', { name: 'Stock' }).click()
   await expectText('should be recovered')
   await shot('samples-stock')
+
+  await page.getByRole('link', { name: 'Insights' }).click()
+  await expectText('At risk')
+  await page.getByRole('button', { name: 'Dr Ama Boateng' }).click()
+  await expectText('Last visited 120 day(s) ago.')
+  await shot('insights')
 
   await page.getByRole('link', { name: 'Audit' }).click()
   await expectText('SampleBatch')

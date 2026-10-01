@@ -63,3 +63,7 @@ input, select { background: var(--surface); border: 1px solid var(--border); bor
   .topbar nav { order: 3; flex-basis: 100%; }
   .kpi-value { font-size: 1.4rem; }
 }
+
+.link-row { background: none; border: 0; padding: 0; color: var(--accent); text-align: left; cursor: pointer; text-decoration: underline; }
+tr.selected td { background: var(--good-bg); }
+ul { margin: .25rem 0; padding-left: 1.2rem; } li { margin: .3rem 0; }
