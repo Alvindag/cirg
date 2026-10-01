@@ -38,7 +38,10 @@ public static class Endpoints
             if (type != null) query = query.Where(c => c.Type == type);
             if (segment != null) query = query.Where(c => c.Segment == segment);
             if (!string.IsNullOrWhiteSpace(q))
-                query = query.Where(c => EF.Functions.ILike(c.Name, $"%{q}%"));
+                {
+                var pattern = $"%{q.Trim().Replace("\\", "\\\\").Replace("%", "\\%").Replace("_", "\\_")}%"; // a typed % or _ is a letter, not a wildcard
+                query = query.Where(c => EF.Functions.ILike(c.Name, pattern) || (c.City != null && EF.Functions.ILike(c.City, pattern)));
+            }
             var total = await query.CountAsync();
             var items = await query.OrderBy(c => c.Name).Skip((page - 1) * pageSize).Take(pageSize).ToListAsync();
             return Results.Ok(new { total, page, pageSize, items });

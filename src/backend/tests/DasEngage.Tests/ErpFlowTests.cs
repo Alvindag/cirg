@@ -6,6 +6,9 @@ using DasEngage.Api;
 using DasEngage.Api.Erp;
 using DasEngage.Domain;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Configuration;
+using DasEngage.Infrastructure;
+using Microsoft.Extensions.DependencyInjection;
 
 namespace DasEngage.Tests;
 
@@ -536,5 +539,49 @@ public class ErpFlowTests : IClassFixture<ErpFactory>
         Assert.Equal("No cost item", spend.GetProperty("productsWithoutCost")[0].GetProperty("name").GetString());
         Assert.Equal("Amoxil", spend.GetProperty("byProduct")[0].GetProperty("name").GetString());
         Assert.Equal(HttpStatusCode.Forbidden, (await s.RepClient.GetAsync($"/api/v1/samples/reports/spend?from={from}&to={to}")).StatusCode);
+    }
+}
+
+public class WorkerTests : IClassFixture<ErpFactory>
+{
+    private readonly ErpFactory _f;
+    public WorkerTests(ErpFactory f) => _f = f;
+
+    [Fact]
+    public async Task The_worker_delivers_waiting_messages_for_connected_tenants()
+    {
+        var tenant = Guid.NewGuid();
+        await using (var db = _f.Db(tenant))
+        {
+            db.Tenants.Add(new Tenant { Id = tenant, Name = "T" });
+            db.ErpConnections.Add(new ErpConnection { Provider = "rest", BaseUrl = "https://erp.example.com", Enabled = true, OutboundEnabled = true });
+            db.OutboxMessages.Add(new OutboxMessage { Type = "sample.adjustment", Payload = "{}" });
+            await db.SaveChangesAsync();
+        }
+        var worker = new ErpWorker(_f.Services, Microsoft.Extensions.Logging.Abstractions.NullLogger<ErpWorker>.Instance, new ConfigurationBuilder().Build());
+        _f.Connector.Sent.Clear();
+        _f.Connector.OnSend = _ => new(true, false, "REF-1", null);
+        Assert.True(await worker.RunOnce(CancellationToken.None));
+        await using var check = _f.Db(tenant);
+        Assert.Equal(OutboxStatus.Sent, (await check.OutboxMessages.AsNoTracking().SingleAsync()).Status);
+    }
+
+    /// <summary>With several API instances, only one may run a pass at a time (PostgreSQL advisory lock). Runs only against a real PostgreSQL.</summary>
+    [Fact]
+    public async Task Only_one_instance_runs_a_pass_at_a_time()
+    {
+        if (TestDb.Postgres is null) return;
+        var worker = new ErpWorker(_f.Services, Microsoft.Extensions.Logging.Abstractions.NullLogger<ErpWorker>.Instance, new ConfigurationBuilder().Build());
+        using var scope = _f.Services.CreateScope();
+        var options = scope.ServiceProvider.GetRequiredService<DbContextOptions<AppDbContext>>();
+        await using var other = new AppDbContext(options, new WorkerTenant(Guid.Empty));
+        var conn = other.Database.GetDbConnection();
+        await conn.OpenAsync();
+        await using (var cmd = conn.CreateCommand()) { cmd.CommandText = $"SELECT pg_advisory_lock({ErpWorker.LockKey})"; await cmd.ExecuteScalarAsync(); } // another instance holds the lock
+
+        Assert.False(await worker.RunOnce(CancellationToken.None)); // this one backs off
+
+        await using (var cmd = conn.CreateCommand()) { cmd.CommandText = $"SELECT pg_advisory_unlock({ErpWorker.LockKey})"; await cmd.ExecuteScalarAsync(); }
+        Assert.True(await worker.RunOnce(CancellationToken.None));  // once released, it proceeds
     }
 }

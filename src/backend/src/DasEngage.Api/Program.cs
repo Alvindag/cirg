@@ -1,3 +1,4 @@
+using Azure.Monitor.OpenTelemetry.AspNetCore;
 using Microsoft.AspNetCore.RateLimiting;
 using System.Security.Claims;
 using System.Text;
@@ -115,21 +116,76 @@ builder.Services.AddOptions<Microsoft.AspNetCore.Authorization.AuthorizationOpti
 
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
-builder.Services.AddHealthChecks();
-builder.Services.AddRateLimiter(o => o.AddFixedWindowLimiter("default", w => { w.PermitLimit = 300; w.Window = TimeSpan.FromMinutes(1); }));
+// Liveness (/health, /health/live) never touches dependencies; readiness (/health/ready) checks the database.
+builder.Services.AddHealthChecks().AddDbContextCheck<AppDbContext>("database", tags: new[] { "ready" });
+
+// Application Insights / Azure Monitor (traces, metrics, logs) when a connection string is provided by the platform.
+if (!string.IsNullOrEmpty(builder.Configuration["APPLICATIONINSIGHTS_CONNECTION_STRING"]))
+    builder.Services.AddOpenTelemetry().UseAzureMonitor();
+// Rate limit per signed-in user (or per client address when anonymous), so one busy or abusive client cannot use up everyone's allowance.
+builder.Services.AddRateLimiter(o =>
+{
+    o.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
+    o.AddPolicy("default", ctx =>
+    {
+        var config = ctx.RequestServices.GetRequiredService<IConfiguration>();
+        // ERP middleware is identified by its integration key's prefix (the key itself is verified later, in authorization).
+        if (ctx.Request.Headers.TryGetValue(DasEngage.Api.Erp.ApiKeyAuth.Header, out var apiKey) && DasEngage.Api.Erp.ApiKeyAuth.TryParse(apiKey.ToString(), out var prefix, out _))
+            return System.Threading.RateLimiting.RateLimitPartition.GetFixedWindowLimiter($"k:{prefix}", _ => new System.Threading.RateLimiting.FixedWindowRateLimiterOptions
+            { PermitLimit = config.GetValue("RateLimit:IntegrationPerMinute", 120), Window = TimeSpan.FromMinutes(1), QueueLimit = 0 });
+        var user = ctx.User.FindFirst(DasEngage.Api.AppClaims.User)?.Value ?? ctx.User.FindFirst("oid")?.Value ?? ctx.User.FindFirst("sub")?.Value;
+        var key = user is not null ? $"u:{user}" : $"ip:{ctx.Connection.RemoteIpAddress}";
+        var limit = user is not null ? config.GetValue("RateLimit:PerUserPerMinute", 600) : config.GetValue("RateLimit:AnonymousPerMinute", 60);
+        return System.Threading.RateLimiting.RateLimitPartition.GetFixedWindowLimiter(key, _ => new System.Threading.RateLimiting.FixedWindowRateLimiterOptions
+        { PermitLimit = limit, Window = TimeSpan.FromMinutes(1), QueueLimit = 0 });
+    });
+});
 
 var app = builder.Build();
 
 if (!app.Environment.IsProduction()) { app.UseSwagger(); app.UseSwaggerUI(); }
+// Behind the platform's ingress the original scheme and client address arrive in X-Forwarded-* (enabled by ASPNETCORE_FORWARDEDHEADERS_ENABLED).
+if (string.Equals(app.Configuration["ASPNETCORE_FORWARDEDHEADERS_ENABLED"], "true", StringComparison.OrdinalIgnoreCase)) app.UseForwardedHeaders();
+// API responses are never cached or sniffed, and cannot be framed.
+app.Use(async (ctx, next) =>
+{
+    ctx.Response.OnStarting(() =>
+    {
+        var h = ctx.Response.Headers;
+        h["X-Content-Type-Options"] = "nosniff";
+        h["Referrer-Policy"] = "no-referrer";
+        if (ctx.Request.Path.StartsWithSegments("/api") || ctx.Request.Path.StartsWithSegments("/integration"))
+        { h["Cache-Control"] = "no-store"; h["Content-Security-Policy"] = "frame-ancestors 'none'"; }
+        return Task.CompletedTask;
+    });
+    await next();
+});
+if (!app.Environment.IsDevelopment() && !app.Environment.IsEnvironment("Testing")) app.UseHsts();
 app.UseHttpsRedirection();
 app.UseCors();
-app.UseRateLimiter();
+// Authentication first, so the rate limiter can see who is calling and give each user their own allowance.
 app.UseAuthentication();
+app.UseRateLimiter();
 app.UseAuthorization();
 
-app.MapHealthChecks("/health").AllowAnonymous();
+app.MapHealthChecks("/health", new Microsoft.AspNetCore.Diagnostics.HealthChecks.HealthCheckOptions { Predicate = _ => false }).AllowAnonymous();
+app.MapHealthChecks("/health/live", new Microsoft.AspNetCore.Diagnostics.HealthChecks.HealthCheckOptions { Predicate = _ => false }).AllowAnonymous();
+app.MapHealthChecks("/health/ready", new Microsoft.AspNetCore.Diagnostics.HealthChecks.HealthCheckOptions { Predicate = c => c.Tags.Contains("ready") }).AllowAnonymous();
 app.MapApi();
 DasEngage.Api.Erp.ErpEndpoints.MapIntegration(app);
+
+// `migrate`: apply database migrations and exit. Run by the deployment pipeline (a job), never at web start-up, so several instances never race.
+if (args.Length > 0 && args[0] == "migrate")
+{
+    using var scope = app.Services.CreateScope();
+    var options = scope.ServiceProvider.GetRequiredService<DbContextOptions<AppDbContext>>();
+    await using var db = new AppDbContext(options, new Provisioning.NoTenant());
+    var pending = (await db.Database.GetPendingMigrationsAsync()).ToList();
+    Console.WriteLine(pending.Count == 0 ? "Database is up to date." : $"Applying {pending.Count} migration(s): {string.Join(", ", pending)}");
+    await db.Database.MigrateAsync();
+    Console.WriteLine("Migrations applied.");
+    return 0;
+}
 
 if (args.Length > 0 && args[0] == "provision-tenant")
 {

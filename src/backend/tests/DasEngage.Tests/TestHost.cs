@@ -13,6 +13,45 @@ using Microsoft.IdentityModel.Tokens;
 
 namespace DasEngage.Tests;
 
+/// <summary>
+/// Picks the database for a test host. By default tests run on the fast in-memory provider; with TEST_POSTGRES set
+/// (for example "Host=localhost;Username=postgres;Password=postgres") every host gets its own real PostgreSQL database,
+/// created by the EF migrations. CI runs the whole suite both ways, so migrations and PostgreSQL query translation are tested too.
+/// </summary>
+public static class TestDb
+{
+    public static string? Postgres => Environment.GetEnvironmentVariable("TEST_POSTGRES");
+
+    public static string Use(IServiceCollection s)
+    {
+        var name = Guid.NewGuid().ToString("N");
+        s.RemoveAll<DbContextOptions<AppDbContext>>();
+        s.RemoveAll<DbContextOptions>();
+        if (Postgres is null)
+        {
+            s.AddDbContext<AppDbContext>(o => o.UseInMemoryDatabase(name));
+            return name;
+        }
+        var connection = $"{Postgres};Database=das_test_{name}";
+        var options = new DbContextOptionsBuilder<AppDbContext>().UseNpgsql(connection, n => n.MigrationsAssembly("DasEngage.Infrastructure")).Options;
+        using (var db = new AppDbContext(options, new WorkerTenant(Guid.Empty))) db.Database.Migrate();
+        s.AddDbContext<AppDbContext>(o => o.UseNpgsql(connection, n => n.MigrationsAssembly("DasEngage.Infrastructure")));
+        return connection;
+    }
+
+    public static void Drop(string? connection)
+    {
+        if (Postgres is null || connection is null || !connection.Contains("Database=")) return;
+        var name = connection[(connection.IndexOf("Database=", StringComparison.Ordinal) + 9)..];
+        Npgsql.NpgsqlConnection.ClearAllPools();
+        using var admin = new Npgsql.NpgsqlConnection($"{Postgres};Database=postgres");
+        admin.Open();
+        using var cmd = admin.CreateCommand();
+        cmd.CommandText = $"DROP DATABASE IF EXISTS \"{name}\" WITH (FORCE)";
+        cmd.ExecuteNonQuery();
+    }
+}
+
 public class MemoryBlobStore : IBlobStore
 {
     private readonly System.Collections.Concurrent.ConcurrentDictionary<string, byte[]> _files = new();
@@ -29,7 +68,7 @@ public class MemoryBlobStore : IBlobStore
 public class ApiFactory : WebApplicationFactory<Program>
 {
     public const string Key = "test-signing-key-0123456789abcdef-0123456789";
-    private readonly string _db = Guid.NewGuid().ToString();
+    private string? _db;
 
     protected override void ConfigureWebHost(IWebHostBuilder builder)
     {
@@ -41,12 +80,16 @@ public class ApiFactory : WebApplicationFactory<Program>
         }));
         builder.ConfigureServices(s =>
         {
-            s.RemoveAll<DbContextOptions<AppDbContext>>();
-            s.RemoveAll<DbContextOptions>();
-            s.AddDbContext<AppDbContext>(o => o.UseInMemoryDatabase(_db));
+            _db = TestDb.Use(s);
             s.RemoveAll<IBlobStore>();
             s.AddSingleton<IBlobStore>(new MemoryBlobStore());
         });
+    }
+
+    protected override void Dispose(bool disposing)
+    {
+        base.Dispose(disposing);
+        if (disposing) TestDb.Drop(_db);
     }
 
     public HttpClient ClientFor(Guid tenant, Guid user, string role, Guid? territory = null)

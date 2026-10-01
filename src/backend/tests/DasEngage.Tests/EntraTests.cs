@@ -28,7 +28,7 @@ public class EntraFactory : WebApplicationFactory<Program>
 {
     public static readonly SymmetricSecurityKey Key = new(Encoding.UTF8.GetBytes("entra-test-signing-key-0123456789abcdef-0123456789"));
     public const string Audience = "api://das-engage-test";
-    private readonly string _db = Guid.NewGuid().ToString();
+    private string? _db;
 
     protected override void ConfigureWebHost(IWebHostBuilder builder)
     {
@@ -44,15 +44,19 @@ public class EntraFactory : WebApplicationFactory<Program>
         }));
         builder.ConfigureServices(s =>
         {
-            s.RemoveAll<DbContextOptions<AppDbContext>>();
-            s.RemoveAll<DbContextOptions>();
-            s.AddDbContext<AppDbContext>(o => o.UseInMemoryDatabase(_db));
+            _db = TestDb.Use(s);
             s.Configure<JwtBearerOptions>(JwtBearerDefaults.AuthenticationScheme, o =>
             {
                 o.Configuration = new OpenIdConnectConfiguration(); // no metadata download
                 o.TokenValidationParameters.IssuerSigningKey = Key;
             });
         });
+    }
+
+    protected override void Dispose(bool disposing)
+    {
+        base.Dispose(disposing);
+        if (disposing) TestDb.Drop(_db);
     }
 
     public async Task<Guid> Provision(string entraTenant, string adminOid, string name = "Acme Pharma")
