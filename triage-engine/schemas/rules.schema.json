@@ -1,0 +1,95 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://local/schemas/triage-rules.schema.json",
+  "title": "Triage Rule Pack (DRAFT v1.0 - consumed by the engine in Phase 2)",
+  "type": "object",
+  "required": ["schemaVersion", "pack", "rules"],
+  "additionalProperties": false,
+  "properties": {
+    "schemaVersion": { "const": "1.0" },
+    "pack": {
+      "type": "object",
+      "required": ["id", "name", "version"],
+      "properties": {
+        "id": { "type": "string", "pattern": "^[a-z0-9._-]{3,64}$" },
+        "name": { "type": "string", "maxLength": 120 },
+        "version": { "type": "string", "pattern": "^\\d+\\.\\d+\\.\\d+$" },
+        "attackVersion": { "type": "string" }
+      }
+    },
+    "assets": { "type": "object", "additionalProperties": { "type": "array", "items": { "type": "string" }, "maxItems": 10000 } },
+    "rules": { "type": "array", "items": { "$ref": "#/$defs/rule" }, "maxItems": 2000 }
+  },
+  "$defs": {
+    "rule": {
+      "type": "object",
+      "required": ["id", "name", "kind", "severity", "attack", "when"],
+      "additionalProperties": false,
+      "properties": {
+        "id": { "type": "string", "pattern": "^[A-Z]{2,6}-\\d{3,5}$" },
+        "name": { "type": "string" },
+        "enabled": { "type": "boolean", "default": true },
+        "kind": { "enum": ["match", "threshold", "sequence"] },
+        "severity": { "enum": ["info", "low", "medium", "high", "critical"] },
+        "confidence": { "type": "number", "minimum": 0, "maximum": 1, "default": 0.5 },
+        "tags": { "type": "array", "items": { "type": "string" } },
+        "attack": {
+          "type": "array", "minItems": 1,
+          "items": { "type": "object", "required": ["tactic", "technique"], "properties": {
+            "tactic": { "type": "string", "pattern": "^TA\\d{4}$" },
+            "technique": { "type": "string", "pattern": "^T\\d{4}(\\.\\d{3})?$" } } }
+        },
+        "when": { "oneOf": [ { "$ref": "#/$defs/matchSpec" }, { "$ref": "#/$defs/thresholdSpec" }, { "$ref": "#/$defs/sequenceSpec" } ] },
+        "suppress": { "type": "array", "items": { "$ref": "#/$defs/condition" } },
+        "context": { "type": "object", "properties": {
+          "summary": { "type": "string" },
+          "falsePositives": { "type": "array", "items": { "type": "string" } },
+          "maliciousIndicators": { "type": "array", "items": { "type": "string" } },
+          "references": { "type": "array", "items": { "type": "string", "format": "uri" } } } },
+        "response": { "type": "object", "properties": {
+          "investigate": { "type": "array", "items": { "$ref": "#/$defs/action" } },
+          "remediate": { "type": "array", "items": { "$ref": "#/$defs/action" } } } }
+      }
+    },
+    "action": {
+      "type": "object", "required": ["title"],
+      "properties": {
+        "title": { "type": "string" },
+        "shell": { "enum": ["powershell", "cmd", "kql", "spl", "manual"] },
+        "command": { "type": "string", "description": "Template; {{field}} filled from evidence and shell-escaped. Displayed, NEVER executed." },
+        "risk": { "enum": ["read-only", "disruptive"] }
+      }
+    },
+    "condition": {
+      "oneOf": [
+        { "type": "object", "required": ["all"], "properties": { "all": { "type": "array", "items": { "$ref": "#/$defs/condition" } } } },
+        { "type": "object", "required": ["any"], "properties": { "any": { "type": "array", "items": { "$ref": "#/$defs/condition" } } } },
+        { "type": "object", "required": ["not"], "properties": { "not": { "$ref": "#/$defs/condition" } } },
+        { "type": "object", "required": ["field", "op"], "properties": {
+          "field": { "type": "string" },
+          "op": { "enum": ["eq","neq","in","notIn","contains","startsWith","endsWith","regex","gt","gte","lt","lte","exists","cidr"] },
+          "value": {}, "caseInsensitive": { "type": "boolean", "default": true } } }
+      ]
+    },
+    "matchSpec": { "type": "object", "required": ["eventIds"], "additionalProperties": false,
+      "properties": { "eventIds": { "type": "array", "items": { "type": "integer" }, "minItems": 1 }, "channel": { "type": "string" }, "condition": { "$ref": "#/$defs/condition" } } },
+    "thresholdSpec": { "type": "object", "required": ["eventIds", "groupBy", "count", "window"], "additionalProperties": false,
+      "properties": {
+        "eventIds": { "type": "array", "items": { "type": "integer" } },
+        "condition": { "$ref": "#/$defs/condition" },
+        "groupBy": { "type": "array", "items": { "type": "string" }, "minItems": 1 },
+        "count": { "type": "integer", "minimum": 2 },
+        "distinct": { "type": "string" },
+        "window": { "type": "string", "pattern": "^\\d+(s|m|h)$" } } },
+    "sequenceSpec": { "type": "object", "required": ["steps", "within", "correlateOn"], "additionalProperties": false,
+      "properties": {
+        "within": { "type": "string", "pattern": "^\\d+(s|m|h|d)$" },
+        "correlateOn": { "type": "array", "minItems": 1, "items": { "type": "object", "required": ["name", "bind"],
+          "properties": { "name": { "type": "string" }, "bind": { "type": "object", "additionalProperties": { "type": "string" } } } } },
+        "steps": { "type": "array", "minItems": 2, "items": { "type": "object", "required": ["id", "eventIds"],
+          "properties": { "id": { "type": "string" }, "eventIds": { "type": "array", "items": { "type": "integer" } },
+            "condition": { "$ref": "#/$defs/condition" }, "optional": { "type": "boolean", "default": false },
+            "negate": { "type": "boolean" }, "min": { "type": "integer", "default": 1 } } } },
+        "ordered": { "type": "boolean", "default": true } } }
+  }
+}
