@@ -1,0 +1,27 @@
+/* Shared by the in-app print view and the standalone HTML export. Always light and print-friendly. */
+.report { --fg:#14181f; --muted:#4a5565; --line:#c9d0da; --accent:#1f4fa3; background:#fff; color:var(--fg); font:14px/1.5 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif; max-width:960px; margin:0 auto; padding:24px 20px }
+.report h1 { font-size:1.6rem; margin:.2em 0 } .report h2 { font-size:1.25rem; margin:1.8em 0 .5em; padding-bottom:4px; border-bottom:2px solid var(--line) }
+.report h3 { font-size:1.05rem; margin:1.4em 0 .4em } .report h4 { font-size:.95rem; margin:1em 0 .3em }
+.report .rkicker { letter-spacing:.08em; font-size:.75rem; color:var(--muted); margin:0 }
+.report .meta,.report .note { color:var(--muted) } .report .note { font-size:.9em }
+.report .rnotice { border:1px solid var(--line); border-left:5px solid #8a5a00; padding:8px 12px; background:#fff8e6 } .report .rnotice.redacted { border-left-color:#1f6f43; background:#eefaf2 }
+.report nav ol { display:flex; flex-wrap:wrap; gap:4px 18px; padding:0; list-style:none } .report a { color:var(--accent) }
+.report table { width:100%; border-collapse:collapse; margin:10px 0; font-size:.92em } .report caption { text-align:left; font-weight:600; padding:4px 0 }
+.report th,.report td { border:1px solid var(--line); padding:5px 8px; text-align:left; vertical-align:top } .report thead th { background:#f1f4f8 } .report tbody th[scope=row] { background:#f7f9fb; font-weight:600 }
+.report dl { display:grid; grid-template-columns:max-content 1fr; gap:3px 16px; margin:8px 0 } .report dt { color:var(--muted) } .report dd { margin:0 }
+.report pre { background:#f4f6f9; border:1px solid var(--line); border-radius:4px; padding:8px; overflow-x:auto; white-space:pre-wrap; word-break:break-all; margin:6px 0 }
+.report code { font:12.5px/1.4 ui-monospace,SFMono-Regular,Menlo,Consolas,monospace } .report .wrap { white-space:pre-wrap; word-break:break-all }
+.report .big { font-size:1.2rem; margin:.4em 0 } .report .timeline { padding-left:20px } .report .timeline time { color:var(--muted); margin-right:6px }
+.report .rsev { display:inline-block; font-size:.72rem; font-weight:700; padding:1px 8px; border-radius:999px; border:1.5px solid currentColor; vertical-align:middle; background:#fff }
+.report .rsev-critical { color:#a51d12 } .report .rsev-high { color:#a14400 } .report .rsev-medium { color:#7a5d00 } .report .rsev-low { color:#1f6140 } .report .rsev-info { color:#4a5565 }
+.report .rbadge { font-size:.72rem; font-weight:700; color:#7a3b00; border:1px solid #7a3b00; border-radius:4px; padding:0 6px }
+.report .finding-block,.report .chain-block { margin:12px 0; padding-left:12px; border-left:3px solid var(--line) } .report .chain-block { border-left-width:5px }
+.report summary { cursor:pointer }
+.print-only { display:none }
+@media print {
+  .screen-only { display:none !important } .print-only { display:block !important }
+  .report { max-width:none; padding:0; font-size:11pt } .report h2 { break-after:avoid; page-break-after:avoid } .report h3,.report h4 { break-after:avoid }
+  .report section.finding-block,.report table,.report pre { break-inside:avoid } .report .chain-block { break-before:auto }
+  .report a { color:inherit; text-decoration:none } .report details > summary { display:none }
+  @page { margin:16mm; }
+}

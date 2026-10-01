@@ -1,0 +1,10 @@
+# Security headers for Netlify / Cloudflare Pages. For nginx/Apache/S3+CloudFront see docs/DEPLOYMENT.md.
+# Keep the Content-Security-Policy value identical to e2e/server.mjs (a test enforces this).
+/*
+  Content-Security-Policy: default-src 'none'; script-src 'self' 'wasm-unsafe-eval'; worker-src 'self'; style-src 'self'; img-src 'self' data:; font-src 'self'; connect-src 'none'; form-action 'none'; base-uri 'none'; object-src 'none'; frame-ancestors 'none'; require-trusted-types-for 'script'; trusted-types triage-worker
+  X-Content-Type-Options: nosniff
+  Referrer-Policy: no-referrer
+  Cross-Origin-Opener-Policy: same-origin
+  Cross-Origin-Resource-Policy: same-origin
+  Permissions-Policy: camera=(), microphone=(), geolocation=(), interest-cohort=()
+  Cache-Control: no-store

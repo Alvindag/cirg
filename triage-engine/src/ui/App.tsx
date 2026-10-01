@@ -4,6 +4,7 @@ import { eventName } from '../core/eventCatalog'
 import { FindingCard } from './FindingsView'
 import { ChainCard, ExecutiveSummary } from './ChainsView'
 import { RulesPanel } from './RulesPanel'
+import { ExportPanel } from './ExportPanel'
 import { SEVERITY_RANK, type Severity } from '../core/rules/types'
 
 const fmtBytes = (n: number) => (n > 1e9 ? `${(n / 1e9).toFixed(2)} GB` : n > 1e6 ? `${(n / 1e6).toFixed(1)} MB` : `${Math.round(n / 1e3)} KB`)
@@ -27,7 +28,9 @@ export function App() {
   }, [r])
 
   return (
-    <main>
+    <>
+    <a className="skip screen-only" href="#results">Skip to results</a>
+    <main className="screen-only">
       <header>
         <h1>Windows Security Event Log Triage</h1>
         <p className="privacy" role="note">
@@ -62,7 +65,7 @@ export function App() {
       )}
 
       {s.phase === 'done' && r && (
-        <section>
+        <section id="results" tabIndex={-1} aria-label="Analysis results">
           <div className="row">
             <h2>Results: {s.fileName}</h2>
             <button onClick={s.clear}>Clear all data</button>
@@ -83,6 +86,7 @@ export function App() {
           )}
 
           <ExecutiveSummary r={r} />
+          <ExportPanel result={r} fileName={s.fileName} />
 
           <h3>Attack chains</h3>
           {r.chains.length === 0
@@ -126,5 +130,6 @@ export function App() {
         </section>
       )}
     </main>
+    </>
   )
 }

@@ -1,7 +1,7 @@
 name: triage-engine
 on:
-  push: { paths: ['triage-engine/**'] }
-  pull_request: { paths: ['triage-engine/**'] }
+  push: { paths: ['triage-engine/**', '.github/workflows/triage-engine.yml'] }
+  pull_request: { paths: ['triage-engine/**', '.github/workflows/triage-engine.yml'] }
 permissions: { contents: read }
 jobs:
   test:
@@ -12,7 +12,12 @@ jobs:
       - uses: actions/setup-node@v4
         with: { node-version: 22, cache: npm, cache-dependency-path: triage-engine/package-lock.json }
       - run: npm ci
-      - run: npm run build
-      - run: npm run typecheck
-      - run: npm test
+      - run: npm run build          # validator freshness check + typecheck + production build (adds SRI)
+      - run: npm test               # unit, security audit and report tests
       - run: npm audit --omit=dev
+      - run: npm run sbom
+      - uses: actions/upload-artifact@v4
+        with: { name: sbom-cyclonedx, path: triage-engine/sbom.cdx.json }
+      # Browser gate: strict CSP, zero network, no storage, SRI enforcement, exports, print/PDF, axe accessibility scan.
+      - run: npx playwright-core install --with-deps chromium
+      - run: node e2e/gate.mjs

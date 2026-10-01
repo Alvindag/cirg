@@ -86,6 +86,15 @@ export class RuleEngine {
     }
   }
 
+  /** Drop every retained event/timestamp so the memory can be reclaimed immediately (called after finalize). */
+  destroy(): void {
+    for (const rt of this.rts) {
+      rt.hosts?.clear(); rt.groups?.clear(); rt.buckets?.clear()
+      rt.evidenceTotal = 0; rt.seqTotal = 0; rt.disabled = true
+    }
+    this.byEvent.clear()
+  }
+
   process(e: CanonicalEvent): void {
     this.processed++
     const list = this.byEvent.get(e.eventId)

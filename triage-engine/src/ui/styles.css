@@ -20,7 +20,7 @@ th,td { text-align:left; padding: 6px 8px; border-bottom: 1px solid var(--line) 
 .body { padding: 0 14px 14px } .body h4 { margin: 16px 0 4px } .body h5 { margin: 10px 0 4px }
 .meta { color: var(--muted); font-weight: 400 } .plain { list-style: none; padding: 0 } .plain li { margin: 8px 0 }
 .sev { display:inline-block; font-size: .72rem; font-weight: 700; padding: 1px 8px; border-radius: 999px; border: 1px solid currentColor }
-.sev-critical { --c:#b42318 } .sev-high { --c:#c4560a } .sev-medium { --c:#8a6d00 } .sev-low { --c:#2f6f4f } .sev-info { --c:#5a6575 }
+.sev-critical { --c:#b42318 } .sev-high { --c:#b04a00 } .sev-medium { --c:#8a6d00 } .sev-low { --c:#2f6f4f } .sev-info { --c:#5a6575 }
 @media (prefers-color-scheme: dark) { .sev-critical { --c:#ff8a80 } .sev-high { --c:#ffab70 } .sev-medium { --c:#f0d36a } .sev-low { --c:#7fd3a5 } .sev-info { --c:#9aa6b6 } }
 .sev,.chip[aria-pressed=true] { color: var(--c) } .finding { border-left: 5px solid var(--c, var(--line)) }
 .chips { display:flex; flex-wrap: wrap; gap: 8px; margin: 16px 0 }
@@ -33,3 +33,7 @@ td:last-child,th:last-child { text-align: left } textarea { width:100%; font: 13
 .exec { margin-top: 20px; padding: 4px 16px 12px; border: 1px solid var(--line); border-radius: 8px } .big { font-size: 1.3rem; margin: 6px 0 }
 .chain { border-left-width: 8px } .timeline { padding-left: 22px } .timeline time { color: var(--muted); font-variant-numeric: tabular-nums; margin-right: 6px }
 .chain .finding { margin-left: 4px }
+
+.skip { position:absolute; left:-9999px; top:0; background:var(--bg); color:var(--fg); padding:8px 12px; border:2px solid var(--accent); z-index:10 } .skip:focus { left:8px; top:8px }
+.exportp { margin-top: 20px; padding: 4px 16px 12px; border: 1px solid var(--line); border-radius: 8px } .btnrow { display:flex; flex-wrap:wrap; gap:8px; margin:10px 0 } .check { display:block; margin-top:6px }
+button:disabled { opacity:.55; cursor:not-allowed }

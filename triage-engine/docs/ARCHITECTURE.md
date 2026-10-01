@@ -9,7 +9,7 @@ Strictly client-side. Log data is never uploaded, stored (Local/Session storage,
 | 1 | Secure scaffold, streaming ingestion (CSV / NDJSON+JSON / XML), canonical model, worker lifecycle, CSP | **Done** (gate passing) |
 | 2 | Rule engine (`match`, `threshold`), Ajv standalone validation, starter rule pack, ATT&CK mapping, rule tester UI | **Done** (gate passing) |
 | 3 | Correlation engine (`sequence` rules), attack-chain builder, explainable risk scoring, EVTX via WASM | **Done** (gate passing) |
-| 4 | Report (exec summary / deep dive / context / next steps), JSON + HTML + print-PDF export, a11y and security hardening | Planned |
+| 4 | Report (exec summary / deep dive / context / next steps), JSON + SIEM NDJSON + HTML + print-PDF export, redaction, a11y and security hardening | **Done** (gate passing) |
 
 ## Phase 2: rule engine (as built)
 
@@ -26,6 +26,29 @@ Strictly client-side. Log data is never uploaded, stored (Local/Session storage,
 - Rules can only reference the canonical fields in `core/rules/compile.ts` (`FIELD_NAMES`). Fields such as Kerberos ticket encryption type are not yet normalized, so CRED-002 is a heuristic only.
 - AUTH-004 evaluates IPv4 only.
 - Rule packs from other people are untrusted input, but a malicious pack can still generate noise or hide detections via `suppress`. Review packs before use.
+
+## Phase 4: reporting, export and hardening (as built)
+
+**Report model** (`core/report/model.ts`, schema `schemas/report.schema.json`, version 1.0): one deterministic JSON-serializable object holding the five required sections: executive summary (risk score with breakdown, plain-language headline, top threats, recommended actions), technical deep dive (chains with narrative and score breakdown, findings with evidence/steps, ATT&CK coverage table), contextual analysis (why suspicious, malicious indicators, legitimate explanations, deduplicated per rule), actionable next steps (investigate = read-only, remediate = flagged "disruptive", commands filled from evidence and escaped), and an appendix (methodology, rule pack versions, limitations).
+
+**Exports** (all generated in the browser and saved via a Blob download; file names are generated, never derived from log content):
+- *JSON*: the full report, validated against the published schema in tests.
+- *SIEM alerts (NDJSON)*: one ECS-style alert per finding (`@timestamp`, `event.*`, `rule.*`, `threat.*` ATT&CK ids/names, `host.name`, `user.name`, `source.ip`, `triage.*`). "ECS-style" means field naming only; it is not validated against a specific ECS version.
+- *HTML*: a single self-contained file rendered from the **same React component** as the in-app print view (so they cannot drift), with its own CSP (`default-src 'none'; style-src 'unsafe-inline'`), no scripts, no links to the outside. `react-dom/server` is lazy-loaded.
+- *PDF*: "Print / save as PDF" renders the report through a portal and opens the browser print dialog; an `@media print` stylesheet hides the app UI. (The browser's own PDF engine is used; there is no PDF library in the bundle.)
+
+**Redaction** (opt-in, default off; `core/report/redact.ts`): accounts, hostnames, domains, SIDs and IPs become stable pseudonyms (`USER-1`, `HOST-2` ...), command lines are removed, process paths are reduced to the executable name, the source file name is dropped, and derived text (narratives, titles, link reasons) is rewritten. Well-known system accounts/SIDs are kept for readability. It is pseudonymization, not anonymization: timestamps, event IDs, counts, rule names, service names and executable names remain, so review before sharing externally.
+
+**Logging-coverage notes:** the report tells the reader what the tool could not see: rules whose Event IDs are absent, process-creation events with no command line (a common audit misconfiguration), missing logon events, unparsed records.
+
+**Hardening:** SRI (sha384) on the entry script and stylesheet (hashed on the files as written, because Vite rewrites chunks late); `public/_headers` for static hosts, kept equal to the policy used in tests; an automated source audit that fails the build on HTML-injection sinks, dynamic code, network/storage/navigation APIs or hard-coded URLs; exact-pinned dependencies; SBOM (`npm run sbom`) covering npm and Rust crates; unused `comlink` dependency removed; the rule engine releases all retained events after finalize. See `THREAT_MODEL.md` and `DEPLOYMENT.md`.
+
+**Accessibility:** skip link, landmarks, native `<details>` disclosure widgets, labelled controls, table captions and `scope`, severity always shown as text (never color alone), live regions for progress/status, visible focus. An axe-core scan (WCAG 2.0/2.1/2.2 A and AA rules) runs in the browser gate against the app in light and dark mode and against the exported report. Automated scans catch roughly a third of accessibility issues: a manual screen-reader and keyboard pass is still recommended before wide rollout.
+
+### Known limits (Phase 4)
+- The report does not include a hash of the source file (SubtleCrypto cannot hash a stream incrementally, and a full in-memory read of 100 MB+ files is exactly what this tool avoids). Record file hashes with your evidence-handling tooling.
+- Print layout is verified by producing a PDF in Chromium, not by visual review in every browser.
+- The ECS-style NDJSON has not been ingested into a live Elastic/Sentinel/Splunk instance in this repo's tests.
 
 ## Phase 3: correlation, chains, risk, EVTX (as built)
 
@@ -79,7 +102,7 @@ Overall = highest item + 10%/5%/5% of the next three. Labels: Critical >= 80, Hi
 
 ## Stack
 
-Rust `evtx` to WASM (EVTX) · TypeScript (strict) · Vite · React 18 + Zustand · PapaParse (chunk mode, inside our own worker) · custom streaming JSON object splitter · `saxes` (SAX XML) · Comlink (reserved for Phase 2 RPC) · Vitest · Playwright-core (e2e gate). EVTX: Rust `evtx` crate to WASM (Phase 3). Rules: JSON (YAML accepted, converted at load), validated with Ajv standalone (no `unsafe-eval`).
+Rust `evtx` to WASM (EVTX) · TypeScript (strict) · Vite · React 18 + Zustand · PapaParse (chunk mode, inside our own worker) · custom streaming JSON object splitter · `saxes` (SAX XML) · Vitest · Playwright-core (e2e gate). EVTX: Rust `evtx` crate to WASM (Phase 3). Rules: JSON (YAML accepted, converted at load), validated with Ajv standalone (no `unsafe-eval`).
 
 ## Data flow
 

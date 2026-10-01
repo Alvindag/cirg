@@ -56,6 +56,9 @@ export interface IngestSummary {
   firstTs: number | null
   lastTs: number | null
   byEventId: Record<number, number>
+  /** Process-creation (4688) events seen / those carrying a command line. Detects disabled command-line auditing. */
+  proc4688: number
+  proc4688WithCmd: number
   computers: string[]
   computersTruncated: boolean
   sample: CanonicalEvent[]

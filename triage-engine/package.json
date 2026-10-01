@@ -14,10 +14,10 @@
     "preview:secure": "vite build && node -e \"import('./e2e/server.mjs').then(async m=>{const s=await m.serve(process.cwd()+'/dist',4173);console.log('http://127.0.0.1:4173')})\"",
     "gen:validator": "node scripts/build-validator.mjs",
     "pretest": "node scripts/build-validator.mjs --check",
-    "build:evtx": "node scripts/build-evtx.mjs"
+    "build:evtx": "node scripts/build-evtx.mjs",
+    "sbom": "node scripts/sbom.mjs"
   },
   "dependencies": {
-    "comlink": "4.4.2",
     "papaparse": "5.7.0",
     "react": "19.3.0",
     "react-dom": "19.3.0",
@@ -32,6 +32,8 @@
     "@types/react-dom": "19.3.0",
     "@vitejs/plugin-react": "6.1.1",
     "ajv": "8.20.0",
+    "ajv-formats": "3.0.1",
+    "axe-core": "4.13.0",
     "playwright-core": "1.63.0",
     "typescript": "7.0.2",
     "vite": "8.3.2",

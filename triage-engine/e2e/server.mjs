@@ -4,9 +4,11 @@ import fs from 'node:fs'
 import path from 'node:path'
 export const CSP = "default-src 'none'; script-src 'self' 'wasm-unsafe-eval'; worker-src 'self'; style-src 'self'; img-src 'self' data:; font-src 'self'; connect-src 'none'; form-action 'none'; base-uri 'none'; object-src 'none'; frame-ancestors 'none'; require-trusted-types-for 'script'; trusted-types triage-worker"
 const MIME = { '.html': 'text/html', '.js': 'text/javascript', '.css': 'text/css', '.wasm': 'application/wasm' }
-export function serve(dir, port = 0) {
+export function serve(dir, port = 0, prefix = '') {
   const srv = http.createServer((req, res) => {
-    let p = path.join(dir, decodeURIComponent(new URL(req.url, 'http://x').pathname))
+    let pathname = decodeURIComponent(new URL(req.url, 'http://x').pathname)
+    if (prefix) { if (!pathname.startsWith(prefix)) { res.writeHead(404).end(); return } pathname = pathname.slice(prefix.length) || '/' }
+    let p = path.join(dir, pathname)
     if (!p.startsWith(dir)) { res.writeHead(403).end(); return }
     if (fs.existsSync(p) && fs.statSync(p).isDirectory()) p = path.join(p, 'index.html')
     if (!fs.existsSync(p)) { res.writeHead(404).end(); return }

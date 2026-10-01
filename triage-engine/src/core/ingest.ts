@@ -33,7 +33,7 @@ export async function ingest(
 
   const s: IngestSummary = {
     format, bytes: file.size, totalRecords: 0, parsedEvents: 0, rejected: 0, rejectReasons: {},
-    firstTs: null, lastTs: null, byEventId: {}, computers: [], computersTruncated: false, sample: [], elapsedMs: 0,
+    firstTs: null, lastTs: null, byEventId: {}, proc4688: 0, proc4688WithCmd: 0, computers: [], computersTruncated: false, sample: [], elapsedMs: 0,
   }
   const computers = new Set<string>()
   let lastReport = 0
@@ -53,6 +53,7 @@ export async function ingest(
         const e = r.event
         s.parsedEvents++
         s.byEventId[e.eventId] = (s.byEventId[e.eventId] ?? 0) + 1
+        if (e.eventId === 4688) { s.proc4688++; if (e.commandLine) s.proc4688WithCmd++ }
         if (s.firstTs === null || e.ts < s.firstTs) s.firstTs = e.ts
         if (s.lastTs === null || e.ts > s.lastTs) s.lastTs = e.ts
         if (e.computer) {
