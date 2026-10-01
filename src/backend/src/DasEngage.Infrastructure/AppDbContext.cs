@@ -30,6 +30,10 @@ public class AppDbContext : DbContext
     public DbSet<FollowUpTask> Tasks => Set<FollowUpTask>();
     public DbSet<GpsPing> GpsPings => Set<GpsPing>();
     public DbSet<Attachment> Attachments => Set<Attachment>();
+    public DbSet<SampleBatch> SampleBatches => Set<SampleBatch>();
+    public DbSet<StockMovement> StockMovements => Set<StockMovement>();
+    public DbSet<SampleRequest> SampleRequests => Set<SampleRequest>();
+    public DbSet<SampleDistribution> SampleDistributions => Set<SampleDistribution>();
     public DbSet<AuditLog> AuditLogs => Set<AuditLog>();
 
     protected override void OnModelCreating(ModelBuilder b)
@@ -44,6 +48,11 @@ public class AppDbContext : DbContext
         b.Entity<CallReport>().HasIndex(x => new { x.TenantId, x.UpdatedAt });
         b.Entity<GpsPing>().HasIndex(x => new { x.TenantId, x.RepId, x.RecordedAt });
         b.Entity<Attachment>().HasIndex(x => new { x.TenantId, x.VisitId });
+        b.Entity<SampleBatch>().HasIndex(x => new { x.TenantId, x.ProductId, x.BatchNumber }).IsUnique();
+        b.Entity<StockMovement>().HasIndex(x => new { x.TenantId, x.BatchId, x.HolderId });
+        b.Entity<SampleRequest>().HasIndex(x => new { x.TenantId, x.RepId, x.Status });
+        b.Entity<SampleDistribution>().HasIndex(x => new { x.TenantId, x.RepId, x.DistributedAt });
+        b.Entity<SampleDistribution>().HasIndex(x => new { x.TenantId, x.BatchId });
         b.Entity<AppUser>().HasIndex(x => new { x.TenantId, x.ExternalId }).IsUnique();
         b.Entity<Tenant>().HasIndex(x => x.ExternalTenantId).IsUnique();
         b.Entity<AuditLog>().HasIndex(x => new { x.TenantId, x.Id });
@@ -62,6 +71,10 @@ public class AppDbContext : DbContext
         b.Entity<FollowUpTask>().HasQueryFilter(e => e.TenantId == CurrentTenantId && e.DeletedAt == null);
         b.Entity<GpsPing>().HasQueryFilter(e => e.TenantId == CurrentTenantId && e.DeletedAt == null);
         b.Entity<Attachment>().HasQueryFilter(e => e.TenantId == CurrentTenantId && e.DeletedAt == null);
+        b.Entity<SampleBatch>().HasQueryFilter(e => e.TenantId == CurrentTenantId && e.DeletedAt == null);
+        b.Entity<StockMovement>().HasQueryFilter(e => e.TenantId == CurrentTenantId && e.DeletedAt == null);
+        b.Entity<SampleRequest>().HasQueryFilter(e => e.TenantId == CurrentTenantId && e.DeletedAt == null);
+        b.Entity<SampleDistribution>().HasQueryFilter(e => e.TenantId == CurrentTenantId && e.DeletedAt == null);
         b.Entity<AuditLog>().HasQueryFilter(e => e.TenantId == CurrentTenantId);
     }
 
@@ -69,6 +82,10 @@ public class AppDbContext : DbContext
     {
         var now = DateTime.UtcNow;
         var audits = new List<(string Action, string Type, Guid Id, string? Changes)>();
+
+        foreach (var e in ChangeTracker.Entries<StockMovement>())
+            if (e.State is EntityState.Modified or EntityState.Deleted)
+                throw new InvalidOperationException("Stock movements are immutable; record a correcting movement instead.");
 
         foreach (var e in ChangeTracker.Entries<TenantEntity>().ToList())
         {

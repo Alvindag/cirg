@@ -10,6 +10,12 @@ public enum VisitStatus { Planned, InProgress, Completed, Missed, Cancelled }
 
 public enum AttachmentKind { Photo, VoiceNote, Signature }
 
+public enum BatchStatus { Active, Quarantined, Recalled }
+
+public enum MovementType { Receipt, IssueToRep, ReturnFromRep, Distribution, WriteOff, Adjustment }
+
+public enum SampleRequestStatus { Pending, Approved, Rejected, Fulfilled, Cancelled }
+
 public enum FollowUpStatus { Open, Done, Cancelled }
 
 /// <summary>Base for all tenant-owned, syncable rows. Ids are client-generatable (UUID) for offline creation.</summary>
@@ -187,4 +193,59 @@ public class Attachment : TenantEntity
     public string? SignerName { get; set; }
     public string? Meaning { get; set; }
     public string? RecordHash { get; set; }
+}
+
+/// <summary>A manufacturing batch of a sample product. Expiry and status drive what may be issued or handed out.</summary>
+public class SampleBatch : TenantEntity
+{
+    public Guid ProductId { get; set; }
+    public string BatchNumber { get; set; } = "";
+    public DateOnly ExpiryDate { get; set; }
+    public BatchStatus Status { get; set; } = BatchStatus.Active;
+    public string? StatusReason { get; set; }
+}
+
+/// <summary>
+/// Immutable stock ledger. Stock is never edited: every change is a movement, and a balance is the sum of deltas for a
+/// batch and holder (HolderId null = central warehouse, otherwise the rep carrying the stock).
+/// </summary>
+public class StockMovement : TenantEntity
+{
+    public Guid BatchId { get; set; }
+    public Guid? HolderId { get; set; }
+    public int Delta { get; set; }
+    public MovementType Type { get; set; }
+    /// <summary>The request or distribution this movement belongs to.</summary>
+    public Guid? RefId { get; set; }
+    public string? Note { get; set; }
+    public DateTime OccurredAt { get; set; }
+}
+
+public class SampleRequest : TenantEntity
+{
+    public Guid RepId { get; set; }
+    public Guid ProductId { get; set; }
+    public int Quantity { get; set; }
+    public int? ApprovedQuantity { get; set; }
+    public SampleRequestStatus Status { get; set; } = SampleRequestStatus.Pending;
+    public string? Notes { get; set; }
+    public Guid? DecidedBy { get; set; }
+    public DateTime? DecidedAt { get; set; }
+    public string? DecisionNote { get; set; }
+    public Guid? FulfilledBy { get; set; }
+    public DateTime? FulfilledAt { get; set; }
+}
+
+/// <summary>Samples handed to a customer. The signature is an Attachment of kind Signature, which may arrive after this row (offline).</summary>
+public class SampleDistribution : TenantEntity
+{
+    public Guid RepId { get; set; }
+    public Guid? VisitId { get; set; }
+    public Guid CustomerId { get; set; }
+    public Guid ProductId { get; set; }
+    public Guid BatchId { get; set; }
+    public int Quantity { get; set; }
+    public DateTime DistributedAt { get; set; }
+    public Guid? SignatureAttachmentId { get; set; }
+    public string? Notes { get; set; }
 }

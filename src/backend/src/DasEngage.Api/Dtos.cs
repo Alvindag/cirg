@@ -23,6 +23,6 @@ public record TaskDto(Guid? Id, Guid? AssignedToId, Guid? CustomerId, Guid? Call
 public record GpsPingDto(Guid? Id, DateTime RecordedAt, double Latitude, double Longitude, double? AccuracyM);
 
 public record SyncPushRequest(List<CheckInOp>? CheckIns, List<CallReportOp>? CallReports, List<TaskDto>? Tasks,
-    List<GpsPingDto>? GpsPings);
+    List<GpsPingDto>? GpsPings, List<RequestDto>? SampleRequests = null, List<DistributionDto>? SampleDistributions = null);
 public record CheckInOp(Guid VisitId, CheckInDto CheckIn, CheckOutDto? CheckOut);
 public record CallReportOp(CallReportDto Report);

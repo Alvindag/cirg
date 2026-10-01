@@ -16,6 +16,7 @@ public static class Endpoints
         MapAdmin(api);
         AdminUsers.Map(api);
         AttachmentEndpoints.Map(api);
+        SampleEndpoints.Map(api);
     }
 
     // ---------- Customers ----------
@@ -312,7 +313,7 @@ public static class Endpoints
         var g = api.MapGroup("/sync");
 
         // Pull: everything changed since the cursor (UTC ticks). Tombstones included via DeletedAt.
-        g.MapGet("/pull", async (AppDbContext db, HttpCurrentUser u, long since = 0) =>
+        g.MapGet("/pull", async (AppDbContext db, HttpCurrentUser u, SampleService samples, long since = 0) =>
         {
             var cursor = new DateTime(since, DateTimeKind.Utc);
             var now = DateTime.UtcNow;
@@ -325,12 +326,15 @@ public static class Endpoints
                 customers = await cq.Include(c => c.ProductInterests).AsNoTracking().ToListAsync(),
                 products = await db.Products.IgnoreQueryFilters().Where(p => p.TenantId == u.TenantId && p.UpdatedAt > cursor).AsNoTracking().ToListAsync(),
                 plannedVisits = await db.PlannedVisits.IgnoreQueryFilters().Where(p => p.TenantId == u.TenantId && p.UpdatedAt > cursor && (rep == null || p.RepId == rep)).AsNoTracking().ToListAsync(),
+                // Always the full current picture (small): what this user carries, and their own requests from the last 90 days.
+                sampleStock = u.UserId is { } me ? await samples.HoldingsFor(me) : new List<object>(),
+                sampleRequests = await db.SampleRequests.AsNoTracking().Where(r => r.RepId == u.UserId && r.CreatedAt > now.AddDays(-90)).ToListAsync(),
                 tasks = await db.Tasks.IgnoreQueryFilters().Where(t => t.TenantId == u.TenantId && t.UpdatedAt > cursor && t.AssignedToId == u.UserId).AsNoTracking().ToListAsync(),
             });
         });
 
         // Push: idempotent on client-generated ids; safe to retry.
-        g.MapPost("/push", async (SyncPushRequest req, AppDbContext db, HttpCurrentUser u) =>
+        g.MapPost("/push", async (SyncPushRequest req, AppDbContext db, HttpCurrentUser u, SampleService samples) =>
         {
             if (u.UserId is null) return Results.Forbid();
             var errors = new List<string>();
@@ -345,7 +349,15 @@ public static class Endpoints
                     errors.Add($"call report {op.Report.Id}: unknown visit");
             foreach (var t in req.Tasks ?? new()) await SaveTask(db, u, t);
             if (req.GpsPings is { Count: > 0 } pings) await SavePings(db, u.UserId.Value, pings);
-            return Results.Ok(new { ok = errors.Count == 0, errors });
+
+            // Samples report a result per item, so one rejected line (expired batch, not enough stock) never blocks the rest of the batch.
+            var requests = new List<ItemResult>();
+            foreach (var r in req.SampleRequests ?? new()) requests.Add(await samples.CreateRequest(u.UserId.Value, r));
+            var distributions = new List<ItemResult>();
+            foreach (var d in req.SampleDistributions ?? new())
+                distributions.Add(await samples.InTransaction(() => samples.RecordDistribution(u.UserId.Value, d)));
+
+            return Results.Ok(new { ok = errors.Count == 0, errors, sampleRequests = requests, sampleDistributions = distributions });
         });
     }
 
