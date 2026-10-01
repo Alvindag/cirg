@@ -36,6 +36,8 @@ export interface LoggingAssessment {
   role: 'dc' | 'member' | 'unknown'
   roleInferred: boolean
   windowHours: number
+  /** An audit-policy change was recorded shortly (<6h) before the export ended: newly enabled categories had little time to log. */
+  recentAuditChange: boolean
   rows: AssessmentRow[]
   commandLine: { applicable: boolean; processEvents: number; withCommandLine: number; percent: number | null; status: 'ok' | 'partial' | 'absent' | 'not-applicable'; note: string }
   logGaps: { from: string; to: string; hours: number }[]
@@ -105,7 +107,7 @@ export function assessLogging(s: IngestSummary, ruleEvents: RuleEvents[], roleOp
 
   const evaluated = rows.filter((r) => r.status !== 'not-evaluated')
   return {
-    role, roleInferred: roleOpt === 'auto', windowHours, rows, commandLine, logGaps: logGaps.slice(0, 10), logGapsNote, recordIntegrity,
+    role, roleInferred: roleOpt === 'auto', windowHours, recentAuditChange: recentChange, rows, commandLine, logGaps: logGaps.slice(0, 10), logGapsNote, recordIntegrity,
     summary: { observed: rows.filter((r) => r.status === 'observed').length, possibleGaps: rows.filter((r) => r.status === 'possible-gap').length, evaluated: evaluated.length },
   }
 }

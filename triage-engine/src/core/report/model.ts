@@ -158,7 +158,8 @@ export function buildReport(r: AnalysisResult, opts: ReportOptions): Report {
   }
   if (r.findings.length) recommended.push('Preserve the original log files and any volatile evidence before remediation, and record who ran which command.')
   const la = assessLogging(r.summary, r.ruleEvents, opts.hostRole)
-  if (la.summary.possibleGaps > 0 || la.commandLine.status === 'absent' || la.commandLine.status === 'partial') recommended.push('Close the audit-logging gaps listed in the Logging assessment so future analysis has full coverage.')
+  if (la.recentAuditChange && la.summary.possibleGaps === 0) recommended.push('Auditing was changed shortly before this export ended. Re-export after it has been on for 24 to 48 hours; categories enabled just before the export had no time to produce events, so Kerberos, command-line and similar coverage is not yet representative.')
+  else if (la.summary.possibleGaps > 0 || la.commandLine.status === 'absent' || la.commandLine.status === 'partial') recommended.push('Close the audit-logging gaps listed in the Logging assessment so future analysis has full coverage.')
 
   const headline = r.findings.length === 0
     ? `No detection rules matched in ${r.summary.parsedEvents.toLocaleString()} events. This does not prove the absence of malicious activity: coverage is limited to the loaded rules and the event types present in the data.`

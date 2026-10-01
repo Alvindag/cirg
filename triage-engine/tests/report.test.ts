@@ -78,6 +78,26 @@ describe('recommended actions (real DC report: advised reverting the auditing th
   })
 })
 
+describe('report wording from the second real DC report', () => {
+  const NOWD = new Date('2025-03-02T00:00:00Z')
+  const csv = 'EventID,TimeGenerated,Computer,SubjectUserName,AuditPolicyChanges,TargetUserName,IpAddress,LogonType,AuthenticationPackageName,WorkstationName\n' +
+    '4624,2025-03-01T00:00:00Z,DC1,,,bob,10.0.0.5,3,NTLM,WKS1\n4624,2025-03-02T23:59:00Z,DC1,,,bob,10.0.0.5,3,NTLM,WKS1\n4719,2025-03-02T23:59:30Z,DC1,Administrator,%%8449,,,,,\n'
+  it('a just-enabled audit policy recommends re-exporting later, not "closing gaps"', async () => {
+    const r = buildReport((await analyze(new Blob([csv]), [], { format: 'csv' }))!, { redact: false, generatedAt: NOWD, sourceName: 'x' })
+    const t = r.executiveSummary.recommendedActions.join(' ')
+    expect(r.loggingAssessment.recentAuditChange).toBe(true)
+    expect(t).toMatch(/Re-export after it has been on for 24 to 48 hours/)
+    expect(t).not.toMatch(/Close the audit-logging gaps/)
+  })
+  it('NTLM finding (AUTH-005) now carries investigation steps filled from the evidence', async () => {
+    const r = buildReport((await analyze(new Blob([csv]), [], { format: 'csv' }))!, { redact: false, generatedAt: NOWD, sourceName: 'x' })
+    const f = r.findings.find((x) => x.ruleId === 'AUTH-005')!
+    expect(f.nextSteps.investigate.length).toBe(3)
+    expect(f.nextSteps.investigate.map((c) => c.command).join(' ')).toMatch(/WKS1.*10\.0\.5?|WKS1/)
+    expect(f.nextSteps.remediate).toEqual([])
+  })
+})
+
 describe('redaction', () => {
   it('removes every sensitive value from the entire JSON document, including derived text', async () => {
     const json = reportToJson(await mk(true))

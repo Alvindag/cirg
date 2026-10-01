@@ -698,6 +698,28 @@
           "Workstation-to-workstation NTLM"
         ]
       },
+      "response": {
+        "investigate": [
+          {
+            "title": "List NTLM network logons by account and workstation",
+            "shell": "kql",
+            "command": "SecurityEvent | where EventID == 4624 and LogonType == 3 and AuthenticationPackageName == \"NTLM\" | summarize count() by TargetUserName, IpAddress, WorkstationName | order by count_ desc",
+            "risk": "read-only"
+          },
+          {
+            "title": "Confirm the source workstation belongs to the account owner (especially for built-in Administrator)",
+            "shell": "manual",
+            "command": "Check that {{workstationName}} / {{ipAddress}} is a known machine used by {{targetUserName}}. An administrator account signing in from an unfamiliar workstation deserves a closer look.",
+            "risk": "read-only"
+          },
+          {
+            "title": "Find which applications still use NTLM",
+            "shell": "manual",
+            "command": "Enable the 'Network security: Restrict NTLM' audit policies (Group Policy > Security Options) and review the Microsoft-Windows-NTLM/Operational log, so legacy NTLM use can be removed before restricting it.",
+            "risk": "read-only"
+          }
+        ]
+      },
       "controls": [
         "nist-800-53:IA-5",
         "nist-800-53:SI-4",

@@ -50,6 +50,7 @@ describe('audit logging assessment', () => {
   it('REGRESSION (real DC): auditing enabled seconds before the export is NOT reported as a logging gap', () => {
     const s = summary({ byEventId: { 4624: 900, 4719: 8 }, lastAuditPolicyChangeTs: T0 + 48 * H - 24_000 })
     const a = assessLogging(s, RULES, 'dc')
+    expect(a.recentAuditChange).toBe(true)
     expect(rows(a)['kerb-tgs']).toBe('not-observed')
     expect(a.rows.find((r) => r.id === 'kerb-tgs')!.note).toMatch(/audit-policy change was recorded 24 second\(s\) before this export ended/)
     expect(a.summary.possibleGaps).toBe(rows(a)['proc'] === 'possible-gap' ? 1 : 0)

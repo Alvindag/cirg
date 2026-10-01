@@ -46,6 +46,13 @@ describe('standalone HTML report', () => {
     expect(html).not.toMatch(/<pre><code>Re-apply/)
     expect(html).toMatch(/Success removed/) // 4719 evidence is human-readable
   })
+  it('section 4 never renders as an empty heading', async () => {
+    const csv = 'EventID,TimeGenerated,Computer,SubjectUserName,AuditPolicyChanges\n4719,2025-03-01T10:00:00Z,DC1,Administrator,%%8449\n'
+    const html = await buildStandaloneHtml(buildReport((await analyze(new Blob([csv]), [], { format: 'csv' }))!, { redact: false, generatedAt: NOW, sourceName: 'x.csv' }))
+    expect(html).toContain('No investigation or remediation commands apply to the findings in this report')
+    const none = await buildStandaloneHtml(buildReport((await analyze(new Blob(['EventID,TimeGenerated,Computer\n4624,2025-03-01T10:00:00Z,A\n']), [], { format: 'csv' }))!, { redact: false, generatedAt: NOW, sourceName: 'x.csv' }))
+    expect(none).toContain('No findings, so no actions are required')
+  })
   it('escapes hostile log data and hostile rule-pack text everywhere', async () => {
     const html = await buildStandaloneHtml(buildReport(await hostile(), { redact: false, generatedAt: NOW, sourceName: `${EVIL}.csv` }))
     expect(html).not.toMatch(/<script/i)

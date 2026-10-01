@@ -168,20 +168,22 @@ export function ReportDocument({ report: r }: { report: Report }) {
       <section id="next" aria-labelledby="next-h">
         <h2 id="next-h">4. Actionable next steps</h2>
         <p className="note">Commands are templates filled from the earliest evidence event. Review every command before running it. This tool never executes anything. Preserve evidence before containment.</p>
-        {[...r.chains.map((c) => ({ key: c.id, title: `${c.id}: ${c.title}`, ids: c.findingIds })),
-          ...(unchainedActionable.length ? [{ key: 'other', title: 'Findings outside attack chains', ids: unchainedActionable.map((f) => f.id) }] : [])].map((g) => {
-          const fs = g.ids.map((id) => byId.get(id)).filter((f): f is ReportFinding => !!f)
-          const inv = uniq(fs.flatMap((f) => f.nextSteps.investigate.map((c) => ({ c, from: f.ruleId }))))
-          const rem = uniq(fs.flatMap((f) => f.nextSteps.remediate.map((c) => ({ c, from: f.ruleId }))))
-          if (!inv.length && !rem.length) return null
-          return (
+        {(() => {
+          const groups = [...r.chains.map((c) => ({ key: c.id, title: `${c.id}: ${c.title}`, ids: c.findingIds })),
+            ...(unchainedActionable.length ? [{ key: 'other', title: 'Findings outside attack chains', ids: unchainedActionable.map((f) => f.id) }] : [])]
+            .map((g) => {
+              const fs = g.ids.map((id) => byId.get(id)).filter((f): f is ReportFinding => !!f)
+              return { ...g, inv: uniq(fs.flatMap((f) => f.nextSteps.investigate.map((c) => ({ c, from: f.ruleId })))), rem: uniq(fs.flatMap((f) => f.nextSteps.remediate.map((c) => ({ c, from: f.ruleId })))) }
+            }).filter((g) => g.inv.length || g.rem.length)
+          if (!groups.length) return <p>{r.findings.length ? 'No investigation or remediation commands apply to the findings in this report. Review the recommended actions in the executive summary.' : 'No findings, so no actions are required from this analysis. Re-run after the audit coverage gaps (if any) are closed.'}</p>
+          return groups.map((g) => (
             <section key={g.key} aria-label={g.title}>
               <h3>{g.title}</h3>
-              {inv.length > 0 && (<><h4>Investigate (read-only)</h4><ol>{inv.map(({ c }, i) => <Command key={i} c={c} />)}</ol></>)}
-              {rem.length > 0 && (<><h4>Contain and remediate</h4><ol>{rem.map(({ c }, i) => <Command key={i} c={c} />)}</ol></>)}
+              {g.inv.length > 0 && (<><h4>Investigate (read-only)</h4><ol>{g.inv.map(({ c }, i) => <Command key={i} c={c} />)}</ol></>)}
+              {g.rem.length > 0 && (<><h4>Contain and remediate</h4><ol>{g.rem.map(({ c }, i) => <Command key={i} c={c} />)}</ol></>)}
             </section>
-          )
-        })}
+          ))
+        })()}
       </section>
 
       <section id="appendix" aria-labelledby="app-h">
