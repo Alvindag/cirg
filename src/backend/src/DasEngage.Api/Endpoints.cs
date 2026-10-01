@@ -39,6 +39,23 @@ public static class Endpoints
             return Results.Ok(new { total, page, pageSize, items });
         });
 
+        // Bulk import: POST the CSV as the request body (Content-Type: text/csv). Dry run by default.
+        g.MapPost("/import", async (HttpRequest req, CustomerImporter importer, bool? dryRun, string? onDuplicate,
+            bool? allowPossibleDuplicates) =>
+        {
+            if (!Enum.TryParse<DuplicateMode>(onDuplicate ?? "skip", true, out var mode)) return Results.BadRequest("onDuplicate must be skip or update.");
+            if (req.ContentLength > 5_000_000) return Results.StatusCode(StatusCodes.Status413PayloadTooLarge);
+            string csv;
+            using (var reader = new StreamReader(req.Body, System.Text.Encoding.UTF8, true, 1024, true))
+                csv = await reader.ReadToEndAsync();
+            if (csv.Length > 5_000_000) return Results.StatusCode(StatusCodes.Status413PayloadTooLarge);
+            try
+            {
+                return Results.Ok(await importer.Run(csv, dryRun ?? true, mode, allowPossibleDuplicates ?? false));
+            }
+            catch (FormatException e) { return Results.BadRequest(e.Message); }
+        }).RequireAuthorization(p => p.RequireRole(Roles.ImportAllowed)).Accepts<string>("text/csv");
+
         g.MapGet("/{id:guid}", async (Guid id, AppDbContext db, TeamScope team) =>
         {
             var c = await db.Customers.AsNoTracking().Include(x => x.ProductInterests).FirstOrDefaultAsync(x => x.Id == id);
@@ -383,5 +400,6 @@ public static class Endpoints
 public static class Roles
 {
     public static readonly string[] Managers = { "AreaManager", "RegionalManager", "NationalSalesManager", "Executive", "Admin" };
+    public static readonly string[] ImportAllowed = { "AreaManager", "RegionalManager", "NationalSalesManager", "Admin" };
     public static readonly string[] CustomerEditors = { "Rep", "AreaManager", "RegionalManager", "NationalSalesManager", "KeyAccountManager", "Marketing", "Admin" };
 }

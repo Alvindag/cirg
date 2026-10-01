@@ -12,6 +12,7 @@ var builder = WebApplication.CreateBuilder(args);
 builder.Services.AddHttpContextAccessor();
 builder.Services.AddScoped<HttpCurrentUser>();
 builder.Services.AddScoped<TeamScope>();
+builder.Services.AddScoped<CustomerImporter>();
 builder.Services.AddScoped<ICurrentUser>(sp => sp.GetRequiredService<HttpCurrentUser>());
 
 // Database: PostgreSQL by default; tests swap in the in-memory provider via ConfigureTestServices.

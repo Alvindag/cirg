@@ -25,9 +25,22 @@ tenant isolation (EF global filters), rate limiting, health check.
 - `TeamScope` limits data by role: reps see themselves and their territory; area/regional managers see their subtree's users, visits,
   call reports, GPS, dashboards and their territories' customers; NSM, executive, admin, marketing and KAM see the whole tenant.
 
+## Bulk customer import
+`POST /api/v1/customers/import?dryRun=true&onDuplicate=skip&allowPossibleDuplicates=false` with the CSV as the body (`Content-Type: text/csv`).
+Roles: area/regional/national managers and admin. Sample: `samples/customers-import.csv`.
+- Columns: `type,name` required; optional `specialty,segment,territory,parent,phone,email,address,city,latitude,longitude,target_visits_per_month`.
+  `territory` and `parent` are matched by name; `parent` may be a row earlier in the same file. Comma or semicolon delimited, UTF-8, max 5,000 rows / 5 MB.
+- Dry run is the default: it returns a per-row report (`created`, `updated`, `duplicate`, `possible_duplicate`, `error`) and saves nothing. Send `dryRun=false` to commit.
+  Valid rows are imported even if other rows fail; fix the failures and re-run (already-imported rows then show as duplicates).
+- De-duplication (against the database and earlier rows in the file): exact match on email, phone + type (last 9 digits, so `024…` = `+233 24…`),
+  or type + name + city, where names ignore case, accents, punctuation and titles (Dr, Prof, Pharm…).
+  Near matches (same type and city, names 1–2 edits apart) are reported as `possible_duplicate` and skipped unless `allowPossibleDuplicates=true`.
+- `onDuplicate=update` fills the non-empty fields of an exact match that already exists; it never blanks fields.
+- Area/regional managers must give a territory inside their scope for every row. A blank `target_visits_per_month` defaults from segment (A=4, B=2, C=1).
+- Excel files are not read directly; export to CSV first.
+
 ## Not yet done (known gaps)
 - PostgreSQL row-level security policies (defence in depth) – add in a migration.
-- Bulk customer import.
 - Deactivated users still hold valid tokens until expiry; add an active-user check (or short token lifetimes) at the gateway.
 - The `terr` claim comes from the token; keep the IdP in sync with `AppUser.TerritoryId`.
 - Customer search uses `ILike` (PostgreSQL only), so it is not covered by the in-memory tests; run integration tests against Postgres (Testcontainers) before go-live.
