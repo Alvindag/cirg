@@ -45,7 +45,7 @@ Serve `.js` as `text/javascript` and `.css` as `text/css`. If a proxy or CDN inj
 4. Compare the released `dist/` hash against your build record; SRI covers the entry script/stylesheet but a compromised server can also rewrite `index.html`. For high-assurance use, host internally or distribute `dist/` as a signed archive and open it from a trusted path.
 
 ## Air-gapped use
-Copy `dist/` to the analyst workstation and serve it from `http://127.0.0.1` (`npm run preview:secure`). Opening `index.html` via `file://` is **not** supported: module workers and Trusted Types behave differently there.
+Copy `dist/` to the analyst workstation and serve it from `http://127.0.0.1` (`npm start`, or `node scripts/serve.mjs` to serve an existing build). Opening `index.html` via `file://` is **not** supported: module workers and Trusted Types behave differently there.
 
 ## Rebuilding the EVTX parser (optional)
 Generated files are committed. To rebuild: `rustup target add wasm32-unknown-unknown`, `cargo install wasm-bindgen-cli --version 0.2.100 --locked`, then `npm run build:evtx` and review the diff of `src/evtx/*.generated.*` (the recorded SHA-256 is checked by a test).

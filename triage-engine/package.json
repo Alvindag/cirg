@@ -11,11 +11,12 @@
     "test": "vitest run",
     "audit": "npm audit --omit=dev",
     "e2e": "npm run build && node e2e/gate.mjs",
-    "preview:secure": "vite build && node -e \"import('./e2e/server.mjs').then(async m=>{const s=await m.serve(process.cwd()+'/dist',4173);console.log('http://127.0.0.1:4173')})\"",
+    "preview:secure": "node scripts/serve.mjs",
     "gen:validator": "node scripts/build-validator.mjs",
     "pretest": "node scripts/build-validator.mjs --check",
     "build:evtx": "node scripts/build-evtx.mjs",
-    "sbom": "node scripts/sbom.mjs"
+    "sbom": "node scripts/sbom.mjs",
+    "start": "npm run build && node scripts/serve.mjs"
   },
   "dependencies": {
     "papaparse": "5.7.0",
@@ -38,5 +39,8 @@
     "typescript": "7.0.2",
     "vite": "8.3.2",
     "vitest": "5.0.3"
+  },
+  "engines": {
+    "node": ">=20.19.0"
   }
 }

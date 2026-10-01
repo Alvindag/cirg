@@ -33,9 +33,14 @@ function sri(): Plugin {
   }
 }
 
+/** Dev server only: the strict production CSP blocks Vite's inline HMR preamble and websocket, so drop the meta tag for `npm run dev`. */
+function devWithoutCsp(): Plugin {
+  return { name: 'triage-dev-no-csp', apply: 'serve', transformIndexHtml: (html) => html.replace(/<meta http-equiv="Content-Security-Policy"[^>]*>\s*/, '') }
+}
+
 export default defineConfig({
   base: './', // relative URLs: the app can be hosted under any path
-  plugins: [react(), sri()],
+  plugins: [react(), sri(), devWithoutCsp()],
   worker: { format: 'es' },
   build: {
     target: 'es2022',
