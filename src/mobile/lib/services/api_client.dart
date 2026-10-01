@@ -81,6 +81,28 @@ class ApiClient {
     return r.statusCode == 401 ? attempt(force: true) : r;
   }
 
+  /// GET returning any JSON (object or list). Throws [ApiException] with the server's explanation on failure.
+  Future<dynamic> getJson(String path, [Map<String, String>? query]) => _json((h) => _http.get(_uri(path, query), headers: h));
+
+  Future<dynamic> postJson(String path, Object? body, [Map<String, String>? query]) =>
+      _json((h) => _http.post(_uri(path, query), headers: {...h, 'Content-Type': 'application/json'}, body: jsonEncode(body)));
+
+  Future<dynamic> _json(Future<http.Response> Function(Map<String, String> headers) call) async {
+    final r = await _request(call, timeout: const Duration(seconds: 90));
+    if (r.statusCode < 200 || r.statusCode >= 300) throw ApiException(r.statusCode, _explain(r.body));
+    return r.body.isEmpty ? null : jsonDecode(r.body);
+  }
+
+  /// Pulls the human-readable reason out of a ProblemDetails or plain-string error body.
+  static String _explain(String body) {
+    try {
+      final j = jsonDecode(body);
+      if (j is String) return j;
+      if (j is Map) return (j['detail'] ?? j['title'] ?? body).toString();
+    } catch (_) {}
+    return body;
+  }
+
   /// Uploads a file (photo, voice note, signature). Returns the response so the caller can tell permanent rejections (400/413/415)
   /// from temporary failures.
   Future<http.Response> putBytes(String path, List<int> bytes,

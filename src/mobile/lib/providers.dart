@@ -6,6 +6,7 @@ import 'package:http/http.dart' as http;
 
 import 'data/connection.dart';
 import 'data/database.dart';
+import 'services/ai_service.dart';
 import 'services/api_client.dart';
 import 'services/attachment_service.dart';
 import 'services/auth_provider.dart';
@@ -60,6 +61,17 @@ final apiClientProvider = Provider((ref) {
 });
 
 final syncServiceProvider = Provider((ref) => SyncService(ref.watch(databaseProvider), ref.watch(apiClientProvider)));
+final aiServiceProvider = Provider((ref) => AiService(ref.watch(apiClientProvider), ref.watch(databaseProvider)));
+
+/// Whether generative AI can be used now (provider configured, organisation opted in, daily limit not reached). Offline counts as unavailable.
+final aiStatusProvider = FutureProvider.autoDispose<AiStatus>((ref) async {
+  try {
+    return await ref.watch(aiServiceProvider).status();
+  } catch (_) {
+    return const AiStatus(available: false, reason: 'Not available offline.');
+  }
+});
+
 final sampleServiceProvider = Provider((ref) => SampleService(ref.watch(databaseProvider)));
 final attachmentServiceProvider = Provider((ref) => AttachmentService(ref.watch(databaseProvider)));
 final visitServiceProvider = Provider((ref) => VisitService(ref.watch(databaseProvider), ref.watch(locationProvider)));
@@ -104,7 +116,10 @@ class SyncCoordinator extends Notifier<SyncStatus> {
           : 'Your session has expired. Please sign in again.');
       await ref.read(sessionManagerProvider).signOut();
     }
-    if (res.ok) await ref.read(attachmentServiceProvider).purgeUploaded();
+    if (res.ok) {
+      await ref.read(attachmentServiceProvider).purgeUploaded();
+      await ref.read(aiServiceProvider).refreshActions(); // rule-based suggestions, cached for offline use
+    }
     state = SyncStatus(lastSync: res.ok ? DateTime.now() : state.lastSync, lastError: res.error);
   }
 }

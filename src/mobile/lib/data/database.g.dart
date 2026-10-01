@@ -6122,6 +6122,452 @@ class SampleRequestsCompanion extends UpdateCompanion<SampleRequest> {
   }
 }
 
+class $NextActionsTable extends NextActions
+    with TableInfo<$NextActionsTable, NextAction> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $NextActionsTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _positionMeta = const VerificationMeta(
+    'position',
+  );
+  @override
+  late final GeneratedColumn<int> position = GeneratedColumn<int>(
+    'position',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _typeMeta = const VerificationMeta('type');
+  @override
+  late final GeneratedColumn<String> type = GeneratedColumn<String>(
+    'type',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _customerIdMeta = const VerificationMeta(
+    'customerId',
+  );
+  @override
+  late final GeneratedColumn<String> customerId = GeneratedColumn<String>(
+    'customer_id',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _titleMeta = const VerificationMeta('title');
+  @override
+  late final GeneratedColumn<String> title = GeneratedColumn<String>(
+    'title',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _reasonMeta = const VerificationMeta('reason');
+  @override
+  late final GeneratedColumn<String> reason = GeneratedColumn<String>(
+    'reason',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _priorityMeta = const VerificationMeta(
+    'priority',
+  );
+  @override
+  late final GeneratedColumn<int> priority = GeneratedColumn<int>(
+    'priority',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _dueDateMeta = const VerificationMeta(
+    'dueDate',
+  );
+  @override
+  late final GeneratedColumn<String> dueDate = GeneratedColumn<String>(
+    'due_date',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  @override
+  List<GeneratedColumn> get $columns => [
+    position,
+    type,
+    customerId,
+    title,
+    reason,
+    priority,
+    dueDate,
+  ];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'next_actions';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<NextAction> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('position')) {
+      context.handle(
+        _positionMeta,
+        position.isAcceptableOrUnknown(data['position']!, _positionMeta),
+      );
+    }
+    if (data.containsKey('type')) {
+      context.handle(
+        _typeMeta,
+        type.isAcceptableOrUnknown(data['type']!, _typeMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_typeMeta);
+    }
+    if (data.containsKey('customer_id')) {
+      context.handle(
+        _customerIdMeta,
+        customerId.isAcceptableOrUnknown(data['customer_id']!, _customerIdMeta),
+      );
+    }
+    if (data.containsKey('title')) {
+      context.handle(
+        _titleMeta,
+        title.isAcceptableOrUnknown(data['title']!, _titleMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_titleMeta);
+    }
+    if (data.containsKey('reason')) {
+      context.handle(
+        _reasonMeta,
+        reason.isAcceptableOrUnknown(data['reason']!, _reasonMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_reasonMeta);
+    }
+    if (data.containsKey('priority')) {
+      context.handle(
+        _priorityMeta,
+        priority.isAcceptableOrUnknown(data['priority']!, _priorityMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_priorityMeta);
+    }
+    if (data.containsKey('due_date')) {
+      context.handle(
+        _dueDateMeta,
+        dueDate.isAcceptableOrUnknown(data['due_date']!, _dueDateMeta),
+      );
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {position};
+  @override
+  NextAction map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return NextAction(
+      position: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}position'],
+      )!,
+      type: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}type'],
+      )!,
+      customerId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}customer_id'],
+      ),
+      title: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}title'],
+      )!,
+      reason: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}reason'],
+      )!,
+      priority: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}priority'],
+      )!,
+      dueDate: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}due_date'],
+      ),
+    );
+  }
+
+  @override
+  $NextActionsTable createAlias(String alias) {
+    return $NextActionsTable(attachedDatabase, alias);
+  }
+}
+
+class NextAction extends DataClass implements Insertable<NextAction> {
+  final int position;
+  final String type;
+  final String? customerId;
+  final String title;
+  final String reason;
+  final int priority;
+  final String? dueDate;
+  const NextAction({
+    required this.position,
+    required this.type,
+    this.customerId,
+    required this.title,
+    required this.reason,
+    required this.priority,
+    this.dueDate,
+  });
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['position'] = Variable<int>(position);
+    map['type'] = Variable<String>(type);
+    if (!nullToAbsent || customerId != null) {
+      map['customer_id'] = Variable<String>(customerId);
+    }
+    map['title'] = Variable<String>(title);
+    map['reason'] = Variable<String>(reason);
+    map['priority'] = Variable<int>(priority);
+    if (!nullToAbsent || dueDate != null) {
+      map['due_date'] = Variable<String>(dueDate);
+    }
+    return map;
+  }
+
+  NextActionsCompanion toCompanion(bool nullToAbsent) {
+    return NextActionsCompanion(
+      position: Value(position),
+      type: Value(type),
+      customerId: customerId == null && nullToAbsent
+          ? const Value.absent()
+          : Value(customerId),
+      title: Value(title),
+      reason: Value(reason),
+      priority: Value(priority),
+      dueDate: dueDate == null && nullToAbsent
+          ? const Value.absent()
+          : Value(dueDate),
+    );
+  }
+
+  factory NextAction.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return NextAction(
+      position: serializer.fromJson<int>(json['position']),
+      type: serializer.fromJson<String>(json['type']),
+      customerId: serializer.fromJson<String?>(json['customerId']),
+      title: serializer.fromJson<String>(json['title']),
+      reason: serializer.fromJson<String>(json['reason']),
+      priority: serializer.fromJson<int>(json['priority']),
+      dueDate: serializer.fromJson<String?>(json['dueDate']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'position': serializer.toJson<int>(position),
+      'type': serializer.toJson<String>(type),
+      'customerId': serializer.toJson<String?>(customerId),
+      'title': serializer.toJson<String>(title),
+      'reason': serializer.toJson<String>(reason),
+      'priority': serializer.toJson<int>(priority),
+      'dueDate': serializer.toJson<String?>(dueDate),
+    };
+  }
+
+  NextAction copyWith({
+    int? position,
+    String? type,
+    Value<String?> customerId = const Value.absent(),
+    String? title,
+    String? reason,
+    int? priority,
+    Value<String?> dueDate = const Value.absent(),
+  }) => NextAction(
+    position: position ?? this.position,
+    type: type ?? this.type,
+    customerId: customerId.present ? customerId.value : this.customerId,
+    title: title ?? this.title,
+    reason: reason ?? this.reason,
+    priority: priority ?? this.priority,
+    dueDate: dueDate.present ? dueDate.value : this.dueDate,
+  );
+  NextAction copyWithCompanion(NextActionsCompanion data) {
+    return NextAction(
+      position: data.position.present ? data.position.value : this.position,
+      type: data.type.present ? data.type.value : this.type,
+      customerId: data.customerId.present
+          ? data.customerId.value
+          : this.customerId,
+      title: data.title.present ? data.title.value : this.title,
+      reason: data.reason.present ? data.reason.value : this.reason,
+      priority: data.priority.present ? data.priority.value : this.priority,
+      dueDate: data.dueDate.present ? data.dueDate.value : this.dueDate,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('NextAction(')
+          ..write('position: $position, ')
+          ..write('type: $type, ')
+          ..write('customerId: $customerId, ')
+          ..write('title: $title, ')
+          ..write('reason: $reason, ')
+          ..write('priority: $priority, ')
+          ..write('dueDate: $dueDate')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode =>
+      Object.hash(position, type, customerId, title, reason, priority, dueDate);
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is NextAction &&
+          other.position == this.position &&
+          other.type == this.type &&
+          other.customerId == this.customerId &&
+          other.title == this.title &&
+          other.reason == this.reason &&
+          other.priority == this.priority &&
+          other.dueDate == this.dueDate);
+}
+
+class NextActionsCompanion extends UpdateCompanion<NextAction> {
+  final Value<int> position;
+  final Value<String> type;
+  final Value<String?> customerId;
+  final Value<String> title;
+  final Value<String> reason;
+  final Value<int> priority;
+  final Value<String?> dueDate;
+  const NextActionsCompanion({
+    this.position = const Value.absent(),
+    this.type = const Value.absent(),
+    this.customerId = const Value.absent(),
+    this.title = const Value.absent(),
+    this.reason = const Value.absent(),
+    this.priority = const Value.absent(),
+    this.dueDate = const Value.absent(),
+  });
+  NextActionsCompanion.insert({
+    this.position = const Value.absent(),
+    required String type,
+    this.customerId = const Value.absent(),
+    required String title,
+    required String reason,
+    required int priority,
+    this.dueDate = const Value.absent(),
+  }) : type = Value(type),
+       title = Value(title),
+       reason = Value(reason),
+       priority = Value(priority);
+  static Insertable<NextAction> custom({
+    Expression<int>? position,
+    Expression<String>? type,
+    Expression<String>? customerId,
+    Expression<String>? title,
+    Expression<String>? reason,
+    Expression<int>? priority,
+    Expression<String>? dueDate,
+  }) {
+    return RawValuesInsertable({
+      if (position != null) 'position': position,
+      if (type != null) 'type': type,
+      if (customerId != null) 'customer_id': customerId,
+      if (title != null) 'title': title,
+      if (reason != null) 'reason': reason,
+      if (priority != null) 'priority': priority,
+      if (dueDate != null) 'due_date': dueDate,
+    });
+  }
+
+  NextActionsCompanion copyWith({
+    Value<int>? position,
+    Value<String>? type,
+    Value<String?>? customerId,
+    Value<String>? title,
+    Value<String>? reason,
+    Value<int>? priority,
+    Value<String?>? dueDate,
+  }) {
+    return NextActionsCompanion(
+      position: position ?? this.position,
+      type: type ?? this.type,
+      customerId: customerId ?? this.customerId,
+      title: title ?? this.title,
+      reason: reason ?? this.reason,
+      priority: priority ?? this.priority,
+      dueDate: dueDate ?? this.dueDate,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (position.present) {
+      map['position'] = Variable<int>(position.value);
+    }
+    if (type.present) {
+      map['type'] = Variable<String>(type.value);
+    }
+    if (customerId.present) {
+      map['customer_id'] = Variable<String>(customerId.value);
+    }
+    if (title.present) {
+      map['title'] = Variable<String>(title.value);
+    }
+    if (reason.present) {
+      map['reason'] = Variable<String>(reason.value);
+    }
+    if (priority.present) {
+      map['priority'] = Variable<int>(priority.value);
+    }
+    if (dueDate.present) {
+      map['due_date'] = Variable<String>(dueDate.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('NextActionsCompanion(')
+          ..write('position: $position, ')
+          ..write('type: $type, ')
+          ..write('customerId: $customerId, ')
+          ..write('title: $title, ')
+          ..write('reason: $reason, ')
+          ..write('priority: $priority, ')
+          ..write('dueDate: $dueDate')
+          ..write(')'))
+        .toString();
+  }
+}
+
 class $SyncStateTable extends SyncState
     with TableInfo<$SyncStateTable, SyncStateData> {
   @override
@@ -6345,6 +6791,7 @@ abstract class _$AppDatabase extends GeneratedDatabase {
   late final $SampleDistributionsTable sampleDistributions =
       $SampleDistributionsTable(this);
   late final $SampleRequestsTable sampleRequests = $SampleRequestsTable(this);
+  late final $NextActionsTable nextActions = $NextActionsTable(this);
   late final $SyncStateTable syncState = $SyncStateTable(this);
   @override
   Iterable<TableInfo<Table, Object?>> get allTables =>
@@ -6362,6 +6809,7 @@ abstract class _$AppDatabase extends GeneratedDatabase {
     sampleStock,
     sampleDistributions,
     sampleRequests,
+    nextActions,
     syncState,
   ];
 }
@@ -9492,6 +9940,249 @@ typedef $$SampleRequestsTableProcessedTableManager =
       SampleRequest,
       PrefetchHooks Function()
     >;
+typedef $$NextActionsTableCreateCompanionBuilder =
+    NextActionsCompanion Function({
+      Value<int> position,
+      required String type,
+      Value<String?> customerId,
+      required String title,
+      required String reason,
+      required int priority,
+      Value<String?> dueDate,
+    });
+typedef $$NextActionsTableUpdateCompanionBuilder =
+    NextActionsCompanion Function({
+      Value<int> position,
+      Value<String> type,
+      Value<String?> customerId,
+      Value<String> title,
+      Value<String> reason,
+      Value<int> priority,
+      Value<String?> dueDate,
+    });
+
+class $$NextActionsTableFilterComposer
+    extends Composer<_$AppDatabase, $NextActionsTable> {
+  $$NextActionsTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<int> get position => $composableBuilder(
+    column: $table.position,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get type => $composableBuilder(
+    column: $table.type,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get customerId => $composableBuilder(
+    column: $table.customerId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get title => $composableBuilder(
+    column: $table.title,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get reason => $composableBuilder(
+    column: $table.reason,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get priority => $composableBuilder(
+    column: $table.priority,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get dueDate => $composableBuilder(
+    column: $table.dueDate,
+    builder: (column) => ColumnFilters(column),
+  );
+}
+
+class $$NextActionsTableOrderingComposer
+    extends Composer<_$AppDatabase, $NextActionsTable> {
+  $$NextActionsTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<int> get position => $composableBuilder(
+    column: $table.position,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get type => $composableBuilder(
+    column: $table.type,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get customerId => $composableBuilder(
+    column: $table.customerId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get title => $composableBuilder(
+    column: $table.title,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get reason => $composableBuilder(
+    column: $table.reason,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get priority => $composableBuilder(
+    column: $table.priority,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get dueDate => $composableBuilder(
+    column: $table.dueDate,
+    builder: (column) => ColumnOrderings(column),
+  );
+}
+
+class $$NextActionsTableAnnotationComposer
+    extends Composer<_$AppDatabase, $NextActionsTable> {
+  $$NextActionsTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<int> get position =>
+      $composableBuilder(column: $table.position, builder: (column) => column);
+
+  GeneratedColumn<String> get type =>
+      $composableBuilder(column: $table.type, builder: (column) => column);
+
+  GeneratedColumn<String> get customerId => $composableBuilder(
+    column: $table.customerId,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get title =>
+      $composableBuilder(column: $table.title, builder: (column) => column);
+
+  GeneratedColumn<String> get reason =>
+      $composableBuilder(column: $table.reason, builder: (column) => column);
+
+  GeneratedColumn<int> get priority =>
+      $composableBuilder(column: $table.priority, builder: (column) => column);
+
+  GeneratedColumn<String> get dueDate =>
+      $composableBuilder(column: $table.dueDate, builder: (column) => column);
+}
+
+class $$NextActionsTableTableManager
+    extends
+        RootTableManager<
+          _$AppDatabase,
+          $NextActionsTable,
+          NextAction,
+          $$NextActionsTableFilterComposer,
+          $$NextActionsTableOrderingComposer,
+          $$NextActionsTableAnnotationComposer,
+          $$NextActionsTableCreateCompanionBuilder,
+          $$NextActionsTableUpdateCompanionBuilder,
+          (
+            NextAction,
+            BaseReferences<_$AppDatabase, $NextActionsTable, NextAction>,
+          ),
+          NextAction,
+          PrefetchHooks Function()
+        > {
+  $$NextActionsTableTableManager(_$AppDatabase db, $NextActionsTable table)
+    : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$NextActionsTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$NextActionsTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$NextActionsTableAnnotationComposer($db: db, $table: table),
+          updateCompanionCallback:
+              ({
+                Value<int> position = const Value.absent(),
+                Value<String> type = const Value.absent(),
+                Value<String?> customerId = const Value.absent(),
+                Value<String> title = const Value.absent(),
+                Value<String> reason = const Value.absent(),
+                Value<int> priority = const Value.absent(),
+                Value<String?> dueDate = const Value.absent(),
+              }) => NextActionsCompanion(
+                position: position,
+                type: type,
+                customerId: customerId,
+                title: title,
+                reason: reason,
+                priority: priority,
+                dueDate: dueDate,
+              ),
+          createCompanionCallback:
+              ({
+                Value<int> position = const Value.absent(),
+                required String type,
+                Value<String?> customerId = const Value.absent(),
+                required String title,
+                required String reason,
+                required int priority,
+                Value<String?> dueDate = const Value.absent(),
+              }) => NextActionsCompanion.insert(
+                position: position,
+                type: type,
+                customerId: customerId,
+                title: title,
+                reason: reason,
+                priority: priority,
+                dueDate: dueDate,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map(
+                (e) => (
+                  e.readTable<$NextActionsTable, NextAction>(table),
+                  BaseReferences<_$AppDatabase, $NextActionsTable, NextAction>(
+                    db,
+                    table,
+                    e,
+                  ),
+                ),
+              )
+              .toList(),
+          prefetchHooksCallback: null,
+        ),
+      );
+}
+
+typedef $$NextActionsTableProcessedTableManager =
+    ProcessedTableManager<
+      _$AppDatabase,
+      $NextActionsTable,
+      NextAction,
+      $$NextActionsTableFilterComposer,
+      $$NextActionsTableOrderingComposer,
+      $$NextActionsTableAnnotationComposer,
+      $$NextActionsTableCreateCompanionBuilder,
+      $$NextActionsTableUpdateCompanionBuilder,
+      (
+        NextAction,
+        BaseReferences<_$AppDatabase, $NextActionsTable, NextAction>,
+      ),
+      NextAction,
+      PrefetchHooks Function()
+    >;
 typedef $$SyncStateTableCreateCompanionBuilder = SyncStateCompanion Function({
   required String key,
   required String value,
@@ -9658,6 +10349,8 @@ class $AppDatabaseManager {
       $$SampleDistributionsTableTableManager(_db, _db.sampleDistributions);
   $$SampleRequestsTableTableManager get sampleRequests =>
       $$SampleRequestsTableTableManager(_db, _db.sampleRequests);
+  $$NextActionsTableTableManager get nextActions =>
+      $$NextActionsTableTableManager(_db, _db.nextActions);
   $$SyncStateTableTableManager get syncState =>
       $$SyncStateTableTableManager(_db, _db.syncState);
 }

@@ -3,6 +3,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../data/database.dart';
 import '../providers.dart';
+import '../services/ai_service.dart';
+import 'ai_section.dart';
 import 'attachments_section.dart';
 import 'samples_section.dart';
 
@@ -69,6 +71,19 @@ class _VisitScreenState extends ConsumerState<VisitScreen> {
     return id;
   }
 
+  /// An accepted AI summary becomes part of the call notes (marked as AI-assisted and reviewed) and the chosen follow-ups become tasks.
+  /// It is applied here, on the device, so it travels with the normal sync and is never overwritten by it.
+  Future<void> _useSummary(SummaryDraft draft, List<FollowUp> followUps) async {
+    const marker = '--- AI-assisted summary (reviewed by the rep) ---';
+    if (!_notes.text.contains(marker)) {
+      setState(() => _notes.text = '${_notes.text.trim()}\n\n$marker\n${draft.summary}'.trim());
+    }
+    final reportId = await _save();
+    for (final f in followUps) {
+      await ref.read(visitServiceProvider).addTask(title: f.title, customerId: _visit!.customerId, callReportId: reportId, due: DateTime.now().add(Duration(days: f.dueInDays)));
+    }
+  }
+
   Future<void> _checkOut() async {
     await _save();
     await ref.read(visitServiceProvider).checkOut(widget.visitId);
@@ -114,6 +129,14 @@ class _VisitScreenState extends ConsumerState<VisitScreen> {
         SamplesSection(visitId: widget.visitId, customerId: _visit!.customerId, enabled: !done, signerName: _customer?.type == 'Doctor' || _customer?.type == 'Pharmacist' ? _customer?.name : null),
         const SizedBox(height: 16),
         AttachmentsSection(visitId: widget.visitId, enabled: !done, signerName: _customer?.type == 'Doctor' || _customer?.type == 'Pharmacist' ? _customer?.name : null),
+        const SizedBox(height: 16),
+        AiAssistSection(
+          visitId: widget.visitId,
+          enabled: !done,
+          saveReport: () async { await _save(); },
+          onTranscript: (t) => setState(() => _notes.text = [_notes.text.trim(), t].where((x) => x.isNotEmpty).join('\n')),
+          onSummary: _useSummary,
+        ),
         const SizedBox(height: 24),
         if (!done) ...[
           OutlinedButton(

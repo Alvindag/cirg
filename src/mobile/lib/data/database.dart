@@ -175,6 +175,20 @@ class SampleRequests extends Table {
   Set<Column> get primaryKey => {id};
 }
 
+/// Rule-based suggestions for the rep, cached so they are there offline. Replaced wholesale on every refresh.
+class NextActions extends Table {
+  IntColumn get position => integer()();
+  TextColumn get type => text()();
+  TextColumn get customerId => text().nullable()();
+  TextColumn get title => text()();
+  TextColumn get reason => text()();
+  IntColumn get priority => integer()();
+  TextColumn get dueDate => text().nullable()();
+
+  @override
+  Set<Column> get primaryKey => {position};
+}
+
 class SyncState extends Table {
   TextColumn get key => text()();
   TextColumn get value => text()();
@@ -209,12 +223,12 @@ class PlanItem {
   bool get done => visit?.checkOutAt != null;
 }
 
-@DriftDatabase(tables: [Customers, Products, PlannedVisits, Visits, CallReports, FollowUpTasks, GpsPings, Attachments, SampleStock, SampleDistributions, SampleRequests, SyncState])
+@DriftDatabase(tables: [Customers, Products, PlannedVisits, Visits, CallReports, FollowUpTasks, GpsPings, Attachments, SampleStock, SampleDistributions, SampleRequests, NextActions, SyncState])
 class AppDatabase extends _$AppDatabase {
   AppDatabase(super.e);
 
   @override
-  int get schemaVersion => 3;
+  int get schemaVersion => 4;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -225,6 +239,7 @@ class AppDatabase extends _$AppDatabase {
             await m.createTable(sampleDistributions);
             await m.createTable(sampleRequests);
           }
+          if (from < 4) await m.createTable(nextActions);
         },
       );
 
@@ -295,6 +310,26 @@ class AppDatabase extends _$AppDatabase {
       if (await f.exists()) await f.delete();
     } catch (_) {}
   }
+
+  // ---- suggestions ----
+
+  Stream<List<NextAction>> watchNextActions() => (select(nextActions)..orderBy([(a) => OrderingTerm.asc(a.position)])).watch();
+
+  Future<void> replaceNextActions(List<Map<String, dynamic>> items) => transaction(() async {
+        await delete(nextActions).go();
+        var i = 0;
+        for (final m in items) {
+          await into(nextActions).insert(NextActionsCompanion.insert(
+            position: Value(i++),
+            type: m['type'] as String,
+            customerId: Value(m['customerId'] as String?),
+            title: m['title'] as String,
+            reason: m['reason'] as String,
+            priority: (m['priority'] as num).toInt(),
+            dueDate: Value(m['dueDate'] as String?),
+          ));
+        }
+      });
 
   // ---- samples ----
 

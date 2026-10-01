@@ -27,6 +27,10 @@ and any hand-over the server refused ("Needs attention"). **On a visit:** *Give 
 the available quantity drops straight away (counting hand-overs not yet uploaded), and sync sends them after the visit data. The server re-checks expiry, batch status and stock and answers line by line;
 a rejected line shows its reason and no longer holds stock back. Giving without a signature is allowed after a warning and is flagged in compliance reports.
 
+## AI
+**Today tab:** "Suggested for you" (next best actions, cached for offline) and *Optimise today's route*. **On a visit:** *Transcribe voice note* and *Draft summary with AI* (online; hidden unless
+the organisation has opted in). Drafts open in an editable dialog; accepted text is added to the call notes and follow-ups become tasks on the device. See `docs/ai.md`.
+
 ## Photos, voice notes and signatures
 On the visit screen. Capture works fully offline: files are copied into app storage, hashed (SHA-256) and queued in the `attachments` table.
 Sync uploads them one at a time after the visit data (`PUT /attachments/{id}`, hash verified by the server). Permanent rejections show as "Upload failed" with the reason and

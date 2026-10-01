@@ -75,6 +75,11 @@ Stock is an **immutable ledger** (`StockMovement`): nothing is edited, every cha
 `GET /dashboards/sales`, `/dashboards/trend` (completed calls per day, zero-filled) and `/dashboards/products` (calls discussing each product, sample units given); all team-scoped.
 Browser access needs the dashboard origin in `Cors:AllowedOrigins`.
 
+## AI (`/api/v1/ai`)
+See `docs/ai.md`. Generative: `POST /transcriptions`, `POST /visit-summaries`, `GET /outputs`, `POST /outputs/{id}/decision`, `GET /status`, `POST /settings` (Admin/NSM opt-in).
+Rule-based: `GET /customers/scores`, `/customers/{id}/score`, `/next-best-actions`, `/opportunities`, `/territories/balance`, `POST /territories/moves/apply`, `POST /routes/optimize`.
+Governance: `GET /governance` (Admin/NSM/Executive). Models sit behind `IChatModel`/`ITranscriber` (Azure OpenAI over REST, managed identity); tests use fakes.
+
 ## Not yet done (known gaps)
 - PostgreSQL row-level security policies (defence in depth) – add in a migration.
 - Entra sign-in is tested with locally signed tokens (the real Entra metadata endpoint is not reachable from the build environment); verify once against a real tenant.

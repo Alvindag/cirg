@@ -5,6 +5,7 @@ import 'package:intl/intl.dart';
 import '../data/database.dart';
 import '../providers.dart';
 import '../services/visit_service.dart';
+import 'suggestions_card.dart';
 import 'visit_screen.dart';
 
 String todayString() => DateFormat('yyyy-MM-dd').format(DateTime.now());
@@ -43,6 +44,7 @@ class TodayTab extends ConsumerWidget {
           );
         },
       ),
+      const SuggestionsCard(),
       Expanded(
         child: StreamBuilder<List<PlanItem>>(
           stream: db.watchPlan(todayString()),
@@ -52,9 +54,17 @@ class TodayTab extends ConsumerWidget {
               return const Center(child: Padding(padding: EdgeInsets.all(24), child: Text('No visits planned for today.\nPick a customer to start an unplanned visit.', textAlign: TextAlign.center)));
             }
             return ListView.separated(
-              itemCount: items.length,
+              itemCount: items.length + 1,
               separatorBuilder: (_, _) => const Divider(height: 1),
               itemBuilder: (context, i) {
+                if (i == items.length) {
+                  return items.length < 3
+                      ? const SizedBox.shrink()
+                      : Padding(
+                          padding: const EdgeInsets.all(8),
+                          child: TextButton.icon(onPressed: () => optimiseRouteFlow(context, ref), icon: const Icon(Icons.route), label: const Text('Optimise today\'s route')),
+                        );
+                }
                 final it = items[i];
                 return ListTile(
                   leading: CircleAvatar(child: Text('${i + 1}')),
