@@ -4448,6 +4448,1680 @@ class AttachmentsCompanion extends UpdateCompanion<Attachment> {
   }
 }
 
+class $SampleStockTable extends SampleStock
+    with TableInfo<$SampleStockTable, SampleStockData> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $SampleStockTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _batchIdMeta = const VerificationMeta(
+    'batchId',
+  );
+  @override
+  late final GeneratedColumn<String> batchId = GeneratedColumn<String>(
+    'batch_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _productIdMeta = const VerificationMeta(
+    'productId',
+  );
+  @override
+  late final GeneratedColumn<String> productId = GeneratedColumn<String>(
+    'product_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _batchNumberMeta = const VerificationMeta(
+    'batchNumber',
+  );
+  @override
+  late final GeneratedColumn<String> batchNumber = GeneratedColumn<String>(
+    'batch_number',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _expiryDateMeta = const VerificationMeta(
+    'expiryDate',
+  );
+  @override
+  late final GeneratedColumn<String> expiryDate = GeneratedColumn<String>(
+    'expiry_date',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _statusMeta = const VerificationMeta('status');
+  @override
+  late final GeneratedColumn<String> status = GeneratedColumn<String>(
+    'status',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    defaultValue: const Constant('Active'),
+  );
+  static const VerificationMeta _quantityMeta = const VerificationMeta(
+    'quantity',
+  );
+  @override
+  late final GeneratedColumn<int> quantity = GeneratedColumn<int>(
+    'quantity',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: true,
+  );
+  @override
+  List<GeneratedColumn> get $columns => [
+    batchId,
+    productId,
+    batchNumber,
+    expiryDate,
+    status,
+    quantity,
+  ];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'sample_stock';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<SampleStockData> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('batch_id')) {
+      context.handle(
+        _batchIdMeta,
+        batchId.isAcceptableOrUnknown(data['batch_id']!, _batchIdMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_batchIdMeta);
+    }
+    if (data.containsKey('product_id')) {
+      context.handle(
+        _productIdMeta,
+        productId.isAcceptableOrUnknown(data['product_id']!, _productIdMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_productIdMeta);
+    }
+    if (data.containsKey('batch_number')) {
+      context.handle(
+        _batchNumberMeta,
+        batchNumber.isAcceptableOrUnknown(
+          data['batch_number']!,
+          _batchNumberMeta,
+        ),
+      );
+    } else if (isInserting) {
+      context.missing(_batchNumberMeta);
+    }
+    if (data.containsKey('expiry_date')) {
+      context.handle(
+        _expiryDateMeta,
+        expiryDate.isAcceptableOrUnknown(data['expiry_date']!, _expiryDateMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_expiryDateMeta);
+    }
+    if (data.containsKey('status')) {
+      context.handle(
+        _statusMeta,
+        status.isAcceptableOrUnknown(data['status']!, _statusMeta),
+      );
+    }
+    if (data.containsKey('quantity')) {
+      context.handle(
+        _quantityMeta,
+        quantity.isAcceptableOrUnknown(data['quantity']!, _quantityMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_quantityMeta);
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {batchId};
+  @override
+  SampleStockData map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return SampleStockData(
+      batchId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}batch_id'],
+      )!,
+      productId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}product_id'],
+      )!,
+      batchNumber: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}batch_number'],
+      )!,
+      expiryDate: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}expiry_date'],
+      )!,
+      status: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}status'],
+      )!,
+      quantity: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}quantity'],
+      )!,
+    );
+  }
+
+  @override
+  $SampleStockTable createAlias(String alias) {
+    return $SampleStockTable(attachedDatabase, alias);
+  }
+}
+
+class SampleStockData extends DataClass implements Insertable<SampleStockData> {
+  final String batchId;
+  final String productId;
+  final String batchNumber;
+  final String expiryDate;
+  final String status;
+  final int quantity;
+  const SampleStockData({
+    required this.batchId,
+    required this.productId,
+    required this.batchNumber,
+    required this.expiryDate,
+    required this.status,
+    required this.quantity,
+  });
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['batch_id'] = Variable<String>(batchId);
+    map['product_id'] = Variable<String>(productId);
+    map['batch_number'] = Variable<String>(batchNumber);
+    map['expiry_date'] = Variable<String>(expiryDate);
+    map['status'] = Variable<String>(status);
+    map['quantity'] = Variable<int>(quantity);
+    return map;
+  }
+
+  SampleStockCompanion toCompanion(bool nullToAbsent) {
+    return SampleStockCompanion(
+      batchId: Value(batchId),
+      productId: Value(productId),
+      batchNumber: Value(batchNumber),
+      expiryDate: Value(expiryDate),
+      status: Value(status),
+      quantity: Value(quantity),
+    );
+  }
+
+  factory SampleStockData.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return SampleStockData(
+      batchId: serializer.fromJson<String>(json['batchId']),
+      productId: serializer.fromJson<String>(json['productId']),
+      batchNumber: serializer.fromJson<String>(json['batchNumber']),
+      expiryDate: serializer.fromJson<String>(json['expiryDate']),
+      status: serializer.fromJson<String>(json['status']),
+      quantity: serializer.fromJson<int>(json['quantity']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'batchId': serializer.toJson<String>(batchId),
+      'productId': serializer.toJson<String>(productId),
+      'batchNumber': serializer.toJson<String>(batchNumber),
+      'expiryDate': serializer.toJson<String>(expiryDate),
+      'status': serializer.toJson<String>(status),
+      'quantity': serializer.toJson<int>(quantity),
+    };
+  }
+
+  SampleStockData copyWith({
+    String? batchId,
+    String? productId,
+    String? batchNumber,
+    String? expiryDate,
+    String? status,
+    int? quantity,
+  }) => SampleStockData(
+    batchId: batchId ?? this.batchId,
+    productId: productId ?? this.productId,
+    batchNumber: batchNumber ?? this.batchNumber,
+    expiryDate: expiryDate ?? this.expiryDate,
+    status: status ?? this.status,
+    quantity: quantity ?? this.quantity,
+  );
+  SampleStockData copyWithCompanion(SampleStockCompanion data) {
+    return SampleStockData(
+      batchId: data.batchId.present ? data.batchId.value : this.batchId,
+      productId: data.productId.present ? data.productId.value : this.productId,
+      batchNumber: data.batchNumber.present
+          ? data.batchNumber.value
+          : this.batchNumber,
+      expiryDate: data.expiryDate.present
+          ? data.expiryDate.value
+          : this.expiryDate,
+      status: data.status.present ? data.status.value : this.status,
+      quantity: data.quantity.present ? data.quantity.value : this.quantity,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('SampleStockData(')
+          ..write('batchId: $batchId, ')
+          ..write('productId: $productId, ')
+          ..write('batchNumber: $batchNumber, ')
+          ..write('expiryDate: $expiryDate, ')
+          ..write('status: $status, ')
+          ..write('quantity: $quantity')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(
+    batchId,
+    productId,
+    batchNumber,
+    expiryDate,
+    status,
+    quantity,
+  );
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is SampleStockData &&
+          other.batchId == this.batchId &&
+          other.productId == this.productId &&
+          other.batchNumber == this.batchNumber &&
+          other.expiryDate == this.expiryDate &&
+          other.status == this.status &&
+          other.quantity == this.quantity);
+}
+
+class SampleStockCompanion extends UpdateCompanion<SampleStockData> {
+  final Value<String> batchId;
+  final Value<String> productId;
+  final Value<String> batchNumber;
+  final Value<String> expiryDate;
+  final Value<String> status;
+  final Value<int> quantity;
+  final Value<int> rowid;
+  const SampleStockCompanion({
+    this.batchId = const Value.absent(),
+    this.productId = const Value.absent(),
+    this.batchNumber = const Value.absent(),
+    this.expiryDate = const Value.absent(),
+    this.status = const Value.absent(),
+    this.quantity = const Value.absent(),
+    this.rowid = const Value.absent(),
+  });
+  SampleStockCompanion.insert({
+    required String batchId,
+    required String productId,
+    required String batchNumber,
+    required String expiryDate,
+    this.status = const Value.absent(),
+    required int quantity,
+    this.rowid = const Value.absent(),
+  }) : batchId = Value(batchId),
+       productId = Value(productId),
+       batchNumber = Value(batchNumber),
+       expiryDate = Value(expiryDate),
+       quantity = Value(quantity);
+  static Insertable<SampleStockData> custom({
+    Expression<String>? batchId,
+    Expression<String>? productId,
+    Expression<String>? batchNumber,
+    Expression<String>? expiryDate,
+    Expression<String>? status,
+    Expression<int>? quantity,
+    Expression<int>? rowid,
+  }) {
+    return RawValuesInsertable({
+      if (batchId != null) 'batch_id': batchId,
+      if (productId != null) 'product_id': productId,
+      if (batchNumber != null) 'batch_number': batchNumber,
+      if (expiryDate != null) 'expiry_date': expiryDate,
+      if (status != null) 'status': status,
+      if (quantity != null) 'quantity': quantity,
+      if (rowid != null) 'rowid': rowid,
+    });
+  }
+
+  SampleStockCompanion copyWith({
+    Value<String>? batchId,
+    Value<String>? productId,
+    Value<String>? batchNumber,
+    Value<String>? expiryDate,
+    Value<String>? status,
+    Value<int>? quantity,
+    Value<int>? rowid,
+  }) {
+    return SampleStockCompanion(
+      batchId: batchId ?? this.batchId,
+      productId: productId ?? this.productId,
+      batchNumber: batchNumber ?? this.batchNumber,
+      expiryDate: expiryDate ?? this.expiryDate,
+      status: status ?? this.status,
+      quantity: quantity ?? this.quantity,
+      rowid: rowid ?? this.rowid,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (batchId.present) {
+      map['batch_id'] = Variable<String>(batchId.value);
+    }
+    if (productId.present) {
+      map['product_id'] = Variable<String>(productId.value);
+    }
+    if (batchNumber.present) {
+      map['batch_number'] = Variable<String>(batchNumber.value);
+    }
+    if (expiryDate.present) {
+      map['expiry_date'] = Variable<String>(expiryDate.value);
+    }
+    if (status.present) {
+      map['status'] = Variable<String>(status.value);
+    }
+    if (quantity.present) {
+      map['quantity'] = Variable<int>(quantity.value);
+    }
+    if (rowid.present) {
+      map['rowid'] = Variable<int>(rowid.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('SampleStockCompanion(')
+          ..write('batchId: $batchId, ')
+          ..write('productId: $productId, ')
+          ..write('batchNumber: $batchNumber, ')
+          ..write('expiryDate: $expiryDate, ')
+          ..write('status: $status, ')
+          ..write('quantity: $quantity, ')
+          ..write('rowid: $rowid')
+          ..write(')'))
+        .toString();
+  }
+}
+
+class $SampleDistributionsTable extends SampleDistributions
+    with TableInfo<$SampleDistributionsTable, SampleDistribution> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $SampleDistributionsTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _idMeta = const VerificationMeta('id');
+  @override
+  late final GeneratedColumn<String> id = GeneratedColumn<String>(
+    'id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _visitIdMeta = const VerificationMeta(
+    'visitId',
+  );
+  @override
+  late final GeneratedColumn<String> visitId = GeneratedColumn<String>(
+    'visit_id',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _customerIdMeta = const VerificationMeta(
+    'customerId',
+  );
+  @override
+  late final GeneratedColumn<String> customerId = GeneratedColumn<String>(
+    'customer_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _productIdMeta = const VerificationMeta(
+    'productId',
+  );
+  @override
+  late final GeneratedColumn<String> productId = GeneratedColumn<String>(
+    'product_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _batchIdMeta = const VerificationMeta(
+    'batchId',
+  );
+  @override
+  late final GeneratedColumn<String> batchId = GeneratedColumn<String>(
+    'batch_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _quantityMeta = const VerificationMeta(
+    'quantity',
+  );
+  @override
+  late final GeneratedColumn<int> quantity = GeneratedColumn<int>(
+    'quantity',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _distributedAtMeta = const VerificationMeta(
+    'distributedAt',
+  );
+  @override
+  late final GeneratedColumn<String> distributedAt = GeneratedColumn<String>(
+    'distributed_at',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _signatureAttachmentIdMeta =
+      const VerificationMeta('signatureAttachmentId');
+  @override
+  late final GeneratedColumn<String> signatureAttachmentId =
+      GeneratedColumn<String>(
+        'signature_attachment_id',
+        aliasedName,
+        true,
+        type: DriftSqlType.string,
+        requiredDuringInsert: false,
+      );
+  static const VerificationMeta _notesMeta = const VerificationMeta('notes');
+  @override
+  late final GeneratedColumn<String> notes = GeneratedColumn<String>(
+    'notes',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _statusMeta = const VerificationMeta('status');
+  @override
+  late final GeneratedColumn<String> status = GeneratedColumn<String>(
+    'status',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    defaultValue: const Constant('pending'),
+  );
+  static const VerificationMeta _rejectReasonMeta = const VerificationMeta(
+    'rejectReason',
+  );
+  @override
+  late final GeneratedColumn<String> rejectReason = GeneratedColumn<String>(
+    'reject_reason',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  @override
+  List<GeneratedColumn> get $columns => [
+    id,
+    visitId,
+    customerId,
+    productId,
+    batchId,
+    quantity,
+    distributedAt,
+    signatureAttachmentId,
+    notes,
+    status,
+    rejectReason,
+  ];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'sample_distributions';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<SampleDistribution> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('id')) {
+      context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
+    } else if (isInserting) {
+      context.missing(_idMeta);
+    }
+    if (data.containsKey('visit_id')) {
+      context.handle(
+        _visitIdMeta,
+        visitId.isAcceptableOrUnknown(data['visit_id']!, _visitIdMeta),
+      );
+    }
+    if (data.containsKey('customer_id')) {
+      context.handle(
+        _customerIdMeta,
+        customerId.isAcceptableOrUnknown(data['customer_id']!, _customerIdMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_customerIdMeta);
+    }
+    if (data.containsKey('product_id')) {
+      context.handle(
+        _productIdMeta,
+        productId.isAcceptableOrUnknown(data['product_id']!, _productIdMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_productIdMeta);
+    }
+    if (data.containsKey('batch_id')) {
+      context.handle(
+        _batchIdMeta,
+        batchId.isAcceptableOrUnknown(data['batch_id']!, _batchIdMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_batchIdMeta);
+    }
+    if (data.containsKey('quantity')) {
+      context.handle(
+        _quantityMeta,
+        quantity.isAcceptableOrUnknown(data['quantity']!, _quantityMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_quantityMeta);
+    }
+    if (data.containsKey('distributed_at')) {
+      context.handle(
+        _distributedAtMeta,
+        distributedAt.isAcceptableOrUnknown(
+          data['distributed_at']!,
+          _distributedAtMeta,
+        ),
+      );
+    } else if (isInserting) {
+      context.missing(_distributedAtMeta);
+    }
+    if (data.containsKey('signature_attachment_id')) {
+      context.handle(
+        _signatureAttachmentIdMeta,
+        signatureAttachmentId.isAcceptableOrUnknown(
+          data['signature_attachment_id']!,
+          _signatureAttachmentIdMeta,
+        ),
+      );
+    }
+    if (data.containsKey('notes')) {
+      context.handle(
+        _notesMeta,
+        notes.isAcceptableOrUnknown(data['notes']!, _notesMeta),
+      );
+    }
+    if (data.containsKey('status')) {
+      context.handle(
+        _statusMeta,
+        status.isAcceptableOrUnknown(data['status']!, _statusMeta),
+      );
+    }
+    if (data.containsKey('reject_reason')) {
+      context.handle(
+        _rejectReasonMeta,
+        rejectReason.isAcceptableOrUnknown(
+          data['reject_reason']!,
+          _rejectReasonMeta,
+        ),
+      );
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {id};
+  @override
+  SampleDistribution map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return SampleDistribution(
+      id: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}id'],
+      )!,
+      visitId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}visit_id'],
+      ),
+      customerId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}customer_id'],
+      )!,
+      productId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}product_id'],
+      )!,
+      batchId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}batch_id'],
+      )!,
+      quantity: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}quantity'],
+      )!,
+      distributedAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}distributed_at'],
+      )!,
+      signatureAttachmentId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}signature_attachment_id'],
+      ),
+      notes: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}notes'],
+      ),
+      status: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}status'],
+      )!,
+      rejectReason: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}reject_reason'],
+      ),
+    );
+  }
+
+  @override
+  $SampleDistributionsTable createAlias(String alias) {
+    return $SampleDistributionsTable(attachedDatabase, alias);
+  }
+}
+
+class SampleDistribution extends DataClass
+    implements Insertable<SampleDistribution> {
+  final String id;
+  final String? visitId;
+  final String customerId;
+  final String productId;
+  final String batchId;
+  final int quantity;
+  final String distributedAt;
+  final String? signatureAttachmentId;
+  final String? notes;
+  final String status;
+  final String? rejectReason;
+  const SampleDistribution({
+    required this.id,
+    this.visitId,
+    required this.customerId,
+    required this.productId,
+    required this.batchId,
+    required this.quantity,
+    required this.distributedAt,
+    this.signatureAttachmentId,
+    this.notes,
+    required this.status,
+    this.rejectReason,
+  });
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['id'] = Variable<String>(id);
+    if (!nullToAbsent || visitId != null) {
+      map['visit_id'] = Variable<String>(visitId);
+    }
+    map['customer_id'] = Variable<String>(customerId);
+    map['product_id'] = Variable<String>(productId);
+    map['batch_id'] = Variable<String>(batchId);
+    map['quantity'] = Variable<int>(quantity);
+    map['distributed_at'] = Variable<String>(distributedAt);
+    if (!nullToAbsent || signatureAttachmentId != null) {
+      map['signature_attachment_id'] = Variable<String>(signatureAttachmentId);
+    }
+    if (!nullToAbsent || notes != null) {
+      map['notes'] = Variable<String>(notes);
+    }
+    map['status'] = Variable<String>(status);
+    if (!nullToAbsent || rejectReason != null) {
+      map['reject_reason'] = Variable<String>(rejectReason);
+    }
+    return map;
+  }
+
+  SampleDistributionsCompanion toCompanion(bool nullToAbsent) {
+    return SampleDistributionsCompanion(
+      id: Value(id),
+      visitId: visitId == null && nullToAbsent
+          ? const Value.absent()
+          : Value(visitId),
+      customerId: Value(customerId),
+      productId: Value(productId),
+      batchId: Value(batchId),
+      quantity: Value(quantity),
+      distributedAt: Value(distributedAt),
+      signatureAttachmentId: signatureAttachmentId == null && nullToAbsent
+          ? const Value.absent()
+          : Value(signatureAttachmentId),
+      notes: notes == null && nullToAbsent
+          ? const Value.absent()
+          : Value(notes),
+      status: Value(status),
+      rejectReason: rejectReason == null && nullToAbsent
+          ? const Value.absent()
+          : Value(rejectReason),
+    );
+  }
+
+  factory SampleDistribution.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return SampleDistribution(
+      id: serializer.fromJson<String>(json['id']),
+      visitId: serializer.fromJson<String?>(json['visitId']),
+      customerId: serializer.fromJson<String>(json['customerId']),
+      productId: serializer.fromJson<String>(json['productId']),
+      batchId: serializer.fromJson<String>(json['batchId']),
+      quantity: serializer.fromJson<int>(json['quantity']),
+      distributedAt: serializer.fromJson<String>(json['distributedAt']),
+      signatureAttachmentId: serializer.fromJson<String?>(
+        json['signatureAttachmentId'],
+      ),
+      notes: serializer.fromJson<String?>(json['notes']),
+      status: serializer.fromJson<String>(json['status']),
+      rejectReason: serializer.fromJson<String?>(json['rejectReason']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'id': serializer.toJson<String>(id),
+      'visitId': serializer.toJson<String?>(visitId),
+      'customerId': serializer.toJson<String>(customerId),
+      'productId': serializer.toJson<String>(productId),
+      'batchId': serializer.toJson<String>(batchId),
+      'quantity': serializer.toJson<int>(quantity),
+      'distributedAt': serializer.toJson<String>(distributedAt),
+      'signatureAttachmentId': serializer.toJson<String?>(
+        signatureAttachmentId,
+      ),
+      'notes': serializer.toJson<String?>(notes),
+      'status': serializer.toJson<String>(status),
+      'rejectReason': serializer.toJson<String?>(rejectReason),
+    };
+  }
+
+  SampleDistribution copyWith({
+    String? id,
+    Value<String?> visitId = const Value.absent(),
+    String? customerId,
+    String? productId,
+    String? batchId,
+    int? quantity,
+    String? distributedAt,
+    Value<String?> signatureAttachmentId = const Value.absent(),
+    Value<String?> notes = const Value.absent(),
+    String? status,
+    Value<String?> rejectReason = const Value.absent(),
+  }) => SampleDistribution(
+    id: id ?? this.id,
+    visitId: visitId.present ? visitId.value : this.visitId,
+    customerId: customerId ?? this.customerId,
+    productId: productId ?? this.productId,
+    batchId: batchId ?? this.batchId,
+    quantity: quantity ?? this.quantity,
+    distributedAt: distributedAt ?? this.distributedAt,
+    signatureAttachmentId: signatureAttachmentId.present
+        ? signatureAttachmentId.value
+        : this.signatureAttachmentId,
+    notes: notes.present ? notes.value : this.notes,
+    status: status ?? this.status,
+    rejectReason: rejectReason.present ? rejectReason.value : this.rejectReason,
+  );
+  SampleDistribution copyWithCompanion(SampleDistributionsCompanion data) {
+    return SampleDistribution(
+      id: data.id.present ? data.id.value : this.id,
+      visitId: data.visitId.present ? data.visitId.value : this.visitId,
+      customerId: data.customerId.present
+          ? data.customerId.value
+          : this.customerId,
+      productId: data.productId.present ? data.productId.value : this.productId,
+      batchId: data.batchId.present ? data.batchId.value : this.batchId,
+      quantity: data.quantity.present ? data.quantity.value : this.quantity,
+      distributedAt: data.distributedAt.present
+          ? data.distributedAt.value
+          : this.distributedAt,
+      signatureAttachmentId: data.signatureAttachmentId.present
+          ? data.signatureAttachmentId.value
+          : this.signatureAttachmentId,
+      notes: data.notes.present ? data.notes.value : this.notes,
+      status: data.status.present ? data.status.value : this.status,
+      rejectReason: data.rejectReason.present
+          ? data.rejectReason.value
+          : this.rejectReason,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('SampleDistribution(')
+          ..write('id: $id, ')
+          ..write('visitId: $visitId, ')
+          ..write('customerId: $customerId, ')
+          ..write('productId: $productId, ')
+          ..write('batchId: $batchId, ')
+          ..write('quantity: $quantity, ')
+          ..write('distributedAt: $distributedAt, ')
+          ..write('signatureAttachmentId: $signatureAttachmentId, ')
+          ..write('notes: $notes, ')
+          ..write('status: $status, ')
+          ..write('rejectReason: $rejectReason')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(
+    id,
+    visitId,
+    customerId,
+    productId,
+    batchId,
+    quantity,
+    distributedAt,
+    signatureAttachmentId,
+    notes,
+    status,
+    rejectReason,
+  );
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is SampleDistribution &&
+          other.id == this.id &&
+          other.visitId == this.visitId &&
+          other.customerId == this.customerId &&
+          other.productId == this.productId &&
+          other.batchId == this.batchId &&
+          other.quantity == this.quantity &&
+          other.distributedAt == this.distributedAt &&
+          other.signatureAttachmentId == this.signatureAttachmentId &&
+          other.notes == this.notes &&
+          other.status == this.status &&
+          other.rejectReason == this.rejectReason);
+}
+
+class SampleDistributionsCompanion extends UpdateCompanion<SampleDistribution> {
+  final Value<String> id;
+  final Value<String?> visitId;
+  final Value<String> customerId;
+  final Value<String> productId;
+  final Value<String> batchId;
+  final Value<int> quantity;
+  final Value<String> distributedAt;
+  final Value<String?> signatureAttachmentId;
+  final Value<String?> notes;
+  final Value<String> status;
+  final Value<String?> rejectReason;
+  final Value<int> rowid;
+  const SampleDistributionsCompanion({
+    this.id = const Value.absent(),
+    this.visitId = const Value.absent(),
+    this.customerId = const Value.absent(),
+    this.productId = const Value.absent(),
+    this.batchId = const Value.absent(),
+    this.quantity = const Value.absent(),
+    this.distributedAt = const Value.absent(),
+    this.signatureAttachmentId = const Value.absent(),
+    this.notes = const Value.absent(),
+    this.status = const Value.absent(),
+    this.rejectReason = const Value.absent(),
+    this.rowid = const Value.absent(),
+  });
+  SampleDistributionsCompanion.insert({
+    required String id,
+    this.visitId = const Value.absent(),
+    required String customerId,
+    required String productId,
+    required String batchId,
+    required int quantity,
+    required String distributedAt,
+    this.signatureAttachmentId = const Value.absent(),
+    this.notes = const Value.absent(),
+    this.status = const Value.absent(),
+    this.rejectReason = const Value.absent(),
+    this.rowid = const Value.absent(),
+  }) : id = Value(id),
+       customerId = Value(customerId),
+       productId = Value(productId),
+       batchId = Value(batchId),
+       quantity = Value(quantity),
+       distributedAt = Value(distributedAt);
+  static Insertable<SampleDistribution> custom({
+    Expression<String>? id,
+    Expression<String>? visitId,
+    Expression<String>? customerId,
+    Expression<String>? productId,
+    Expression<String>? batchId,
+    Expression<int>? quantity,
+    Expression<String>? distributedAt,
+    Expression<String>? signatureAttachmentId,
+    Expression<String>? notes,
+    Expression<String>? status,
+    Expression<String>? rejectReason,
+    Expression<int>? rowid,
+  }) {
+    return RawValuesInsertable({
+      if (id != null) 'id': id,
+      if (visitId != null) 'visit_id': visitId,
+      if (customerId != null) 'customer_id': customerId,
+      if (productId != null) 'product_id': productId,
+      if (batchId != null) 'batch_id': batchId,
+      if (quantity != null) 'quantity': quantity,
+      if (distributedAt != null) 'distributed_at': distributedAt,
+      if (signatureAttachmentId != null)
+        'signature_attachment_id': signatureAttachmentId,
+      if (notes != null) 'notes': notes,
+      if (status != null) 'status': status,
+      if (rejectReason != null) 'reject_reason': rejectReason,
+      if (rowid != null) 'rowid': rowid,
+    });
+  }
+
+  SampleDistributionsCompanion copyWith({
+    Value<String>? id,
+    Value<String?>? visitId,
+    Value<String>? customerId,
+    Value<String>? productId,
+    Value<String>? batchId,
+    Value<int>? quantity,
+    Value<String>? distributedAt,
+    Value<String?>? signatureAttachmentId,
+    Value<String?>? notes,
+    Value<String>? status,
+    Value<String?>? rejectReason,
+    Value<int>? rowid,
+  }) {
+    return SampleDistributionsCompanion(
+      id: id ?? this.id,
+      visitId: visitId ?? this.visitId,
+      customerId: customerId ?? this.customerId,
+      productId: productId ?? this.productId,
+      batchId: batchId ?? this.batchId,
+      quantity: quantity ?? this.quantity,
+      distributedAt: distributedAt ?? this.distributedAt,
+      signatureAttachmentId:
+          signatureAttachmentId ?? this.signatureAttachmentId,
+      notes: notes ?? this.notes,
+      status: status ?? this.status,
+      rejectReason: rejectReason ?? this.rejectReason,
+      rowid: rowid ?? this.rowid,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (id.present) {
+      map['id'] = Variable<String>(id.value);
+    }
+    if (visitId.present) {
+      map['visit_id'] = Variable<String>(visitId.value);
+    }
+    if (customerId.present) {
+      map['customer_id'] = Variable<String>(customerId.value);
+    }
+    if (productId.present) {
+      map['product_id'] = Variable<String>(productId.value);
+    }
+    if (batchId.present) {
+      map['batch_id'] = Variable<String>(batchId.value);
+    }
+    if (quantity.present) {
+      map['quantity'] = Variable<int>(quantity.value);
+    }
+    if (distributedAt.present) {
+      map['distributed_at'] = Variable<String>(distributedAt.value);
+    }
+    if (signatureAttachmentId.present) {
+      map['signature_attachment_id'] = Variable<String>(
+        signatureAttachmentId.value,
+      );
+    }
+    if (notes.present) {
+      map['notes'] = Variable<String>(notes.value);
+    }
+    if (status.present) {
+      map['status'] = Variable<String>(status.value);
+    }
+    if (rejectReason.present) {
+      map['reject_reason'] = Variable<String>(rejectReason.value);
+    }
+    if (rowid.present) {
+      map['rowid'] = Variable<int>(rowid.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('SampleDistributionsCompanion(')
+          ..write('id: $id, ')
+          ..write('visitId: $visitId, ')
+          ..write('customerId: $customerId, ')
+          ..write('productId: $productId, ')
+          ..write('batchId: $batchId, ')
+          ..write('quantity: $quantity, ')
+          ..write('distributedAt: $distributedAt, ')
+          ..write('signatureAttachmentId: $signatureAttachmentId, ')
+          ..write('notes: $notes, ')
+          ..write('status: $status, ')
+          ..write('rejectReason: $rejectReason, ')
+          ..write('rowid: $rowid')
+          ..write(')'))
+        .toString();
+  }
+}
+
+class $SampleRequestsTable extends SampleRequests
+    with TableInfo<$SampleRequestsTable, SampleRequest> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $SampleRequestsTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _idMeta = const VerificationMeta('id');
+  @override
+  late final GeneratedColumn<String> id = GeneratedColumn<String>(
+    'id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _productIdMeta = const VerificationMeta(
+    'productId',
+  );
+  @override
+  late final GeneratedColumn<String> productId = GeneratedColumn<String>(
+    'product_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _quantityMeta = const VerificationMeta(
+    'quantity',
+  );
+  @override
+  late final GeneratedColumn<int> quantity = GeneratedColumn<int>(
+    'quantity',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _approvedQuantityMeta = const VerificationMeta(
+    'approvedQuantity',
+  );
+  @override
+  late final GeneratedColumn<int> approvedQuantity = GeneratedColumn<int>(
+    'approved_quantity',
+    aliasedName,
+    true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _statusMeta = const VerificationMeta('status');
+  @override
+  late final GeneratedColumn<String> status = GeneratedColumn<String>(
+    'status',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    defaultValue: const Constant('Pending'),
+  );
+  static const VerificationMeta _notesMeta = const VerificationMeta('notes');
+  @override
+  late final GeneratedColumn<String> notes = GeneratedColumn<String>(
+    'notes',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _decisionNoteMeta = const VerificationMeta(
+    'decisionNote',
+  );
+  @override
+  late final GeneratedColumn<String> decisionNote = GeneratedColumn<String>(
+    'decision_note',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _createdAtMeta = const VerificationMeta(
+    'createdAt',
+  );
+  @override
+  late final GeneratedColumn<String> createdAt = GeneratedColumn<String>(
+    'created_at',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _dirtyMeta = const VerificationMeta('dirty');
+  @override
+  late final GeneratedColumn<bool> dirty = GeneratedColumn<bool>(
+    'dirty',
+    aliasedName,
+    false,
+    type: DriftSqlType.bool,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'CHECK ("dirty" IN (0, 1))',
+    ),
+    defaultValue: const Constant(true),
+  );
+  @override
+  List<GeneratedColumn> get $columns => [
+    id,
+    productId,
+    quantity,
+    approvedQuantity,
+    status,
+    notes,
+    decisionNote,
+    createdAt,
+    dirty,
+  ];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'sample_requests';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<SampleRequest> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('id')) {
+      context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
+    } else if (isInserting) {
+      context.missing(_idMeta);
+    }
+    if (data.containsKey('product_id')) {
+      context.handle(
+        _productIdMeta,
+        productId.isAcceptableOrUnknown(data['product_id']!, _productIdMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_productIdMeta);
+    }
+    if (data.containsKey('quantity')) {
+      context.handle(
+        _quantityMeta,
+        quantity.isAcceptableOrUnknown(data['quantity']!, _quantityMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_quantityMeta);
+    }
+    if (data.containsKey('approved_quantity')) {
+      context.handle(
+        _approvedQuantityMeta,
+        approvedQuantity.isAcceptableOrUnknown(
+          data['approved_quantity']!,
+          _approvedQuantityMeta,
+        ),
+      );
+    }
+    if (data.containsKey('status')) {
+      context.handle(
+        _statusMeta,
+        status.isAcceptableOrUnknown(data['status']!, _statusMeta),
+      );
+    }
+    if (data.containsKey('notes')) {
+      context.handle(
+        _notesMeta,
+        notes.isAcceptableOrUnknown(data['notes']!, _notesMeta),
+      );
+    }
+    if (data.containsKey('decision_note')) {
+      context.handle(
+        _decisionNoteMeta,
+        decisionNote.isAcceptableOrUnknown(
+          data['decision_note']!,
+          _decisionNoteMeta,
+        ),
+      );
+    }
+    if (data.containsKey('created_at')) {
+      context.handle(
+        _createdAtMeta,
+        createdAt.isAcceptableOrUnknown(data['created_at']!, _createdAtMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_createdAtMeta);
+    }
+    if (data.containsKey('dirty')) {
+      context.handle(
+        _dirtyMeta,
+        dirty.isAcceptableOrUnknown(data['dirty']!, _dirtyMeta),
+      );
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {id};
+  @override
+  SampleRequest map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return SampleRequest(
+      id: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}id'],
+      )!,
+      productId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}product_id'],
+      )!,
+      quantity: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}quantity'],
+      )!,
+      approvedQuantity: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}approved_quantity'],
+      ),
+      status: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}status'],
+      )!,
+      notes: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}notes'],
+      ),
+      decisionNote: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}decision_note'],
+      ),
+      createdAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}created_at'],
+      )!,
+      dirty: attachedDatabase.typeMapping.read(
+        DriftSqlType.bool,
+        data['${effectivePrefix}dirty'],
+      )!,
+    );
+  }
+
+  @override
+  $SampleRequestsTable createAlias(String alias) {
+    return $SampleRequestsTable(attachedDatabase, alias);
+  }
+}
+
+class SampleRequest extends DataClass implements Insertable<SampleRequest> {
+  final String id;
+  final String productId;
+  final int quantity;
+  final int? approvedQuantity;
+  final String status;
+  final String? notes;
+  final String? decisionNote;
+  final String createdAt;
+  final bool dirty;
+  const SampleRequest({
+    required this.id,
+    required this.productId,
+    required this.quantity,
+    this.approvedQuantity,
+    required this.status,
+    this.notes,
+    this.decisionNote,
+    required this.createdAt,
+    required this.dirty,
+  });
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['id'] = Variable<String>(id);
+    map['product_id'] = Variable<String>(productId);
+    map['quantity'] = Variable<int>(quantity);
+    if (!nullToAbsent || approvedQuantity != null) {
+      map['approved_quantity'] = Variable<int>(approvedQuantity);
+    }
+    map['status'] = Variable<String>(status);
+    if (!nullToAbsent || notes != null) {
+      map['notes'] = Variable<String>(notes);
+    }
+    if (!nullToAbsent || decisionNote != null) {
+      map['decision_note'] = Variable<String>(decisionNote);
+    }
+    map['created_at'] = Variable<String>(createdAt);
+    map['dirty'] = Variable<bool>(dirty);
+    return map;
+  }
+
+  SampleRequestsCompanion toCompanion(bool nullToAbsent) {
+    return SampleRequestsCompanion(
+      id: Value(id),
+      productId: Value(productId),
+      quantity: Value(quantity),
+      approvedQuantity: approvedQuantity == null && nullToAbsent
+          ? const Value.absent()
+          : Value(approvedQuantity),
+      status: Value(status),
+      notes: notes == null && nullToAbsent
+          ? const Value.absent()
+          : Value(notes),
+      decisionNote: decisionNote == null && nullToAbsent
+          ? const Value.absent()
+          : Value(decisionNote),
+      createdAt: Value(createdAt),
+      dirty: Value(dirty),
+    );
+  }
+
+  factory SampleRequest.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return SampleRequest(
+      id: serializer.fromJson<String>(json['id']),
+      productId: serializer.fromJson<String>(json['productId']),
+      quantity: serializer.fromJson<int>(json['quantity']),
+      approvedQuantity: serializer.fromJson<int?>(json['approvedQuantity']),
+      status: serializer.fromJson<String>(json['status']),
+      notes: serializer.fromJson<String?>(json['notes']),
+      decisionNote: serializer.fromJson<String?>(json['decisionNote']),
+      createdAt: serializer.fromJson<String>(json['createdAt']),
+      dirty: serializer.fromJson<bool>(json['dirty']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'id': serializer.toJson<String>(id),
+      'productId': serializer.toJson<String>(productId),
+      'quantity': serializer.toJson<int>(quantity),
+      'approvedQuantity': serializer.toJson<int?>(approvedQuantity),
+      'status': serializer.toJson<String>(status),
+      'notes': serializer.toJson<String?>(notes),
+      'decisionNote': serializer.toJson<String?>(decisionNote),
+      'createdAt': serializer.toJson<String>(createdAt),
+      'dirty': serializer.toJson<bool>(dirty),
+    };
+  }
+
+  SampleRequest copyWith({
+    String? id,
+    String? productId,
+    int? quantity,
+    Value<int?> approvedQuantity = const Value.absent(),
+    String? status,
+    Value<String?> notes = const Value.absent(),
+    Value<String?> decisionNote = const Value.absent(),
+    String? createdAt,
+    bool? dirty,
+  }) => SampleRequest(
+    id: id ?? this.id,
+    productId: productId ?? this.productId,
+    quantity: quantity ?? this.quantity,
+    approvedQuantity: approvedQuantity.present
+        ? approvedQuantity.value
+        : this.approvedQuantity,
+    status: status ?? this.status,
+    notes: notes.present ? notes.value : this.notes,
+    decisionNote: decisionNote.present ? decisionNote.value : this.decisionNote,
+    createdAt: createdAt ?? this.createdAt,
+    dirty: dirty ?? this.dirty,
+  );
+  SampleRequest copyWithCompanion(SampleRequestsCompanion data) {
+    return SampleRequest(
+      id: data.id.present ? data.id.value : this.id,
+      productId: data.productId.present ? data.productId.value : this.productId,
+      quantity: data.quantity.present ? data.quantity.value : this.quantity,
+      approvedQuantity: data.approvedQuantity.present
+          ? data.approvedQuantity.value
+          : this.approvedQuantity,
+      status: data.status.present ? data.status.value : this.status,
+      notes: data.notes.present ? data.notes.value : this.notes,
+      decisionNote: data.decisionNote.present
+          ? data.decisionNote.value
+          : this.decisionNote,
+      createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
+      dirty: data.dirty.present ? data.dirty.value : this.dirty,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('SampleRequest(')
+          ..write('id: $id, ')
+          ..write('productId: $productId, ')
+          ..write('quantity: $quantity, ')
+          ..write('approvedQuantity: $approvedQuantity, ')
+          ..write('status: $status, ')
+          ..write('notes: $notes, ')
+          ..write('decisionNote: $decisionNote, ')
+          ..write('createdAt: $createdAt, ')
+          ..write('dirty: $dirty')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(
+    id,
+    productId,
+    quantity,
+    approvedQuantity,
+    status,
+    notes,
+    decisionNote,
+    createdAt,
+    dirty,
+  );
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is SampleRequest &&
+          other.id == this.id &&
+          other.productId == this.productId &&
+          other.quantity == this.quantity &&
+          other.approvedQuantity == this.approvedQuantity &&
+          other.status == this.status &&
+          other.notes == this.notes &&
+          other.decisionNote == this.decisionNote &&
+          other.createdAt == this.createdAt &&
+          other.dirty == this.dirty);
+}
+
+class SampleRequestsCompanion extends UpdateCompanion<SampleRequest> {
+  final Value<String> id;
+  final Value<String> productId;
+  final Value<int> quantity;
+  final Value<int?> approvedQuantity;
+  final Value<String> status;
+  final Value<String?> notes;
+  final Value<String?> decisionNote;
+  final Value<String> createdAt;
+  final Value<bool> dirty;
+  final Value<int> rowid;
+  const SampleRequestsCompanion({
+    this.id = const Value.absent(),
+    this.productId = const Value.absent(),
+    this.quantity = const Value.absent(),
+    this.approvedQuantity = const Value.absent(),
+    this.status = const Value.absent(),
+    this.notes = const Value.absent(),
+    this.decisionNote = const Value.absent(),
+    this.createdAt = const Value.absent(),
+    this.dirty = const Value.absent(),
+    this.rowid = const Value.absent(),
+  });
+  SampleRequestsCompanion.insert({
+    required String id,
+    required String productId,
+    required int quantity,
+    this.approvedQuantity = const Value.absent(),
+    this.status = const Value.absent(),
+    this.notes = const Value.absent(),
+    this.decisionNote = const Value.absent(),
+    required String createdAt,
+    this.dirty = const Value.absent(),
+    this.rowid = const Value.absent(),
+  }) : id = Value(id),
+       productId = Value(productId),
+       quantity = Value(quantity),
+       createdAt = Value(createdAt);
+  static Insertable<SampleRequest> custom({
+    Expression<String>? id,
+    Expression<String>? productId,
+    Expression<int>? quantity,
+    Expression<int>? approvedQuantity,
+    Expression<String>? status,
+    Expression<String>? notes,
+    Expression<String>? decisionNote,
+    Expression<String>? createdAt,
+    Expression<bool>? dirty,
+    Expression<int>? rowid,
+  }) {
+    return RawValuesInsertable({
+      if (id != null) 'id': id,
+      if (productId != null) 'product_id': productId,
+      if (quantity != null) 'quantity': quantity,
+      if (approvedQuantity != null) 'approved_quantity': approvedQuantity,
+      if (status != null) 'status': status,
+      if (notes != null) 'notes': notes,
+      if (decisionNote != null) 'decision_note': decisionNote,
+      if (createdAt != null) 'created_at': createdAt,
+      if (dirty != null) 'dirty': dirty,
+      if (rowid != null) 'rowid': rowid,
+    });
+  }
+
+  SampleRequestsCompanion copyWith({
+    Value<String>? id,
+    Value<String>? productId,
+    Value<int>? quantity,
+    Value<int?>? approvedQuantity,
+    Value<String>? status,
+    Value<String?>? notes,
+    Value<String?>? decisionNote,
+    Value<String>? createdAt,
+    Value<bool>? dirty,
+    Value<int>? rowid,
+  }) {
+    return SampleRequestsCompanion(
+      id: id ?? this.id,
+      productId: productId ?? this.productId,
+      quantity: quantity ?? this.quantity,
+      approvedQuantity: approvedQuantity ?? this.approvedQuantity,
+      status: status ?? this.status,
+      notes: notes ?? this.notes,
+      decisionNote: decisionNote ?? this.decisionNote,
+      createdAt: createdAt ?? this.createdAt,
+      dirty: dirty ?? this.dirty,
+      rowid: rowid ?? this.rowid,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (id.present) {
+      map['id'] = Variable<String>(id.value);
+    }
+    if (productId.present) {
+      map['product_id'] = Variable<String>(productId.value);
+    }
+    if (quantity.present) {
+      map['quantity'] = Variable<int>(quantity.value);
+    }
+    if (approvedQuantity.present) {
+      map['approved_quantity'] = Variable<int>(approvedQuantity.value);
+    }
+    if (status.present) {
+      map['status'] = Variable<String>(status.value);
+    }
+    if (notes.present) {
+      map['notes'] = Variable<String>(notes.value);
+    }
+    if (decisionNote.present) {
+      map['decision_note'] = Variable<String>(decisionNote.value);
+    }
+    if (createdAt.present) {
+      map['created_at'] = Variable<String>(createdAt.value);
+    }
+    if (dirty.present) {
+      map['dirty'] = Variable<bool>(dirty.value);
+    }
+    if (rowid.present) {
+      map['rowid'] = Variable<int>(rowid.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('SampleRequestsCompanion(')
+          ..write('id: $id, ')
+          ..write('productId: $productId, ')
+          ..write('quantity: $quantity, ')
+          ..write('approvedQuantity: $approvedQuantity, ')
+          ..write('status: $status, ')
+          ..write('notes: $notes, ')
+          ..write('decisionNote: $decisionNote, ')
+          ..write('createdAt: $createdAt, ')
+          ..write('dirty: $dirty, ')
+          ..write('rowid: $rowid')
+          ..write(')'))
+        .toString();
+  }
+}
+
 class $SyncStateTable extends SyncState
     with TableInfo<$SyncStateTable, SyncStateData> {
   @override
@@ -4667,6 +6341,10 @@ abstract class _$AppDatabase extends GeneratedDatabase {
   late final $FollowUpTasksTable followUpTasks = $FollowUpTasksTable(this);
   late final $GpsPingsTable gpsPings = $GpsPingsTable(this);
   late final $AttachmentsTable attachments = $AttachmentsTable(this);
+  late final $SampleStockTable sampleStock = $SampleStockTable(this);
+  late final $SampleDistributionsTable sampleDistributions =
+      $SampleDistributionsTable(this);
+  late final $SampleRequestsTable sampleRequests = $SampleRequestsTable(this);
   late final $SyncStateTable syncState = $SyncStateTable(this);
   @override
   Iterable<TableInfo<Table, Object?>> get allTables =>
@@ -4681,6 +6359,9 @@ abstract class _$AppDatabase extends GeneratedDatabase {
     followUpTasks,
     gpsPings,
     attachments,
+    sampleStock,
+    sampleDistributions,
+    sampleRequests,
     syncState,
   ];
 }
@@ -6939,6 +8620,878 @@ typedef $$AttachmentsTableProcessedTableManager =
       Attachment,
       PrefetchHooks Function()
     >;
+typedef $$SampleStockTableCreateCompanionBuilder =
+    SampleStockCompanion Function({
+      required String batchId,
+      required String productId,
+      required String batchNumber,
+      required String expiryDate,
+      Value<String> status,
+      required int quantity,
+      Value<int> rowid,
+    });
+typedef $$SampleStockTableUpdateCompanionBuilder =
+    SampleStockCompanion Function({
+      Value<String> batchId,
+      Value<String> productId,
+      Value<String> batchNumber,
+      Value<String> expiryDate,
+      Value<String> status,
+      Value<int> quantity,
+      Value<int> rowid,
+    });
+
+class $$SampleStockTableFilterComposer
+    extends Composer<_$AppDatabase, $SampleStockTable> {
+  $$SampleStockTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<String> get batchId => $composableBuilder(
+    column: $table.batchId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get productId => $composableBuilder(
+    column: $table.productId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get batchNumber => $composableBuilder(
+    column: $table.batchNumber,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get expiryDate => $composableBuilder(
+    column: $table.expiryDate,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get status => $composableBuilder(
+    column: $table.status,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get quantity => $composableBuilder(
+    column: $table.quantity,
+    builder: (column) => ColumnFilters(column),
+  );
+}
+
+class $$SampleStockTableOrderingComposer
+    extends Composer<_$AppDatabase, $SampleStockTable> {
+  $$SampleStockTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<String> get batchId => $composableBuilder(
+    column: $table.batchId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get productId => $composableBuilder(
+    column: $table.productId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get batchNumber => $composableBuilder(
+    column: $table.batchNumber,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get expiryDate => $composableBuilder(
+    column: $table.expiryDate,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get status => $composableBuilder(
+    column: $table.status,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get quantity => $composableBuilder(
+    column: $table.quantity,
+    builder: (column) => ColumnOrderings(column),
+  );
+}
+
+class $$SampleStockTableAnnotationComposer
+    extends Composer<_$AppDatabase, $SampleStockTable> {
+  $$SampleStockTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<String> get batchId =>
+      $composableBuilder(column: $table.batchId, builder: (column) => column);
+
+  GeneratedColumn<String> get productId =>
+      $composableBuilder(column: $table.productId, builder: (column) => column);
+
+  GeneratedColumn<String> get batchNumber => $composableBuilder(
+    column: $table.batchNumber,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get expiryDate => $composableBuilder(
+    column: $table.expiryDate,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get status =>
+      $composableBuilder(column: $table.status, builder: (column) => column);
+
+  GeneratedColumn<int> get quantity =>
+      $composableBuilder(column: $table.quantity, builder: (column) => column);
+}
+
+class $$SampleStockTableTableManager
+    extends
+        RootTableManager<
+          _$AppDatabase,
+          $SampleStockTable,
+          SampleStockData,
+          $$SampleStockTableFilterComposer,
+          $$SampleStockTableOrderingComposer,
+          $$SampleStockTableAnnotationComposer,
+          $$SampleStockTableCreateCompanionBuilder,
+          $$SampleStockTableUpdateCompanionBuilder,
+          (
+            SampleStockData,
+            BaseReferences<_$AppDatabase, $SampleStockTable, SampleStockData>,
+          ),
+          SampleStockData,
+          PrefetchHooks Function()
+        > {
+  $$SampleStockTableTableManager(_$AppDatabase db, $SampleStockTable table)
+    : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$SampleStockTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$SampleStockTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$SampleStockTableAnnotationComposer($db: db, $table: table),
+          updateCompanionCallback:
+              ({
+                Value<String> batchId = const Value.absent(),
+                Value<String> productId = const Value.absent(),
+                Value<String> batchNumber = const Value.absent(),
+                Value<String> expiryDate = const Value.absent(),
+                Value<String> status = const Value.absent(),
+                Value<int> quantity = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => SampleStockCompanion(
+                batchId: batchId,
+                productId: productId,
+                batchNumber: batchNumber,
+                expiryDate: expiryDate,
+                status: status,
+                quantity: quantity,
+                rowid: rowid,
+              ),
+          createCompanionCallback:
+              ({
+                required String batchId,
+                required String productId,
+                required String batchNumber,
+                required String expiryDate,
+                Value<String> status = const Value.absent(),
+                required int quantity,
+                Value<int> rowid = const Value.absent(),
+              }) => SampleStockCompanion.insert(
+                batchId: batchId,
+                productId: productId,
+                batchNumber: batchNumber,
+                expiryDate: expiryDate,
+                status: status,
+                quantity: quantity,
+                rowid: rowid,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map(
+                (e) => (
+                  e.readTable<$SampleStockTable, SampleStockData>(table),
+                  BaseReferences<
+                    _$AppDatabase,
+                    $SampleStockTable,
+                    SampleStockData
+                  >(db, table, e),
+                ),
+              )
+              .toList(),
+          prefetchHooksCallback: null,
+        ),
+      );
+}
+
+typedef $$SampleStockTableProcessedTableManager =
+    ProcessedTableManager<
+      _$AppDatabase,
+      $SampleStockTable,
+      SampleStockData,
+      $$SampleStockTableFilterComposer,
+      $$SampleStockTableOrderingComposer,
+      $$SampleStockTableAnnotationComposer,
+      $$SampleStockTableCreateCompanionBuilder,
+      $$SampleStockTableUpdateCompanionBuilder,
+      (
+        SampleStockData,
+        BaseReferences<_$AppDatabase, $SampleStockTable, SampleStockData>,
+      ),
+      SampleStockData,
+      PrefetchHooks Function()
+    >;
+typedef $$SampleDistributionsTableCreateCompanionBuilder =
+    SampleDistributionsCompanion Function({
+      required String id,
+      Value<String?> visitId,
+      required String customerId,
+      required String productId,
+      required String batchId,
+      required int quantity,
+      required String distributedAt,
+      Value<String?> signatureAttachmentId,
+      Value<String?> notes,
+      Value<String> status,
+      Value<String?> rejectReason,
+      Value<int> rowid,
+    });
+typedef $$SampleDistributionsTableUpdateCompanionBuilder =
+    SampleDistributionsCompanion Function({
+      Value<String> id,
+      Value<String?> visitId,
+      Value<String> customerId,
+      Value<String> productId,
+      Value<String> batchId,
+      Value<int> quantity,
+      Value<String> distributedAt,
+      Value<String?> signatureAttachmentId,
+      Value<String?> notes,
+      Value<String> status,
+      Value<String?> rejectReason,
+      Value<int> rowid,
+    });
+
+class $$SampleDistributionsTableFilterComposer
+    extends Composer<_$AppDatabase, $SampleDistributionsTable> {
+  $$SampleDistributionsTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<String> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get visitId => $composableBuilder(
+    column: $table.visitId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get customerId => $composableBuilder(
+    column: $table.customerId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get productId => $composableBuilder(
+    column: $table.productId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get batchId => $composableBuilder(
+    column: $table.batchId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get quantity => $composableBuilder(
+    column: $table.quantity,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get distributedAt => $composableBuilder(
+    column: $table.distributedAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get signatureAttachmentId => $composableBuilder(
+    column: $table.signatureAttachmentId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get notes => $composableBuilder(
+    column: $table.notes,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get status => $composableBuilder(
+    column: $table.status,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get rejectReason => $composableBuilder(
+    column: $table.rejectReason,
+    builder: (column) => ColumnFilters(column),
+  );
+}
+
+class $$SampleDistributionsTableOrderingComposer
+    extends Composer<_$AppDatabase, $SampleDistributionsTable> {
+  $$SampleDistributionsTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<String> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get visitId => $composableBuilder(
+    column: $table.visitId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get customerId => $composableBuilder(
+    column: $table.customerId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get productId => $composableBuilder(
+    column: $table.productId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get batchId => $composableBuilder(
+    column: $table.batchId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get quantity => $composableBuilder(
+    column: $table.quantity,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get distributedAt => $composableBuilder(
+    column: $table.distributedAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get signatureAttachmentId => $composableBuilder(
+    column: $table.signatureAttachmentId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get notes => $composableBuilder(
+    column: $table.notes,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get status => $composableBuilder(
+    column: $table.status,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get rejectReason => $composableBuilder(
+    column: $table.rejectReason,
+    builder: (column) => ColumnOrderings(column),
+  );
+}
+
+class $$SampleDistributionsTableAnnotationComposer
+    extends Composer<_$AppDatabase, $SampleDistributionsTable> {
+  $$SampleDistributionsTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<String> get id =>
+      $composableBuilder(column: $table.id, builder: (column) => column);
+
+  GeneratedColumn<String> get visitId =>
+      $composableBuilder(column: $table.visitId, builder: (column) => column);
+
+  GeneratedColumn<String> get customerId => $composableBuilder(
+    column: $table.customerId,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get productId =>
+      $composableBuilder(column: $table.productId, builder: (column) => column);
+
+  GeneratedColumn<String> get batchId =>
+      $composableBuilder(column: $table.batchId, builder: (column) => column);
+
+  GeneratedColumn<int> get quantity =>
+      $composableBuilder(column: $table.quantity, builder: (column) => column);
+
+  GeneratedColumn<String> get distributedAt => $composableBuilder(
+    column: $table.distributedAt,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get signatureAttachmentId => $composableBuilder(
+    column: $table.signatureAttachmentId,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get notes =>
+      $composableBuilder(column: $table.notes, builder: (column) => column);
+
+  GeneratedColumn<String> get status =>
+      $composableBuilder(column: $table.status, builder: (column) => column);
+
+  GeneratedColumn<String> get rejectReason => $composableBuilder(
+    column: $table.rejectReason,
+    builder: (column) => column,
+  );
+}
+
+class $$SampleDistributionsTableTableManager
+    extends
+        RootTableManager<
+          _$AppDatabase,
+          $SampleDistributionsTable,
+          SampleDistribution,
+          $$SampleDistributionsTableFilterComposer,
+          $$SampleDistributionsTableOrderingComposer,
+          $$SampleDistributionsTableAnnotationComposer,
+          $$SampleDistributionsTableCreateCompanionBuilder,
+          $$SampleDistributionsTableUpdateCompanionBuilder,
+          (
+            SampleDistribution,
+            BaseReferences<
+              _$AppDatabase,
+              $SampleDistributionsTable,
+              SampleDistribution
+            >,
+          ),
+          SampleDistribution,
+          PrefetchHooks Function()
+        > {
+  $$SampleDistributionsTableTableManager(
+    _$AppDatabase db,
+    $SampleDistributionsTable table,
+  ) : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$SampleDistributionsTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$SampleDistributionsTableOrderingComposer(
+                $db: db,
+                $table: table,
+              ),
+          createComputedFieldComposer: () =>
+              $$SampleDistributionsTableAnnotationComposer(
+                $db: db,
+                $table: table,
+              ),
+          updateCompanionCallback:
+              ({
+                Value<String> id = const Value.absent(),
+                Value<String?> visitId = const Value.absent(),
+                Value<String> customerId = const Value.absent(),
+                Value<String> productId = const Value.absent(),
+                Value<String> batchId = const Value.absent(),
+                Value<int> quantity = const Value.absent(),
+                Value<String> distributedAt = const Value.absent(),
+                Value<String?> signatureAttachmentId = const Value.absent(),
+                Value<String?> notes = const Value.absent(),
+                Value<String> status = const Value.absent(),
+                Value<String?> rejectReason = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => SampleDistributionsCompanion(
+                id: id,
+                visitId: visitId,
+                customerId: customerId,
+                productId: productId,
+                batchId: batchId,
+                quantity: quantity,
+                distributedAt: distributedAt,
+                signatureAttachmentId: signatureAttachmentId,
+                notes: notes,
+                status: status,
+                rejectReason: rejectReason,
+                rowid: rowid,
+              ),
+          createCompanionCallback:
+              ({
+                required String id,
+                Value<String?> visitId = const Value.absent(),
+                required String customerId,
+                required String productId,
+                required String batchId,
+                required int quantity,
+                required String distributedAt,
+                Value<String?> signatureAttachmentId = const Value.absent(),
+                Value<String?> notes = const Value.absent(),
+                Value<String> status = const Value.absent(),
+                Value<String?> rejectReason = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => SampleDistributionsCompanion.insert(
+                id: id,
+                visitId: visitId,
+                customerId: customerId,
+                productId: productId,
+                batchId: batchId,
+                quantity: quantity,
+                distributedAt: distributedAt,
+                signatureAttachmentId: signatureAttachmentId,
+                notes: notes,
+                status: status,
+                rejectReason: rejectReason,
+                rowid: rowid,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map(
+                (e) => (
+                  e.readTable<$SampleDistributionsTable, SampleDistribution>(
+                    table,
+                  ),
+                  BaseReferences<
+                    _$AppDatabase,
+                    $SampleDistributionsTable,
+                    SampleDistribution
+                  >(db, table, e),
+                ),
+              )
+              .toList(),
+          prefetchHooksCallback: null,
+        ),
+      );
+}
+
+typedef $$SampleDistributionsTableProcessedTableManager =
+    ProcessedTableManager<
+      _$AppDatabase,
+      $SampleDistributionsTable,
+      SampleDistribution,
+      $$SampleDistributionsTableFilterComposer,
+      $$SampleDistributionsTableOrderingComposer,
+      $$SampleDistributionsTableAnnotationComposer,
+      $$SampleDistributionsTableCreateCompanionBuilder,
+      $$SampleDistributionsTableUpdateCompanionBuilder,
+      (
+        SampleDistribution,
+        BaseReferences<
+          _$AppDatabase,
+          $SampleDistributionsTable,
+          SampleDistribution
+        >,
+      ),
+      SampleDistribution,
+      PrefetchHooks Function()
+    >;
+typedef $$SampleRequestsTableCreateCompanionBuilder =
+    SampleRequestsCompanion Function({
+      required String id,
+      required String productId,
+      required int quantity,
+      Value<int?> approvedQuantity,
+      Value<String> status,
+      Value<String?> notes,
+      Value<String?> decisionNote,
+      required String createdAt,
+      Value<bool> dirty,
+      Value<int> rowid,
+    });
+typedef $$SampleRequestsTableUpdateCompanionBuilder =
+    SampleRequestsCompanion Function({
+      Value<String> id,
+      Value<String> productId,
+      Value<int> quantity,
+      Value<int?> approvedQuantity,
+      Value<String> status,
+      Value<String?> notes,
+      Value<String?> decisionNote,
+      Value<String> createdAt,
+      Value<bool> dirty,
+      Value<int> rowid,
+    });
+
+class $$SampleRequestsTableFilterComposer
+    extends Composer<_$AppDatabase, $SampleRequestsTable> {
+  $$SampleRequestsTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<String> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get productId => $composableBuilder(
+    column: $table.productId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get quantity => $composableBuilder(
+    column: $table.quantity,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get approvedQuantity => $composableBuilder(
+    column: $table.approvedQuantity,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get status => $composableBuilder(
+    column: $table.status,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get notes => $composableBuilder(
+    column: $table.notes,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get decisionNote => $composableBuilder(
+    column: $table.decisionNote,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get createdAt => $composableBuilder(
+    column: $table.createdAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<bool> get dirty => $composableBuilder(
+    column: $table.dirty,
+    builder: (column) => ColumnFilters(column),
+  );
+}
+
+class $$SampleRequestsTableOrderingComposer
+    extends Composer<_$AppDatabase, $SampleRequestsTable> {
+  $$SampleRequestsTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<String> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get productId => $composableBuilder(
+    column: $table.productId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get quantity => $composableBuilder(
+    column: $table.quantity,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get approvedQuantity => $composableBuilder(
+    column: $table.approvedQuantity,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get status => $composableBuilder(
+    column: $table.status,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get notes => $composableBuilder(
+    column: $table.notes,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get decisionNote => $composableBuilder(
+    column: $table.decisionNote,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get createdAt => $composableBuilder(
+    column: $table.createdAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<bool> get dirty => $composableBuilder(
+    column: $table.dirty,
+    builder: (column) => ColumnOrderings(column),
+  );
+}
+
+class $$SampleRequestsTableAnnotationComposer
+    extends Composer<_$AppDatabase, $SampleRequestsTable> {
+  $$SampleRequestsTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<String> get id =>
+      $composableBuilder(column: $table.id, builder: (column) => column);
+
+  GeneratedColumn<String> get productId =>
+      $composableBuilder(column: $table.productId, builder: (column) => column);
+
+  GeneratedColumn<int> get quantity =>
+      $composableBuilder(column: $table.quantity, builder: (column) => column);
+
+  GeneratedColumn<int> get approvedQuantity => $composableBuilder(
+    column: $table.approvedQuantity,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get status =>
+      $composableBuilder(column: $table.status, builder: (column) => column);
+
+  GeneratedColumn<String> get notes =>
+      $composableBuilder(column: $table.notes, builder: (column) => column);
+
+  GeneratedColumn<String> get decisionNote => $composableBuilder(
+    column: $table.decisionNote,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get createdAt =>
+      $composableBuilder(column: $table.createdAt, builder: (column) => column);
+
+  GeneratedColumn<bool> get dirty =>
+      $composableBuilder(column: $table.dirty, builder: (column) => column);
+}
+
+class $$SampleRequestsTableTableManager
+    extends
+        RootTableManager<
+          _$AppDatabase,
+          $SampleRequestsTable,
+          SampleRequest,
+          $$SampleRequestsTableFilterComposer,
+          $$SampleRequestsTableOrderingComposer,
+          $$SampleRequestsTableAnnotationComposer,
+          $$SampleRequestsTableCreateCompanionBuilder,
+          $$SampleRequestsTableUpdateCompanionBuilder,
+          (
+            SampleRequest,
+            BaseReferences<_$AppDatabase, $SampleRequestsTable, SampleRequest>,
+          ),
+          SampleRequest,
+          PrefetchHooks Function()
+        > {
+  $$SampleRequestsTableTableManager(
+    _$AppDatabase db,
+    $SampleRequestsTable table,
+  ) : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$SampleRequestsTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$SampleRequestsTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$SampleRequestsTableAnnotationComposer($db: db, $table: table),
+          updateCompanionCallback:
+              ({
+                Value<String> id = const Value.absent(),
+                Value<String> productId = const Value.absent(),
+                Value<int> quantity = const Value.absent(),
+                Value<int?> approvedQuantity = const Value.absent(),
+                Value<String> status = const Value.absent(),
+                Value<String?> notes = const Value.absent(),
+                Value<String?> decisionNote = const Value.absent(),
+                Value<String> createdAt = const Value.absent(),
+                Value<bool> dirty = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => SampleRequestsCompanion(
+                id: id,
+                productId: productId,
+                quantity: quantity,
+                approvedQuantity: approvedQuantity,
+                status: status,
+                notes: notes,
+                decisionNote: decisionNote,
+                createdAt: createdAt,
+                dirty: dirty,
+                rowid: rowid,
+              ),
+          createCompanionCallback:
+              ({
+                required String id,
+                required String productId,
+                required int quantity,
+                Value<int?> approvedQuantity = const Value.absent(),
+                Value<String> status = const Value.absent(),
+                Value<String?> notes = const Value.absent(),
+                Value<String?> decisionNote = const Value.absent(),
+                required String createdAt,
+                Value<bool> dirty = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => SampleRequestsCompanion.insert(
+                id: id,
+                productId: productId,
+                quantity: quantity,
+                approvedQuantity: approvedQuantity,
+                status: status,
+                notes: notes,
+                decisionNote: decisionNote,
+                createdAt: createdAt,
+                dirty: dirty,
+                rowid: rowid,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map(
+                (e) => (
+                  e.readTable<$SampleRequestsTable, SampleRequest>(table),
+                  BaseReferences<
+                    _$AppDatabase,
+                    $SampleRequestsTable,
+                    SampleRequest
+                  >(db, table, e),
+                ),
+              )
+              .toList(),
+          prefetchHooksCallback: null,
+        ),
+      );
+}
+
+typedef $$SampleRequestsTableProcessedTableManager =
+    ProcessedTableManager<
+      _$AppDatabase,
+      $SampleRequestsTable,
+      SampleRequest,
+      $$SampleRequestsTableFilterComposer,
+      $$SampleRequestsTableOrderingComposer,
+      $$SampleRequestsTableAnnotationComposer,
+      $$SampleRequestsTableCreateCompanionBuilder,
+      $$SampleRequestsTableUpdateCompanionBuilder,
+      (
+        SampleRequest,
+        BaseReferences<_$AppDatabase, $SampleRequestsTable, SampleRequest>,
+      ),
+      SampleRequest,
+      PrefetchHooks Function()
+    >;
 typedef $$SyncStateTableCreateCompanionBuilder = SyncStateCompanion Function({
   required String key,
   required String value,
@@ -7099,6 +9652,12 @@ class $AppDatabaseManager {
       $$GpsPingsTableTableManager(_db, _db.gpsPings);
   $$AttachmentsTableTableManager get attachments =>
       $$AttachmentsTableTableManager(_db, _db.attachments);
+  $$SampleStockTableTableManager get sampleStock =>
+      $$SampleStockTableTableManager(_db, _db.sampleStock);
+  $$SampleDistributionsTableTableManager get sampleDistributions =>
+      $$SampleDistributionsTableTableManager(_db, _db.sampleDistributions);
+  $$SampleRequestsTableTableManager get sampleRequests =>
+      $$SampleRequestsTableTableManager(_db, _db.sampleRequests);
   $$SyncStateTableTableManager get syncState =>
       $$SyncStateTableTableManager(_db, _db.syncState);
 }

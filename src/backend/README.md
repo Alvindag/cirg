@@ -54,10 +54,28 @@ Also `GET /attachments?visitId=`, `GET /attachments/{id}/content`, `DELETE /atta
 - Access follows the team scope (reps: own; managers: their subtree). All creates and deletes are in the audit log.
 - Photos can contain patient or other personal data: set a retention policy and storage-account lifecycle rules, and cover this in the data-protection assessment (Act 843).
 
+## Sample management (`/api/v1/samples`)
+Stock is an **immutable ledger** (`StockMovement`): nothing is edited, every change is a movement, and a balance is the sum for a batch and holder
+(warehouse or a rep). Movements: receipt, issue to rep, return, distribution, write-off, adjustment. Updating or deleting a movement is refused.
+- **Batches** (Admin/NSM): `POST /batches` (number, expiry; unique per product), `POST /batches/{id}/status` (Quarantined/Recalled with a reason; a recalled batch cannot be reactivated),
+  `POST /receipts`, `POST /adjustments` (reason mandatory, never below zero), `POST /returns` (rep → warehouse).
+- **Requests:** rep `POST /requests` → manager in the rep's reporting line `POST /requests/{id}/approve` (may reduce, never raise; not your own) or `/reject` (reason) →
+  Admin/NSM `POST /requests/{id}/fulfil`, which issues **oldest expiry first (FEFO)** from active batches with at least 30 days of shelf life, or from explicit allocations;
+  a shortfall needs `allowPartial`. Reps can `/cancel` open requests.
+- **Distribution:** `POST /distributions`, or `sampleDistributions` in `/sync/push`. Validated against batch (active, not expired on the distribution date, right product),
+  customer and visit (the rep's own, same customer), and **the rep's own balance**. Idempotent on the id. Sync returns a result per line (`accepted`/`duplicate`/`rejected` + reason),
+  so one refused line never blocks the rest. Stock-changing work runs in a serializable transaction on PostgreSQL (retry on SQLSTATE 40001).
+- **Signatures:** a distribution may reference a signature attachment (`signatureAttachmentId`); it can arrive after the distribution (offline). Reports show `Signed`, `Awaiting upload` or `None`.
+- **Reports (managers, team-scoped):** `/reports/stock` (who holds what, expired/expiring/recalled flags and `actionRequired`), `/reports/distributions` (JSON or `&format=csv`, formula-safe),
+  `/reports/compliance` (unsigned hand-overs by rep, stock held past expiry or in recalled batches, write-offs, and a ledger reconciliation), `/reports/ledger?batchId=` (Admin/NSM).
+- `sync/pull` now also returns the caller's `sampleStock` (full snapshot) and their `sampleRequests` from the last 90 days.
+- Regulatory rules (sample limits per HCP, signature mandatory, controlled substances, record retention) vary: confirm them with the DAS regulatory team and the Ghana FDA before go-live.
+
 ## Not yet done (known gaps)
 - PostgreSQL row-level security policies (defence in depth) – add in a migration.
 - Entra sign-in is tested with locally signed tokens (the real Entra metadata endpoint is not reachable from the build environment); verify once against a real tenant.
 - No self-service tenant sign-up or tenant admin UI; customers are onboarded with `provision-tenant`.
 - Customer search uses `ILike` (PostgreSQL only), so it is not covered by the in-memory tests; run integration tests against Postgres (Testcontainers) before go-live.
+- Sample management: no UI for stock controllers or approvers yet (API only); no per-HCP sample limits; no recall notification push to reps; serializable-transaction retry is not automated.
 - Malware scanning of uploads, thumbnails, streaming uploads (bodies are buffered up to the size cap), approval workflows, e-signatures, PostGIS spatial queries, Power BI reporting views.
 - Sync pull is cursor-by-`UpdatedAt` (server clock); move to a monotonic version column if clock skew becomes an issue.

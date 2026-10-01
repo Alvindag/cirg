@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../data/database.dart';
 import '../providers.dart';
 import 'attachments_section.dart';
+import 'samples_section.dart';
 
 /// Call report + check-out for the visit in progress. Everything saves locally.
 class VisitScreen extends ConsumerStatefulWidget {
@@ -109,6 +110,8 @@ class _VisitScreenState extends ConsumerState<VisitScreen> {
         TextField(controller: _next, enabled: !done, decoration: const InputDecoration(labelText: 'Next step')),
         const SizedBox(height: 12),
         TextField(controller: _task, enabled: !done, decoration: const InputDecoration(labelText: 'Add follow-up task (due in 7 days)')),
+        const SizedBox(height: 16),
+        SamplesSection(visitId: widget.visitId, customerId: _visit!.customerId, enabled: !done, signerName: _customer?.type == 'Doctor' || _customer?.type == 'Pharmacist' ? _customer?.name : null),
         const SizedBox(height: 16),
         AttachmentsSection(visitId: widget.visitId, enabled: !done, signerName: _customer?.type == 'Doctor' || _customer?.type == 'Pharmacist' ? _customer?.name : null),
         const SizedBox(height: 24),

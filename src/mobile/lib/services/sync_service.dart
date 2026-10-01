@@ -54,7 +54,9 @@ class SyncService {
     final reports = await (_db.select(_db.callReports)..where((r) => r.dirty.equals(true))).get();
     final tasks = await (_db.select(_db.followUpTasks)..where((t) => t.dirty.equals(true))).get();
     final pings = await _db.select(_db.gpsPings).get();
-    final count = visits.length + reports.length + tasks.length + pings.length;
+    final distributions = await (_db.select(_db.sampleDistributions)..where((d) => d.status.equals('pending'))).get();
+    final requests = await (_db.select(_db.sampleRequests)..where((r) => r.dirty.equals(true))).get();
+    final count = visits.length + reports.length + tasks.length + pings.length + distributions.length + requests.length;
     if (count == 0) return 0;
 
     final payload = <String, dynamic>{
@@ -100,6 +102,23 @@ class SyncService {
             'status': t.status,
           },
       ],
+      'sampleRequests': [
+        for (final r in requests) {'id': r.id, 'productId': r.productId, 'quantity': r.quantity, 'notes': r.notes},
+      ],
+      'sampleDistributions': [
+        for (final d in distributions)
+          {
+            'id': d.id,
+            'visitId': d.visitId,
+            'customerId': d.customerId,
+            'productId': d.productId,
+            'batchId': d.batchId,
+            'quantity': d.quantity,
+            'distributedAt': d.distributedAt,
+            'signatureAttachmentId': d.signatureAttachmentId,
+            'notes': d.notes,
+          },
+      ],
       'gpsPings': [
         for (final p in pings)
           {'id': p.id, 'recordedAt': p.recordedAt, 'latitude': p.latitude, 'longitude': p.longitude, 'accuracyM': p.accuracyM},
@@ -125,6 +144,37 @@ class SyncService {
             .write(const FollowUpTasksCompanion(dirty: Value(false)));
       }
       await (_db.delete(_db.gpsPings)..where((p) => p.id.isIn(pings.map((p) => p.id)))).go();
+
+      // Samples are confirmed or refused line by line, so one rejected line never blocks the others.
+      Map<String, Map> results(String key) =>
+          {for (final r in (res[key] as List? ?? const []).cast<Map>()) r['id'] as String: r};
+      final distResults = results('sampleDistributions');
+      for (final d in distributions) {
+        final r = distResults[d.id];
+        if (r == null) continue; // an older server that does not know samples: keep waiting
+        final status = r['status'] as String?;
+        if (status == 'accepted' || status == 'duplicate') {
+          await (_db.update(_db.sampleDistributions)..where((x) => x.id.equals(d.id))).write(const SampleDistributionsCompanion(status: Value('accepted')));
+          // Reflect the stock now; the next pull replaces it with the server's figure.
+          if (status == 'accepted') {
+            await _db.customStatement('UPDATE sample_stock SET quantity = MAX(quantity - ?, 0) WHERE batch_id = ?', [d.quantity, d.batchId]);
+          }
+        } else {
+          await (_db.update(_db.sampleDistributions)..where((x) => x.id.equals(d.id)))
+              .write(SampleDistributionsCompanion(status: const Value('rejected'), rejectReason: Value(r['reason'] as String?)));
+        }
+      }
+      final reqResults = results('sampleRequests');
+      for (final q in requests) {
+        final r = reqResults[q.id];
+        if (r == null) continue;
+        final rejected = r['status'] == 'rejected';
+        await (_db.update(_db.sampleRequests)..where((x) => x.id.equals(q.id))).write(SampleRequestsCompanion(
+          dirty: const Value(false),
+          status: rejected ? const Value('Rejected') : const Value.absent(),
+          decisionNote: rejected ? Value(r['reason'] as String?) : const Value.absent(),
+        ));
+      }
     });
     return count;
   }

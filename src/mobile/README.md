@@ -21,6 +21,12 @@ Sign-in is Microsoft Entra ID (see `docs/entra-setup.md`); pass `--dart-define=E
   Dirty flags are cleared only after the server accepts the whole batch; a failure leaves everything queued. Pull never overwrites unsent local edits.
 - `lib/providers.dart`: syncs at start, when connectivity returns, every 5 minutes and on demand. The sync icon shows the number of unsent items.
 
+## Samples
+**Samples tab:** what the rep carries (product, batch, quantity left, expiry; warnings for expiring, expired, quarantined and recalled stock), requests for more stock with their status,
+and any hand-over the server refused ("Needs attention"). **On a visit:** *Give samples* → pick batches and quantities → the customer signs once for the lot. Everything is saved offline;
+the available quantity drops straight away (counting hand-overs not yet uploaded), and sync sends them after the visit data. The server re-checks expiry, batch status and stock and answers line by line;
+a rejected line shows its reason and no longer holds stock back. Giving without a signature is allowed after a warning and is flagged in compliance reports.
+
 ## Photos, voice notes and signatures
 On the visit screen. Capture works fully offline: files are copied into app storage, hashed (SHA-256) and queued in the `attachments` table.
 Sync uploads them one at a time after the visit data (`PUT /attachments/{id}`, hash verified by the server). Permanent rejections show as "Upload failed" with the reason and
@@ -40,8 +46,8 @@ Sign in → Today (planned visits, check-in) · Customers (local search, unplann
 - Biometric/PIN app lock; sign-in has only been unit-tested with a fake provider (the native browser flow needs a device and a real tenant).
 - Database encryption (SQLCipher with a Keychain/Keystore key) and remote wipe.
 - Voice-to-text for voice notes (planned with the AI phase), video, gallery picks, attachments viewable for other users' visits.
-- Schema migration v1→v2 (adds `attachments`) is written but not covered by a test.
+- Schema migrations v1→v2 (attachments) and v2→v3 (samples) are written but not covered by tests; stock controller and approver screens (API only for now).
 - Periodic background GPS pings (needs a foreground service on Android / background modes on iOS, plus rep consent screen).
-- E-detailing content download, sample management, customer detail screen, create/edit customers on device, planning visits on device.
+- E-detailing content download, customer detail screen, create/edit customers on device, planning visits on device.
 - Rows the server permanently rejects currently block that batch; add per-item results to `/sync/push` and a "problem items" screen.
 - Integration test against a running backend; widget tests; Android/iOS build verification (not done in this environment).

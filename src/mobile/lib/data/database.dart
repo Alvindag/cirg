@@ -129,12 +129,75 @@ class Attachments extends Table {
   Set<Column> get primaryKey => {id};
 }
 
+/// What this rep carries, as last reported by the server (batch, expiry and quantity).
+class SampleStock extends Table {
+  TextColumn get batchId => text()();
+  TextColumn get productId => text()();
+  TextColumn get batchNumber => text()();
+  TextColumn get expiryDate => text()(); // yyyy-MM-dd
+  TextColumn get status => text().withDefault(const Constant('Active'))(); // Active | Quarantined | Recalled
+  IntColumn get quantity => integer()();
+
+  @override
+  Set<Column> get primaryKey => {batchId};
+}
+
+/// Samples handed to a customer. `status` is pending until the server confirms (accepted) or refuses (rejected).
+class SampleDistributions extends Table {
+  TextColumn get id => text()();
+  TextColumn get visitId => text().nullable()();
+  TextColumn get customerId => text()();
+  TextColumn get productId => text()();
+  TextColumn get batchId => text()();
+  IntColumn get quantity => integer()();
+  TextColumn get distributedAt => text()();
+  TextColumn get signatureAttachmentId => text().nullable()();
+  TextColumn get notes => text().nullable()();
+  TextColumn get status => text().withDefault(const Constant('pending'))(); // pending | accepted | rejected
+  TextColumn get rejectReason => text().nullable()();
+
+  @override
+  Set<Column> get primaryKey => {id};
+}
+
+class SampleRequests extends Table {
+  TextColumn get id => text()();
+  TextColumn get productId => text()();
+  IntColumn get quantity => integer()();
+  IntColumn get approvedQuantity => integer().nullable()();
+  TextColumn get status => text().withDefault(const Constant('Pending'))(); // Pending | Approved | Rejected | Fulfilled | Cancelled
+  TextColumn get notes => text().nullable()();
+  TextColumn get decisionNote => text().nullable()();
+  TextColumn get createdAt => text()();
+  BoolColumn get dirty => boolean().withDefault(const Constant(true))();
+
+  @override
+  Set<Column> get primaryKey => {id};
+}
+
 class SyncState extends Table {
   TextColumn get key => text()();
   TextColumn get value => text()();
 
   @override
   Set<Column> get primaryKey => {key};
+}
+
+/// A batch the rep carries, with what is left after samples given but not yet confirmed by the server.
+class StockItem {
+  StockItem({required this.batchId, required this.productId, required this.productName, required this.batchNumber, required this.expiryDate,
+      required this.status, required this.quantity, required this.available});
+  final String batchId, productId, batchNumber, expiryDate, status;
+  final String? productName;
+  final int quantity;
+  final int available;
+
+  int daysToExpiry(DateTime now) => DateTime.parse(expiryDate).difference(DateTime(now.year, now.month, now.day)).inDays;
+  bool expired(DateTime now) => daysToExpiry(now) < 0;
+  bool get blocked => status != 'Active';
+
+  /// Can be handed to a customer.
+  bool usable(DateTime now) => !blocked && !expired(now) && available > 0;
 }
 
 /// A planned visit joined with its customer and (if started) the visit done for it.
@@ -146,17 +209,22 @@ class PlanItem {
   bool get done => visit?.checkOutAt != null;
 }
 
-@DriftDatabase(tables: [Customers, Products, PlannedVisits, Visits, CallReports, FollowUpTasks, GpsPings, Attachments, SyncState])
+@DriftDatabase(tables: [Customers, Products, PlannedVisits, Visits, CallReports, FollowUpTasks, GpsPings, Attachments, SampleStock, SampleDistributions, SampleRequests, SyncState])
 class AppDatabase extends _$AppDatabase {
   AppDatabase(super.e);
 
   @override
-  int get schemaVersion => 2;
+  int get schemaVersion => 3;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
         onUpgrade: (m, from, to) async {
           if (from < 2) await m.createTable(attachments);
+          if (from < 3) {
+            await m.createTable(sampleStock);
+            await m.createTable(sampleDistributions);
+            await m.createTable(sampleRequests);
+          }
         },
       );
 
@@ -201,8 +269,9 @@ class AppDatabase extends _$AppDatabase {
   Stream<int> watchPendingCount() => customSelect(
         'SELECT (SELECT COUNT(*) FROM visits WHERE dirty = 1) + (SELECT COUNT(*) FROM call_reports WHERE dirty = 1) '
         '+ (SELECT COUNT(*) FROM follow_up_tasks WHERE dirty = 1) + (SELECT COUNT(*) FROM gps_pings) '
-        "+ (SELECT COUNT(*) FROM attachments WHERE upload_status = 'pending') AS n",
-        readsFrom: {visits, callReports, followUpTasks, gpsPings, attachments},
+        "+ (SELECT COUNT(*) FROM attachments WHERE upload_status = 'pending') "
+        "+ (SELECT COUNT(*) FROM sample_distributions WHERE status = 'pending') + (SELECT COUNT(*) FROM sample_requests WHERE dirty = 1) AS n",
+        readsFrom: {visits, callReports, followUpTasks, gpsPings, attachments, sampleDistributions, sampleRequests},
       ).watchSingle().map((r) => r.read<int>('n'));
 
   Future<int> pendingCount() => watchPendingCount().first;
@@ -226,6 +295,35 @@ class AppDatabase extends _$AppDatabase {
       if (await f.exists()) await f.delete();
     } catch (_) {}
   }
+
+  // ---- samples ----
+
+  Stream<List<StockItem>> watchStock() => customSelect(
+        'SELECT s.batch_id, s.product_id, s.batch_number, s.expiry_date, s.status, s.quantity, p.name AS product_name, '
+        "s.quantity - COALESCE((SELECT SUM(d.quantity) FROM sample_distributions d WHERE d.batch_id = s.batch_id AND d.status = 'pending'), 0) AS available "
+        'FROM sample_stock s LEFT JOIN products p ON p.id = s.product_id ORDER BY s.expiry_date, s.batch_number',
+        readsFrom: {sampleStock, sampleDistributions, products},
+      ).watch().map((rows) => rows
+          .map((r) => StockItem(
+                batchId: r.read<String>('batch_id'),
+                productId: r.read<String>('product_id'),
+                productName: r.readNullable<String>('product_name'),
+                batchNumber: r.read<String>('batch_number'),
+                expiryDate: r.read<String>('expiry_date'),
+                status: r.read<String>('status'),
+                quantity: r.read<int>('quantity'),
+                available: r.read<int>('available'),
+              ))
+          .toList());
+
+  Stream<List<SampleDistribution>> watchDistributionsForVisit(String visitId) =>
+      (select(sampleDistributions)..where((d) => d.visitId.equals(visitId))..orderBy([(d) => OrderingTerm.asc(d.distributedAt)])).watch();
+
+  Stream<List<SampleDistribution>> watchRejectedDistributions() =>
+      (select(sampleDistributions)..where((d) => d.status.equals('rejected'))).watch();
+
+  Stream<List<SampleRequest>> watchRequests() =>
+      (select(sampleRequests)..orderBy([(r) => OrderingTerm.desc(r.createdAt)])..limit(50)).watch();
 
   // ---- attachments ----
 
@@ -297,6 +395,36 @@ class AppDatabase extends _$AppDatabase {
             sequence: Value((m['sequence'] as num?)?.toInt() ?? 0),
             status: Value(m['status']?.toString() ?? 'Planned'),
             objective: Value(s(m, 'objective')),
+          ));
+        }
+        // Stock is a full snapshot, not a delta. Older servers omit it, in which case nothing changes.
+        if (body.containsKey('sampleStock')) {
+          await delete(sampleStock).go();
+          for (final m in list('sampleStock').cast<Map>()) {
+            await into(sampleStock).insertOnConflictUpdate(SampleStockCompanion.insert(
+              batchId: m['batchId'] as String,
+              productId: m['productId'] as String,
+              batchNumber: m['batchNumber'] as String,
+              expiryDate: m['expiryDate'] as String,
+              status: Value(m['status']?.toString() ?? 'Active'),
+              quantity: (m['quantity'] as num).toInt(),
+            ));
+          }
+        }
+        for (final m in list('sampleRequests').cast<Map>()) {
+          final id = m['id'] as String;
+          final local = await (select(sampleRequests)..where((r) => r.id.equals(id))).getSingleOrNull();
+          if (local != null && local.dirty) continue;
+          await into(sampleRequests).insertOnConflictUpdate(SampleRequestsCompanion.insert(
+            id: id,
+            productId: m['productId'] as String,
+            quantity: (m['quantity'] as num).toInt(),
+            approvedQuantity: Value((m['approvedQuantity'] as num?)?.toInt()),
+            status: Value(m['status']?.toString() ?? 'Pending'),
+            notes: Value(s(m, 'notes')),
+            decisionNote: Value(s(m, 'decisionNote')),
+            createdAt: (m['createdAt'] as String?) ?? DateTime.now().toUtc().toIso8601String(),
+            dirty: const Value(false),
           ));
         }
         for (final m in list('tasks').cast<Map>()) {

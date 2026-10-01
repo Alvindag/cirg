@@ -120,14 +120,15 @@ class SignatureResult {
 }
 
 /// Asks the customer (e.g. the doctor or pharmacist) to sign, with their name and what they are confirming.
-Future<SignatureResult?> showSignatureDialog(BuildContext context, {String? suggestedName}) => showDialog<SignatureResult>(
+Future<SignatureResult?> showSignatureDialog(BuildContext context, {String? suggestedName, String? initialMeaning}) => showDialog<SignatureResult>(
       context: context,
-      builder: (_) => _SignatureDialog(suggestedName: suggestedName),
+      builder: (_) => _SignatureDialog(suggestedName: suggestedName, initialMeaning: initialMeaning),
     );
 
 class _SignatureDialog extends StatefulWidget {
-  const _SignatureDialog({this.suggestedName});
+  const _SignatureDialog({this.suggestedName, this.initialMeaning});
   final String? suggestedName;
+  final String? initialMeaning;
   @override
   State<_SignatureDialog> createState() => _SignatureDialogState();
 }
@@ -136,7 +137,7 @@ class _SignatureDialogState extends State<_SignatureDialog> {
   static const meanings = ['Visit attended', 'Samples received', 'Product detailing acknowledged'];
   final _pad = SignatureController();
   late final _name = TextEditingController(text: widget.suggestedName ?? '');
-  String _meaning = meanings.first;
+  late String _meaning = meanings.contains(widget.initialMeaning) ? widget.initialMeaning! : meanings.first;
   String? _error;
 
   @override

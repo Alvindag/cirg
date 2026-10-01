@@ -10,6 +10,7 @@ import 'services/api_client.dart';
 import 'services/attachment_service.dart';
 import 'services/auth_provider.dart';
 import 'services/location_service.dart';
+import 'services/sample_service.dart';
 import 'services/session_manager.dart';
 import 'services/session_store.dart';
 import 'services/sync_service.dart';
@@ -59,6 +60,7 @@ final apiClientProvider = Provider((ref) {
 });
 
 final syncServiceProvider = Provider((ref) => SyncService(ref.watch(databaseProvider), ref.watch(apiClientProvider)));
+final sampleServiceProvider = Provider((ref) => SampleService(ref.watch(databaseProvider)));
 final attachmentServiceProvider = Provider((ref) => AttachmentService(ref.watch(databaseProvider)));
 final visitServiceProvider = Provider((ref) => VisitService(ref.watch(databaseProvider), ref.watch(locationProvider)));
 

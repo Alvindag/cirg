@@ -4,6 +4,7 @@ import 'package:intl/intl.dart';
 
 import '../providers.dart';
 import 'customers_tab.dart';
+import 'samples_tab.dart';
 import 'tasks_tab.dart';
 import 'today_tab.dart';
 
@@ -20,7 +21,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
   Widget build(BuildContext context) {
     final sync = ref.watch(syncCoordinatorProvider);
     final pending = ref.watch(pendingCountProvider).value ?? 0;
-    const titles = ['Today', 'Customers', 'Tasks'];
+    const titles = ['Today', 'Customers', 'Samples', 'Tasks'];
     return Scaffold(
       appBar: AppBar(
         title: Text(titles[_tab]),
@@ -70,13 +71,14 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
           ),
         ),
       ),
-      body: [const TodayTab(), const CustomersTab(), const TasksTab()][_tab],
+      body: [const TodayTab(), const CustomersTab(), const SamplesTab(), const TasksTab()][_tab],
       bottomNavigationBar: NavigationBar(
         selectedIndex: _tab,
         onDestinationSelected: (i) => setState(() => _tab = i),
         destinations: const [
           NavigationDestination(icon: Icon(Icons.today), label: 'Today'),
           NavigationDestination(icon: Icon(Icons.people), label: 'Customers'),
+          NavigationDestination(icon: Icon(Icons.medication), label: 'Samples'),
           NavigationDestination(icon: Icon(Icons.checklist), label: 'Tasks'),
         ],
       ),
