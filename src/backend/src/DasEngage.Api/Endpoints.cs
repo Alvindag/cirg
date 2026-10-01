@@ -14,6 +14,7 @@ public static class Endpoints
         MapSync(api);
         MapDashboards(api);
         MapAdmin(api);
+        AdminUsers.Map(api);
     }
 
     // ---------- Customers ----------
@@ -22,12 +23,13 @@ public static class Endpoints
         var g = api.MapGroup("/customers");
 
         g.MapGet("/", async (AppDbContext db, HttpCurrentUser u, CustomerType? type, Segment? segment,
-            Guid? territoryId, string? q, int page = 1, int pageSize = 50) =>
+            Guid? territoryId, string? q, TeamScope team, int page = 1, int pageSize = 50) =>
         {
             pageSize = Math.Clamp(pageSize, 1, 200);
             var query = db.Customers.AsNoTracking().AsQueryable();
-            if (u.IsRep) query = query.Where(c => c.TerritoryId == u.TerritoryId);
-            else if (territoryId != null) query = query.Where(c => c.TerritoryId == territoryId);
+            var terrs = await team.VisibleTerritoryIds();
+            if (terrs != null) query = query.Where(c => c.TerritoryId != null && terrs.Contains(c.TerritoryId.Value));
+            if (territoryId != null) query = query.Where(c => c.TerritoryId == territoryId);
             if (type != null) query = query.Where(c => c.Type == type);
             if (segment != null) query = query.Where(c => c.Segment == segment);
             if (!string.IsNullOrWhiteSpace(q))
@@ -37,18 +39,21 @@ public static class Endpoints
             return Results.Ok(new { total, page, pageSize, items });
         });
 
-        g.MapGet("/{id:guid}", async (Guid id, AppDbContext db, HttpCurrentUser u) =>
+        g.MapGet("/{id:guid}", async (Guid id, AppDbContext db, TeamScope team) =>
         {
             var c = await db.Customers.AsNoTracking().Include(x => x.ProductInterests).FirstOrDefaultAsync(x => x.Id == id);
-            if (c is null || (u.IsRep && c.TerritoryId != u.TerritoryId)) return Results.NotFound();
+            var terrs = await team.VisibleTerritoryIds();
+            if (c is null || (terrs != null && (c.TerritoryId == null || !terrs.Contains(c.TerritoryId.Value)))) return Results.NotFound();
             var recent = await db.Visits.AsNoTracking().Where(v => v.CustomerId == id)
                 .OrderByDescending(v => v.CheckInAt).Take(20).ToListAsync();
             return Results.Ok(new { customer = c, recentVisits = recent });
         });
 
-        g.MapPost("/", async (CustomerDto d, AppDbContext db, HttpCurrentUser u) =>
+        g.MapPost("/", async (CustomerDto d, AppDbContext db, HttpCurrentUser u, TeamScope team) =>
         {
             if (string.IsNullOrWhiteSpace(d.Name)) return Results.BadRequest("Name is required.");
+            var terrs = await team.VisibleTerritoryIds();
+            if (!u.IsRep && terrs != null && d.TerritoryId != null && !terrs.Contains(d.TerritoryId.Value)) return Results.Forbid();
             var c = new Customer { Id = d.Id ?? Guid.NewGuid() };
             Apply(c, d);
             if (u.IsRep) c.TerritoryId = u.TerritoryId;
@@ -58,11 +63,15 @@ public static class Endpoints
             return Results.Created($"/api/v1/customers/{c.Id}", c);
         }).RequireAuthorization(p => p.RequireRole(Roles.CustomerEditors));
 
-        g.MapPut("/{id:guid}", async (Guid id, CustomerDto d, AppDbContext db) =>
+        g.MapPut("/{id:guid}", async (Guid id, CustomerDto d, AppDbContext db, HttpCurrentUser u, TeamScope team) =>
         {
             var c = await db.Customers.Include(x => x.ProductInterests).FirstOrDefaultAsync(x => x.Id == id);
-            if (c is null) return Results.NotFound();
+            var terrs = await team.VisibleTerritoryIds();
+            if (c is null || (terrs != null && (c.TerritoryId == null || !terrs.Contains(c.TerritoryId.Value)))) return Results.NotFound();
+            if (terrs != null && d.TerritoryId != null && !terrs.Contains(d.TerritoryId.Value)) return Results.Forbid();
+            var territory = c.TerritoryId;
             Apply(c, d);
+            if (u.IsRep) c.TerritoryId = territory; // reps cannot move customers between territories
             await SetInterests(db, c, d.ProductIds);
             await db.SaveChangesAsync();
             return Results.Ok(c);
@@ -99,11 +108,12 @@ public static class Endpoints
     // ---------- Field force ----------
     private static void MapFieldForce(RouteGroupBuilder api)
     {
-        api.MapGet("/planned-visits", async (AppDbContext db, HttpCurrentUser u, DateOnly from, DateOnly to, Guid? repId) =>
+        api.MapGet("/planned-visits", async (AppDbContext db, HttpCurrentUser u, DateOnly from, DateOnly to, Guid? repId, TeamScope team) =>
         {
-            var rep = u.IsRep ? u.UserId : repId;
+            var ids = await team.VisibleUserIds();
             var q = db.PlannedVisits.AsNoTracking().Where(p => p.PlannedDate >= from && p.PlannedDate <= to);
-            if (rep != null) q = q.Where(p => p.RepId == rep);
+            if (repId != null) q = q.Where(p => p.RepId == repId);
+            if (ids != null) q = q.Where(p => ids.Contains(p.RepId));
             return Results.Ok(await q.OrderBy(p => p.PlannedDate).ThenBy(p => p.Sequence).ToListAsync());
         });
 
@@ -130,17 +140,19 @@ public static class Endpoints
         api.MapPost("/visits/{id:guid}/check-out", async (Guid id, CheckOutDto d, AppDbContext db, HttpCurrentUser u) =>
         {
             var v = await db.Visits.FirstOrDefaultAsync(x => x.Id == id);
-            if (v is null || (u.IsRep && v.RepId != u.UserId)) return Results.NotFound();
+            // Only the rep who checked in can check out.
+            if (v is null || v.RepId != u.UserId) return Results.NotFound();
             ApplyCheckOut(v, d);
             await db.SaveChangesAsync();
             return Results.Ok(v);
         });
 
-        api.MapGet("/visits", async (AppDbContext db, HttpCurrentUser u, DateTime from, DateTime to, Guid? repId) =>
+        api.MapGet("/visits", async (AppDbContext db, HttpCurrentUser u, DateTime from, DateTime to, Guid? repId, TeamScope team) =>
         {
-            var rep = u.IsRep ? u.UserId : repId;
+            var ids = await team.VisibleUserIds();
             var q = db.Visits.AsNoTracking().Where(v => v.CheckInAt >= from && v.CheckInAt <= to);
-            if (rep != null) q = q.Where(v => v.RepId == rep);
+            if (repId != null) q = q.Where(v => v.RepId == repId);
+            if (ids != null) q = q.Where(v => ids.Contains(v.RepId));
             return Results.Ok(await q.OrderBy(v => v.CheckInAt).ToListAsync());
         });
 
@@ -151,10 +163,11 @@ public static class Endpoints
             return r is null ? Results.BadRequest("Unknown visit.") : Results.Ok(r);
         });
 
-        api.MapGet("/call-reports", async (AppDbContext db, HttpCurrentUser u, Guid? customerId, int take = 50) =>
+        api.MapGet("/call-reports", async (AppDbContext db, HttpCurrentUser u, Guid? customerId, TeamScope team, int take = 50) =>
         {
             var q = db.CallReports.AsNoTracking().Include(r => r.Products).AsQueryable();
-            if (u.IsRep) q = q.Where(r => r.RepId == u.UserId);
+            var ids = await team.VisibleUserIds();
+            if (ids != null) q = q.Where(r => ids.Contains(r.RepId));
             if (customerId != null) q = q.Where(r => r.CustomerId == customerId);
             return Results.Ok(await q.OrderByDescending(r => r.CreatedAt).Take(Math.Clamp(take, 1, 200)).ToListAsync());
         });
@@ -189,10 +202,11 @@ public static class Endpoints
         });
 
         // Manager live map: last known position per rep today.
-        api.MapGet("/gps/last-known", async (AppDbContext db) =>
+        api.MapGet("/gps/last-known", async (AppDbContext db, TeamScope team) =>
         {
             var since = DateTime.UtcNow.Date;
-            var rows = await db.GpsPings.AsNoTracking().Where(p => p.RecordedAt >= since)
+            var ids = await team.VisibleUserIds();
+            var rows = await db.GpsPings.AsNoTracking().Where(p => p.RecordedAt >= since && (ids == null || ids.Contains(p.RepId)))
                 .GroupBy(p => p.RepId).Select(g => g.OrderByDescending(p => p.RecordedAt).First()).ToListAsync();
             return Results.Ok(rows);
         }).RequireAuthorization(p => p.RequireRole(Roles.Managers));
@@ -320,18 +334,20 @@ public static class Endpoints
     private static void MapDashboards(RouteGroupBuilder api)
     {
         // Calls completed, coverage % (distinct customers visited vs customers in scope), by rep.
-        api.MapGet("/dashboards/sales", async (AppDbContext db, HttpCurrentUser u, DateTime from, DateTime to) =>
+        api.MapGet("/dashboards/sales", async (AppDbContext db, HttpCurrentUser u, DateTime from, DateTime to, TeamScope team) =>
         {
+            var ids = await team.VisibleUserIds();
+            var terrs = await team.VisibleTerritoryIds();
             var visits = db.Visits.AsNoTracking().Where(v => v.CheckInAt >= from && v.CheckInAt <= to && v.Status == VisitStatus.Completed);
-            if (u.IsRep) visits = visits.Where(v => v.RepId == u.UserId);
+            if (ids != null) visits = visits.Where(v => ids.Contains(v.RepId));
             var byRep = await visits.GroupBy(v => v.RepId)
                 .Select(g => new { repId = g.Key, calls = g.Count(), uniqueCustomers = g.Select(v => v.CustomerId).Distinct().Count(),
                     outsideGeofence = g.Count(v => v.GeofenceOk == false) }).ToListAsync();
             var customers = db.Customers.AsNoTracking();
-            if (u.IsRep) customers = customers.Where(c => c.TerritoryId == u.TerritoryId);
+            if (terrs != null) customers = customers.Where(c => c.TerritoryId != null && terrs.Contains(c.TerritoryId.Value));
             var total = await customers.CountAsync();
             var visited = await visits.Select(v => v.CustomerId).Distinct().CountAsync();
-            var planned = await db.PlannedVisits.AsNoTracking().CountAsync(p => p.PlannedDate >= DateOnly.FromDateTime(from) && p.PlannedDate <= DateOnly.FromDateTime(to) && (!u.IsRep || p.RepId == u.UserId));
+            var planned = await db.PlannedVisits.AsNoTracking().CountAsync(p => p.PlannedDate >= DateOnly.FromDateTime(from) && p.PlannedDate <= DateOnly.FromDateTime(to) && (ids == null || ids.Contains(p.RepId)));
             var calls = byRep.Sum(r => r.calls);
             return Results.Ok(new
             {

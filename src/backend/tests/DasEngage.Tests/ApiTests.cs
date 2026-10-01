@@ -40,8 +40,8 @@ public class ApiTests : IClassFixture<ApiFactory>
     [Fact]
     public async Task Tenants_cannot_see_each_others_customers()
     {
-        var a = _f.ClientFor(T1, Guid.NewGuid(), "AreaManager");
-        var b = _f.ClientFor(T2, Guid.NewGuid(), "AreaManager");
+        var a = _f.ClientFor(T1, Guid.NewGuid(), "NationalSalesManager");
+        var b = _f.ClientFor(T2, Guid.NewGuid(), "NationalSalesManager");
         var id = await CreateCustomer(a, Cust("Dr Tenant One", null));
         Assert.Equal(HttpStatusCode.NotFound, (await b.GetAsync($"/api/v1/customers/{id}")).StatusCode);
         Assert.Equal(HttpStatusCode.OK, (await a.GetAsync($"/api/v1/customers/{id}")).StatusCode);
