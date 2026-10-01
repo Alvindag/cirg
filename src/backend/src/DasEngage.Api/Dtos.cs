@@ -18,7 +18,7 @@ public record CallProductDto(Guid ProductId, string? Feedback);
 public record CallReportDto(Guid? Id, Guid VisitId, string? Notes, string? Outcome, string? NextStep,
     string? VoiceNoteUrl, List<CallProductDto>? Products);
 
-public record TaskDto(Guid? Id, Guid? AssignedToId, Guid? CustomerId, Guid? CallReportId, string Title, DateOnly? DueDate);
+public record TaskDto(Guid? Id, Guid? AssignedToId, Guid? CustomerId, Guid? CallReportId, string Title, DateOnly? DueDate, string? Status = null);
 
 public record GpsPingDto(Guid? Id, DateTime RecordedAt, double Latitude, double Longitude, double? AccuracyM);
 

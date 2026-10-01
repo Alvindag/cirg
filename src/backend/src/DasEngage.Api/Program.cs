@@ -10,6 +10,8 @@ using Microsoft.IdentityModel.Tokens;
 var builder = WebApplication.CreateBuilder(args);
 
 builder.Services.AddHttpContextAccessor();
+// Enums as readable strings ('Doctor', 'Completed') for mobile and web clients; numbers are still accepted on input.
+builder.Services.ConfigureHttpJsonOptions(o => o.SerializerOptions.Converters.Add(new System.Text.Json.Serialization.JsonStringEnumConverter()));
 builder.Services.AddScoped<HttpCurrentUser>();
 builder.Services.AddScoped<TeamScope>();
 builder.Services.AddScoped<CustomerImporter>();

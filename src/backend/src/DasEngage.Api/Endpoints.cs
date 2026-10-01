@@ -290,6 +290,7 @@ public static class Endpoints
         if (t is null) { t = new FollowUpTask { Id = d.Id ?? Guid.NewGuid() }; db.Tasks.Add(t); }
         t.AssignedToId = d.AssignedToId ?? u.UserId ?? Guid.Empty;
         t.CustomerId = d.CustomerId; t.CallReportId = d.CallReportId; t.Title = d.Title; t.DueDate = d.DueDate;
+        if (Enum.TryParse<FollowUpStatus>(d.Status, true, out var st)) t.Status = st;
         await db.SaveChangesAsync();
         return t;
     }
