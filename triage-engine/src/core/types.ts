@@ -15,6 +15,7 @@ export interface CanonicalEvent {
   targetUserName?: string
   targetDomainName?: string
   targetLogonId?: string
+  memberSid?: string
   logonType?: number
   processId?: number
   newProcessId?: number

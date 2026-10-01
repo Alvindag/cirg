@@ -1,10 +1,10 @@
 import type { CanonicalEvent } from '../types'
-import type { CompiledRule, Condition, Op, Predicate, RuleDef } from './types'
+import type { CompiledRule, CompiledSequence, Condition, Op, Predicate, RuleDef } from './types'
 
 /** Canonical fields a rule may reference (anything else is a load-time error, catching typos). */
 export const FIELD_NAMES = [
   'eventId', 'ts', 'channel', 'computer', 'subjectUserSid', 'subjectUserName', 'subjectDomainName', 'subjectLogonId',
-  'targetUserSid', 'targetUserName', 'targetDomainName', 'targetLogonId', 'logonType', 'processId', 'newProcessId',
+  'targetUserSid', 'targetUserName', 'targetDomainName', 'targetLogonId', 'memberSid', 'logonType', 'processId', 'newProcessId',
   'newProcessName', 'parentProcessName', 'commandLine', 'ipAddress', 'ipPort', 'workstationName', 'status',
   'subStatus', 'authenticationPackage', 'serviceName',
 ] as const
@@ -136,7 +136,7 @@ export function compileRule(def: RuleDef, packId: string, lists: Record<string, 
   const suppressPs = (def.suppress ?? []).map((c, i) => compileCondition(c, lists, `${where}.suppress[${i}]`))
   const suppress: Predicate | null = suppressPs.length ? (e) => suppressPs.some((p) => p(e)) : null
   const w = def.when as { eventIds?: number[]; condition?: Condition; groupBy?: string[]; count?: number; distinct?: string; window?: string }
-  if (def.kind === 'sequence') throw new RuleCompileError('sequence rules are compiled by the Phase 3 correlation engine')
+  if (def.kind === 'sequence') return compileSequence(def, packId, lists, suppress)
   if (!w.eventIds?.length) throw new RuleCompileError(`${where}: when.eventIds required`)
   const cond = w.condition ? compileCondition(w.condition, lists, `${where}.when.condition`) : () => true
   const base: CompiledRule = { def, packId, eventIds: new Set(w.eventIds), predicate: cond, suppress }
@@ -146,4 +146,44 @@ export function compileRule(def: RuleDef, packId: string, lists: Record<string, 
     base.threshold = { groupBy: w.groupBy!, count: w.count!, distinct: w.distinct, windowMs: parseDuration(w.window!) }
   }
   return base
+}
+
+interface SeqWhen {
+  within: string; ordered?: boolean
+  correlateOn: { name: string; scope?: 'host' | 'global'; bind: Record<string, string> }[]
+  steps: { id: string; eventIds: number[]; condition?: Condition; optional?: boolean; negate?: boolean; min?: number }[]
+}
+
+function compileSequence(def: RuleDef, packId: string, lists: Record<string, string[]>, suppress: Predicate | null): CompiledRule {
+  const where = `rule ${def.id}`
+  const w = def.when as unknown as SeqWhen
+  const ids = new Set<string>()
+  const steps = w.steps.map((st, i) => {
+    if (ids.has(st.id)) throw new RuleCompileError(`${where}: duplicate step id "${st.id}"`)
+    ids.add(st.id)
+    if (st.negate && st.optional) throw new RuleCompileError(`${where}: step "${st.id}" cannot be both negate and optional`)
+    if (st.negate && st.min && st.min > 1) throw new RuleCompileError(`${where}: negate step "${st.id}" cannot set min`)
+    return {
+      id: st.id, eventIds: new Set(st.eventIds), optional: !!st.optional, negate: !!st.negate, min: st.min ?? 1,
+      predicate: st.condition ? compileCondition(st.condition, lists, `${where}.steps[${i}].condition`) : () => true,
+    }
+  })
+  if (!steps.some((s) => !s.optional && !s.negate)) throw new RuleCompileError(`${where}: needs at least one required step`)
+  if (steps[0]!.optional || steps[0]!.negate) throw new RuleCompileError(`${where}: the first step must be required (it anchors the sequence)`)
+  const keys = w.correlateOn.map((k, i) => {
+    const bind = new Map<string, string>()
+    for (const [stepId, field] of Object.entries(k.bind)) {
+      if (!ids.has(stepId)) throw new RuleCompileError(`${where}: correlateOn[${i}] binds unknown step "${stepId}"`)
+      assertField(field, `${where}.correlateOn[${i}]`)
+      bind.set(stepId, field)
+    }
+    return { name: k.name, scope: k.scope ?? 'host', bind }
+  })
+  for (const s of steps) {
+    if (!keys[0]!.bind.has(s.id)) throw new RuleCompileError(`${where}: step "${s.id}" is not bound in the primary correlation key "${keys[0]!.name}" (every step must bind the first correlateOn entry)`)
+  }
+  const sequence: CompiledSequence = { steps, withinMs: parseDuration(w.within), ordered: w.ordered !== false, keys }
+  const eventIds = new Set<number>()
+  for (const s of steps) for (const id of s.eventIds) eventIds.add(id)
+  return { def, packId, eventIds, predicate: () => true, suppress, sequence }
 }

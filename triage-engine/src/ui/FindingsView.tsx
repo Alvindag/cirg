@@ -4,6 +4,7 @@ import { renderAction } from '../core/rules/render'
 import type { CanonicalEvent } from '../core/types'
 
 const fmtTs = (t: number) => new Date(t).toISOString().replace('T', ' ').slice(0, 19) + 'Z'
+export const fmtTime = fmtTs
 const SEV_LABEL = { critical: 'CRITICAL', high: 'HIGH', medium: 'MEDIUM', low: 'LOW', info: 'INFO' } as const
 
 function Evidence({ rows }: { rows: CanonicalEvent[] }) {
@@ -100,6 +101,14 @@ export function FindingCard({ f }: { f: Finding }) {
         {ctx?.summary && (<><h4>Why this matters</h4><p>{ctx.summary}</p></>)}
         {ctx?.maliciousIndicators?.length ? (<><h4>Signs it is malicious</h4><ul>{ctx.maliciousIndicators.map((x, i) => <li key={i}>{x}</li>)}</ul></>) : null}
         {ctx?.falsePositives?.length ? (<><h4>Possible legitimate explanations</h4><ul>{ctx.falsePositives.map((x, i) => <li key={i}>{x}</li>)}</ul></>) : null}
+        {f.steps && (
+          <div>
+            <h4>Correlated steps{f.group ? ` (${Object.entries(f.group).map(([k, v]) => `${k}: ${v}`).join(', ')})` : ''}</h4>
+            <ol>{f.steps.map((st) => (
+              <li key={st.id}><strong>{st.id}</strong>: {st.events.map((e) => `${e.eventId} @ ${fmtTs(e.ts)}${e.computer ? ` on ${e.computer}` : ''}`).join('; ')}</li>
+            ))}</ol>
+          </div>
+        )}
         {f.evidence.length > 0
           ? <Evidence rows={f.evidence} />
           : <p className="note">Evidence events were not retained (per-group memory cap reached). The counts above are still accurate.</p>}

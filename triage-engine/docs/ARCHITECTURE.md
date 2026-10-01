@@ -8,7 +8,7 @@ Strictly client-side. Log data is never uploaded, stored (Local/Session storage,
 |---|---|---|
 | 1 | Secure scaffold, streaming ingestion (CSV / NDJSON+JSON / XML), canonical model, worker lifecycle, CSP | **Done** (gate passing) |
 | 2 | Rule engine (`match`, `threshold`), Ajv standalone validation, starter rule pack, ATT&CK mapping, rule tester UI | **Done** (gate passing) |
-| 3 | Correlation engine (`sequence`, key indexes, TTL windows), attack-chain builder, risk scoring, EVTX via WASM | Planned |
+| 3 | Correlation engine (`sequence` rules), attack-chain builder, explainable risk scoring, EVTX via WASM | **Done** (gate passing) |
 | 4 | Report (exec summary / deep dive / context / next steps), JSON + HTML + print-PDF export, a11y and security hardening | Planned |
 
 ## Phase 2: rule engine (as built)
@@ -27,15 +27,59 @@ Strictly client-side. Log data is never uploaded, stored (Local/Session storage,
 - AUTH-004 evaluates IPv4 only.
 - Rule packs from other people are untrusted input, but a malicious pack can still generate noise or hide detections via `suppress`. Review packs before use.
 
+## Phase 3: correlation, chains, risk, EVTX (as built)
+
+**Per-host, per-episode match findings.** Phase 2 produced one finding per match rule for the whole file, which blends hosts together.
+Match rules now produce one finding per host per *episode* (hits separated by more than 1 hour start a new episode). This is what makes chaining meaningful. Behavior change from Phase 2: the same rule can now appear several times (once per host/episode).
+
+**Sequence rules** (`kind: sequence`, engine in `core/rules/engine.ts`):
+- Events matching any step are bucketed by the **primary correlation key** (`correlateOn[0]`); every step must bind a field to it. Example: `4624.TargetLogonId` and `4672.SubjectLogonId` and `4688.SubjectLogonId` all bind the `session` key.
+- `scope: host` (default) prefixes the key with the computer name, because Logon IDs and PIDs are only unique per host/boot. Use `scope: global` for SIDs and account names that must match across hosts.
+- Further `correlateOn` entries are **equality constraints** against the anchor event (e.g. same account *and* same source IP).
+- Steps support `optional`, `negate` (the chain is void if the forbidden event occurs inside its span, same key) and `min` (N events, e.g. 5 failed logons). `ordered: false` allows any order inside `within`.
+- Evaluation happens at finalize over collected events, so results do **not** depend on input order. Chains in a bucket do not overlap. `suppress` voids a chain if any event in it matches.
+- Starter sequence rules: `LAT-001` (4624→4672→4688), `LAT-002` (remote logon then service install, PsExec pattern), `AUTH-006` (5+ failures then success), `ACC-003` (account created then added to a privileged group, by SID), `EVAS-002` (privileged session clears the log).
+
+**Attack chains** (`core/correlate/chains.ts`): findings are linked when they share an entity and are close in time.
+
+| Link key | Source | Max time gap |
+|---|---|---|
+| logon session (host + Logon ID) | Subject/TargetLogonId (system sessions 0x3e7/0x3e4/0x3e5 ignored) | none |
+| host | computer | 1 h |
+| account / SID | Subject/TargetUserName (machine accounts, SYSTEM etc. ignored), SIDs | 2 h |
+| source IP | IpAddress (loopback ignored) | 2 h |
+| process | host + NewProcessId/ProcessId (parent to child) | 1 h |
+
+Only **medium+ findings and sequence matches** can link; low/info findings may join a chain but can never bridge two (noisy context rules cannot glue unrelated activity together). A chain needs 2+ findings or one sequence match. Linking is interval-merging per key (O(n log n)); 20k findings chain in well under a second (tested).
+
+**Risk score** (`core/correlate/risk.ts`, deterministic, shown to the analyst with a component breakdown):
+severity weight (info 5, low 15, medium 35, high 60, critical 85) x (0.6 + 0.4 x rule confidence);
+chain = strongest + 30% of 2nd + 15% of the next three + 5 per extra ATT&CK tactic (max 20) + 8 if 2+ hosts + 10 if a sequence rule matched, capped at 100.
+Overall = highest item + 10%/5%/5% of the next three. Labels: Critical >= 80, High >= 60, Medium >= 35, Low >= 15. These weights are judgment calls, not statistics: tune them for your environment.
+
+**EVTX** (`evtx-wasm/`, `src/parsers/evtx.ts`): the Rust `evtx` crate (0.12.3) compiled to WASM (about 237 KB). JS reads the file in 64 KiB chunks and passes each to `parse_chunk`, so memory is bounded for large logs. Under the strict CSP:
+- The WASM bytes are embedded in a lazily loaded JS chunk (`wasmBytes.generated.ts`, loaded only for EVTX files) and instantiated with `initSync`. There is no `fetch`, so `connect-src 'none'` stays intact; only `'wasm-unsafe-eval'` is needed.
+- `getrandom` uses `crypto.getRandomValues` (hash-map seeding inside a dependency).
+- Chunk checksums are not enforced (live logs often have a stale checksum on the active chunk). Unused/zeroed chunks are skipped; a corrupt chunk counts as a malformed record instead of failing the file.
+- Rebuild with `npm run build:evtx` (needs `rustup target add wasm32-unknown-unknown` and `cargo install wasm-bindgen-cli --version 0.2.100 --locked`). Generated files are committed so a Rust toolchain is not needed to build the app; `Cargo.lock` is committed and the build uses `--locked`. A test checks the embedded bytes against the recorded SHA-256.
+
+### Known limits (Phase 3)
+- **EVTX test coverage:** no real Windows-generated EVTX files were available. Tests use a synthetic EVTX writer (`e2e/evtxBuilder.mjs`: valid structure, inline names, no BinXML templates). Real files use template substitution heavily, which is handled by the upstream crate but is **not exercised by this repo's tests**. Validate against your own exports before relying on EVTX ingestion. `cargo audit` has not been run on the Rust dependency tree.
+- Sequence collection is memory-capped (200 events per step per key, 500k per rule, 200k keys per rule). When a cap is hit the rule is listed in the UI as "lower bound" rather than silently truncating.
+- Match evidence is capped (200 per host bucket, 200k per rule); episodes after the retained evidence show counts without evidence.
+- Chains are leads, not attribution. Sharing a host or account within a window is suggestive, and busy shared servers can over-link. The link reasons are always shown so an analyst can judge.
+- 4688 PID linking can be fooled by PID reuse (mitigated by the 1 h gap).
+- Remaining schema/engine caveat from Phase 2: rules only see the normalized fields (`FIELD_NAMES`).
+
 ## Phase 1 deviations from the original plan, to be revisited:
 - A **single ingest worker** does parse, normalize, and aggregate. The orchestrator / parser-pool / analysis-worker split arrives with Phase 2-3, when there is analysis work worth parallelising.
 - UI uses plain CSS. Radix + Tailwind (build-time) and TanStack Table are introduced with the findings views in Phase 2.
-- EVTX is detected (magic bytes) and rejected with `wevtutil` export instructions until the Phase 3 WASM parser.
+- EVTX arrived in Phase 3 (see below).
 - Normalized events are not retained (only counters and a 200-event sample); the rule engine consumes them through `ingest()`'s `onEvent` hook.
 
 ## Stack
 
-TypeScript (strict) · Vite · React 18 + Zustand · PapaParse (chunk mode, inside our own worker) · custom streaming JSON object splitter · `saxes` (SAX XML) · Comlink (reserved for Phase 2 RPC) · Vitest · Playwright-core (e2e gate). EVTX: Rust `evtx` crate to WASM (Phase 3). Rules: JSON (YAML accepted, converted at load), validated with Ajv standalone (no `unsafe-eval`).
+Rust `evtx` to WASM (EVTX) · TypeScript (strict) · Vite · React 18 + Zustand · PapaParse (chunk mode, inside our own worker) · custom streaming JSON object splitter · `saxes` (SAX XML) · Comlink (reserved for Phase 2 RPC) · Vitest · Playwright-core (e2e gate). EVTX: Rust `evtx` crate to WASM (Phase 3). Rules: JSON (YAML accepted, converted at load), validated with Ajv standalone (no `unsafe-eval`).
 
 ## Data flow
 

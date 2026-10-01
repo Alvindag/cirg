@@ -29,3 +29,7 @@ th,td { text-align:left; padding: 6px 8px; border-bottom: 1px solid var(--line) 
 .badge { font-size: .8rem } .warnb { color: var(--warn) } .scroll { overflow-x: auto } .wrap { white-space: pre-wrap; word-break: break-all }
 td:last-child,th:last-child { text-align: left } textarea { width:100%; font: 13px/1.4 ui-monospace, monospace; background: transparent; color: inherit; border:1px solid var(--line); border-radius:6px; padding:8px; display:block; margin: 6px 0 }
 .inline select { font: inherit } .packrow { margin: 8px 0 }
+
+.exec { margin-top: 20px; padding: 4px 16px 12px; border: 1px solid var(--line); border-radius: 8px } .big { font-size: 1.3rem; margin: 6px 0 }
+.chain { border-left-width: 8px } .timeline { padding-left: 22px } .timeline time { color: var(--muted); font-variant-numeric: tabular-nums; margin-right: 6px }
+.chain .finding { margin-left: 4px }

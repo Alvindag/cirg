@@ -2,6 +2,7 @@ import { useMemo, useRef, useState } from 'react'
 import { useStore } from './store'
 import { eventName } from '../core/eventCatalog'
 import { FindingCard } from './FindingsView'
+import { ChainCard, ExecutiveSummary } from './ChainsView'
 import { RulesPanel } from './RulesPanel'
 import { SEVERITY_RANK, type Severity } from '../core/rules/types'
 
@@ -17,7 +18,8 @@ export function App() {
   const pick = (f?: File | null) => { if (f) s.start(f) }
   const pct = s.total ? Math.min(100, Math.round((s.bytes / s.total) * 100)) : 0
   const r = s.result
-  const shown = useMemo(() => (r ? r.findings.filter((f) => SEVERITY_RANK[f.severity] >= SEVERITY_RANK[minSev]) : []), [r, minSev])
+  const byId = useMemo(() => new Map((r?.findings ?? []).map((f) => [f.id, f])), [r])
+  const shown = useMemo(() => (r ? r.unchained.map((id) => byId.get(id)!).filter((f) => SEVERITY_RANK[f.severity] >= SEVERITY_RANK[minSev]) : []), [r, byId, minSev])
   const counts = useMemo(() => {
     const c: Record<Severity, number> = { critical: 0, high: 0, medium: 0, low: 0, info: 0 }
     r?.findings.forEach((f) => { c[f.severity]++ })
@@ -62,7 +64,7 @@ export function App() {
       {s.phase === 'done' && r && (
         <section>
           <div className="row">
-            <h2>Findings: {s.fileName}</h2>
+            <h2>Results: {s.fileName}</h2>
             <button onClick={s.clear}>Clear all data</button>
           </div>
 
@@ -73,10 +75,21 @@ export function App() {
           {r.engine.rulesDisabledForTime.length > 0 && (
             <p role="alert" className="err">Rules disabled for exceeding the time budget (results incomplete): {r.engine.rulesDisabledForTime.join(', ')}</p>
           )}
+          {r.engine.capped.length > 0 && (
+            <p role="alert" className="err">Memory limits were reached for: {r.engine.capped.join(', ')}. Counts and correlations for these rules are lower bounds.</p>
+          )}
           {r.engine.findingsTruncated.length > 0 && (
             <p className="warn">Findings were capped for: {r.engine.findingsTruncated.join(', ')} (showing the highest-count ones).</p>
           )}
 
+          <ExecutiveSummary r={r} />
+
+          <h3>Attack chains</h3>
+          {r.chains.length === 0
+            ? <p>No correlated attack chains were identified.</p>
+            : r.chains.map((c) => <ChainCard key={c.id} c={c} byId={byId} />)}
+
+          <h3>Other findings (not part of a chain)</h3>
           <div className="chips" role="group" aria-label="Filter by minimum severity">
             {SEVS.map((v) => (
               <button key={v} aria-pressed={minSev === v} className={`chip sev-${v}`} onClick={() => setMinSev(v)}>
@@ -86,7 +99,7 @@ export function App() {
           </div>
 
           {shown.length === 0
-            ? <p>{r.findings.length === 0 ? 'No rules matched. That does not prove the logs are clean: check coverage below.' : 'No findings at this severity.'}</p>
+            ? <p>{r.findings.length === 0 ? 'No rules matched. That does not prove the logs are clean: check coverage below.' : 'No standalone findings at this severity.'}</p>
             : shown.map((f) => <FindingCard key={f.id} f={f} />)}
 
           <h3>Ingest summary</h3>
@@ -109,7 +122,7 @@ export function App() {
               ))}
             </tbody>
           </table>
-          <p className="note">Correlated attack chains, risk scoring and report export arrive in Phases 3–4.</p>
+          <p className="note">Report export (JSON / HTML / PDF) arrives in Phase 4.</p>
         </section>
       )}
     </main>

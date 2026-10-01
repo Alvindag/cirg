@@ -13,7 +13,8 @@
     "e2e": "npm run build && node e2e/gate.mjs",
     "preview:secure": "vite build && node -e \"import('./e2e/server.mjs').then(async m=>{const s=await m.serve(process.cwd()+'/dist',4173);console.log('http://127.0.0.1:4173')})\"",
     "gen:validator": "node scripts/build-validator.mjs",
-    "pretest": "node scripts/build-validator.mjs --check"
+    "pretest": "node scripts/build-validator.mjs --check",
+    "build:evtx": "node scripts/build-evtx.mjs"
   },
   "dependencies": {
     "comlink": "4.4.2",

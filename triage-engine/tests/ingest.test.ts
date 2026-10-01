@@ -61,8 +61,9 @@ describe('ingest', () => {
     expect(s).toMatchObject({ format: 'xml', parsedEvents: 1 })
     expect(evs[0]).toMatchObject({ eventId: 4688, computer: 'WS1', channel: 'Security', newProcessName: 'C:\\Windows\\System32\\cmd.exe', subjectLogonId: '0x3e7' })
   })
-  it('EVTX is detected and gives an actionable error', async () => {
-    await expect(ingest(blob('ElfFile\0rest'))).rejects.toThrow(/wevtutil/)
+  it('EVTX header is detected; a truncated file yields zero events rather than a crash', async () => {
+    const s = await ingest(blob('ElfFile\0rest'))
+    expect(s).toMatchObject({ format: 'evtx', parsedEvents: 0 })
   })
   it('cancellation returns null promptly', async () => {
     const line = '{"EventID":4624,"TimeCreated":"2025-03-01T10:00:00Z"}\n'

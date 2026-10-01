@@ -19,7 +19,7 @@ export function RulesPanel() {
 
   return (
     <details className="panel">
-      <summary>Detection rules: {comp.rules.length} active{comp.deferred.length ? `, ${comp.deferred.length} awaiting correlation engine` : ''}{report.errors.length ? `, ${report.errors.length} error(s)` : ''}</summary>
+      <summary>Detection rules: {comp.rules.length} active ({comp.rules.filter((r) => r.sequence).length} correlated){report.errors.length ? `, ${report.errors.length} error(s)` : ''}</summary>
       <div className="body">
         <p className="note">Rule packs are JSON or YAML. They are validated and compiled in your browser and held in memory only; reload the page and they are gone.</p>
         <ul>{report.packs.map((p) => <li key={p.id}>{p.name} v{p.version}: {p.rules} rules</li>)}</ul>
@@ -33,7 +33,6 @@ export function RulesPanel() {
             {p.report.warnings.map((e, i) => <p key={i} className="warn">{e}</p>)}
           </div>
         ))}
-        {comp.deferred.length > 0 && <p className="note">Sequence rules ({comp.deferred.map((d) => d.id).join(', ')}) are validated but not yet evaluated; the correlation engine arrives in Phase 3.</p>}
         <RuleTester rules={comp.rules} />
       </div>
     </details>

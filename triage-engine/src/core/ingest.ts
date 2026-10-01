@@ -3,6 +3,7 @@ import type { CanonicalEvent, FlatRecord, IngestSummary, LogFormat, ParseHooks }
 import { parseCsv } from '../parsers/csv'
 import { parseJson } from '../parsers/json'
 import { parseXml } from '../parsers/xml'
+import { parseEvtx } from '../parsers/evtx'
 import { sniffFormat } from '../parsers/sniff'
 
 const SAMPLE_MAX = 200
@@ -29,9 +30,6 @@ export async function ingest(
   const t0 = performance.now()
   const isCancelled = opts.isCancelled ?? (() => false)
   const format = opts.format ?? (await sniffFormat(file, opts.name ?? (file as File).name ?? ''))
-  if (format === 'evtx') {
-    throw new Error('Binary EVTX is not supported yet (planned: Phase 3, WASM parser). Export to XML first: wevtutil qe Security /f:xml > security.xml')
-  }
 
   const s: IngestSummary = {
     format, bytes: file.size, totalRecords: 0, parsedEvents: 0, rejected: 0, rejectReasons: {},
@@ -74,6 +72,7 @@ export async function ingest(
 
   if (format === 'csv') await parseCsv(file, hooks)
   else if (format === 'json') await parseJson(file, hooks)
+  else if (format === 'evtx') await parseEvtx(file, hooks)
   else await parseXml(file, hooks)
 
   if (isCancelled()) return null

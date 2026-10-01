@@ -1382,8 +1382,7 @@
       "confidence": 0.75,
       "tags": [
         "lateral-movement",
-        "sequence",
-        "phase3"
+        "sequence"
       ],
       "attack": [
         {
@@ -1449,9 +1448,328 @@
         }
       ],
       "context": {
-        "summary": "A remote logon that gets admin privileges and immediately runs encoded PowerShell is a common lateral-movement pattern. Loaded now; evaluated once the Phase 3 correlation engine ships.",
+        "summary": "Linked by Logon ID across 4624, 4672 and 4688. A remote logon that gets admin privileges and immediately runs encoded PowerShell is a common lateral-movement pattern.",
         "falsePositives": [
           "Configuration management and approved admin automation"
+        ]
+      }
+    },
+    {
+      "id": "AUTH-006",
+      "name": "Successful logon after repeated failures from the same source (brute-force success)",
+      "kind": "sequence",
+      "severity": "high",
+      "confidence": 0.7,
+      "tags": [
+        "bruteforce",
+        "sequence"
+      ],
+      "attack": [
+        {
+          "tactic": "TA0006",
+          "technique": "T1110"
+        },
+        {
+          "tactic": "TA0001",
+          "technique": "T1078"
+        }
+      ],
+      "when": {
+        "within": "30m",
+        "correlateOn": [
+          {
+            "name": "account",
+            "scope": "global",
+            "bind": {
+              "fail": "targetUserName",
+              "success": "targetUserName"
+            }
+          },
+          {
+            "name": "source",
+            "scope": "global",
+            "bind": {
+              "fail": "ipAddress",
+              "success": "ipAddress"
+            }
+          }
+        ],
+        "steps": [
+          {
+            "id": "fail",
+            "eventIds": [
+              4625
+            ],
+            "min": 5
+          },
+          {
+            "id": "success",
+            "eventIds": [
+              4624
+            ]
+          }
+        ]
+      },
+      "context": {
+        "summary": "Five or more failed logons for an account from one address, followed by a success for the same account from that address, means the guessing may have worked.",
+        "falsePositives": [
+          "A user who mistyped a password repeatedly and then succeeded",
+          "Stale credentials in a service that eventually refreshed"
+        ],
+        "maliciousIndicators": [
+          "External source IP",
+          "Success is followed by privileged activity or new processes",
+          "Account is an administrator or service account"
+        ]
+      },
+      "response": {
+        "investigate": [
+          {
+            "title": "Review everything this account did after the success",
+            "shell": "kql",
+            "command": "SecurityEvent | where TargetUserName == \"{{targetUserName}}\" or SubjectUserName == \"{{targetUserName}}\" | order by TimeGenerated asc",
+            "risk": "read-only"
+          }
+        ],
+        "remediate": [
+          {
+            "title": "Reset the password and revoke sessions",
+            "shell": "manual",
+            "command": "Reset the password for {{targetUserName}}, revoke refresh tokens/sessions, and review MFA.",
+            "risk": "disruptive"
+          }
+        ]
+      }
+    },
+    {
+      "id": "ACC-003",
+      "name": "New account created and added to a privileged group",
+      "kind": "sequence",
+      "severity": "high",
+      "confidence": 0.8,
+      "tags": [
+        "persistence",
+        "sequence"
+      ],
+      "attack": [
+        {
+          "tactic": "TA0003",
+          "technique": "T1136.001"
+        },
+        {
+          "tactic": "TA0004",
+          "technique": "T1098"
+        }
+      ],
+      "when": {
+        "within": "1h",
+        "correlateOn": [
+          {
+            "name": "account-sid",
+            "scope": "global",
+            "bind": {
+              "create": "targetUserSid",
+              "add": "memberSid"
+            }
+          }
+        ],
+        "steps": [
+          {
+            "id": "create",
+            "eventIds": [
+              4720
+            ]
+          },
+          {
+            "id": "add",
+            "eventIds": [
+              4728,
+              4732,
+              4756
+            ],
+            "condition": {
+              "field": "targetUserName",
+              "op": "in",
+              "value": "$lists.privilegedGroups"
+            }
+          }
+        ]
+      },
+      "context": {
+        "summary": "An account created and immediately given administrative group membership is a classic persistence step.",
+        "falsePositives": [
+          "Approved break-glass or admin account provisioning"
+        ],
+        "maliciousIndicators": [
+          "No matching change ticket",
+          "Created and promoted by the same non-admin account",
+          "Account name mimics a service or built-in account"
+        ]
+      },
+      "response": {
+        "investigate": [
+          {
+            "title": "Check who created and promoted the account",
+            "shell": "kql",
+            "command": "SecurityEvent | where EventID in (4720, 4728, 4732, 4756) | where TargetUserName == \"{{targetUserName}}\" or MemberName has \"{{targetUserName}}\"",
+            "risk": "read-only"
+          }
+        ],
+        "remediate": [
+          {
+            "title": "Disable the new account",
+            "shell": "powershell",
+            "command": "Disable-ADAccount -Identity '{{targetUserName}}'",
+            "risk": "disruptive"
+          }
+        ]
+      }
+    },
+    {
+      "id": "LAT-002",
+      "name": "Service installed from a remote logon session (PsExec-style execution)",
+      "kind": "sequence",
+      "severity": "high",
+      "confidence": 0.7,
+      "tags": [
+        "lateral-movement",
+        "sequence"
+      ],
+      "attack": [
+        {
+          "tactic": "TA0008",
+          "technique": "T1021.002"
+        },
+        {
+          "tactic": "TA0002",
+          "technique": "T1569.002"
+        },
+        {
+          "tactic": "TA0003",
+          "technique": "T1543.003"
+        }
+      ],
+      "when": {
+        "within": "5m",
+        "correlateOn": [
+          {
+            "name": "session",
+            "bind": {
+              "logon": "targetLogonId",
+              "svc": "subjectLogonId"
+            }
+          }
+        ],
+        "steps": [
+          {
+            "id": "logon",
+            "eventIds": [
+              4624
+            ],
+            "condition": {
+              "field": "logonType",
+              "op": "eq",
+              "value": 3
+            }
+          },
+          {
+            "id": "svc",
+            "eventIds": [
+              4697
+            ]
+          }
+        ]
+      },
+      "context": {
+        "summary": "A network logon whose session installs a service within minutes is how PsExec and similar tools run code on a remote host.",
+        "falsePositives": [
+          "Software deployment tools and remote admin sessions"
+        ],
+        "maliciousIndicators": [
+          "Service binary in a temp or ADMIN$ path",
+          "Random service name",
+          "Source host is a workstation, not a management server"
+        ]
+      },
+      "response": {
+        "investigate": [
+          {
+            "title": "Inspect the installed service",
+            "shell": "powershell",
+            "command": "Get-CimInstance Win32_Service -ComputerName '{{computer}}' -Filter \"Name='{{serviceName}}'\" | Select Name,PathName,StartName",
+            "risk": "read-only"
+          }
+        ],
+        "remediate": [
+          {
+            "title": "Isolate the host (EDR or network quarantine) pending triage",
+            "shell": "manual",
+            "command": "Use your EDR / NAC to isolate {{computer}}.",
+            "risk": "disruptive"
+          }
+        ]
+      }
+    },
+    {
+      "id": "EVAS-002",
+      "name": "Privileged session cleared the audit log",
+      "kind": "sequence",
+      "severity": "critical",
+      "confidence": 0.8,
+      "tags": [
+        "anti-forensics",
+        "sequence"
+      ],
+      "attack": [
+        {
+          "tactic": "TA0005",
+          "technique": "T1070.001"
+        }
+      ],
+      "when": {
+        "within": "1h",
+        "correlateOn": [
+          {
+            "name": "session",
+            "bind": {
+              "priv": "subjectLogonId",
+              "clear": "subjectLogonId"
+            }
+          }
+        ],
+        "steps": [
+          {
+            "id": "priv",
+            "eventIds": [
+              4672
+            ]
+          },
+          {
+            "id": "clear",
+            "eventIds": [
+              1102
+            ]
+          }
+        ]
+      },
+      "context": {
+        "summary": "The same logon session that received special privileges then cleared the Security log, tying the clear to a specific account and session.",
+        "falsePositives": [
+          "Documented log maintenance by an administrator"
+        ],
+        "maliciousIndicators": [
+          "Session started remotely (see logon type)",
+          "Other findings on the same host shortly before the clear"
+        ]
+      },
+      "response": {
+        "remediate": [
+          {
+            "title": "Isolate the host (EDR or network quarantine) pending triage",
+            "shell": "manual",
+            "command": "Use your EDR / NAC to isolate {{computer}}.",
+            "risk": "disruptive"
+          }
         ]
       }
     }

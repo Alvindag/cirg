@@ -3,6 +3,7 @@ import { serve } from './server.mjs'
 import fs from 'node:fs'
 import path from 'node:path'
 import os from 'node:os'
+import { buildEvtx } from './evtxBuilder.mjs'
 
 const srv = await serve(path.resolve('dist'))
 const origin = `http://127.0.0.1:${srv.address().port}`
@@ -65,8 +66,10 @@ check('rule tester matches AUD-001', /AUD-001.*MATCH/.test(await page.locator('.
 
 const t0 = Date.now()
 await page.locator('section.drop input[type=file]').setInputFiles(csv)
-await page.waitForSelector('text=Findings:', { timeout: 60000 }).catch(() => fail('analysis did not finish'))
+await page.waitForSelector('text=Results:', { timeout: 60000 }).catch(() => fail('analysis did not finish'))
 const secs = ((Date.now() - t0) / 1000).toFixed(1)
+const openAll = () => page.evaluate(() => document.querySelectorAll('main details').forEach((d) => { d.open = true }))
+await openAll()
 const main = await page.locator('main').innerText()
 console.log(`analysis wall time: ${secs}s`)
 for (const id of ['AUD-001', 'AUTH-001', 'EXEC-001', 'IMP-001', 'CUS-001']) check(`finding ${id} present`, main.includes(id))
@@ -75,16 +78,21 @@ check('benign-only rules did not false-positive (EXEC-003, CRED-001)', !main.inc
 check('critical findings sorted before medium', main.indexOf('IMP-001') < main.indexOf('CUS-001'))
 
 // Expand EXEC-001 and check hostile content is inert + command escaped
-await page.locator('details.finding', { hasText: 'EXEC-001' }).locator('summary').click()
-const body = await page.locator('details.finding', { hasText: 'EXEC-001' }).innerText()
+const card = (id) => page.locator('details.finding:not(.chain)', { hasText: id }).first()
+const body = await card('EXEC-001').innerText()
 check('ATT&CK names shown', /Execution \(TA0002\).*PowerShell \(T1059\.001\)/.test(body))
 check('false-positive guidance shown', /Possible legitimate explanations/.test(body))
 const xss = await page.evaluate(() => ({ fired: window.__xss === 1, imgs: document.querySelectorAll('main img').length }))
 check('XSS payload in log data rendered as text (not executed, no <img> element)', !xss.fired && xss.imgs === 0)
-await page.locator('details.finding', { hasText: 'AUTH-001' }).locator('summary').click()
-const brute = await page.locator('details.finding', { hasText: 'AUTH-001' }).innerText()
+const brute = await card('AUTH-001').innerText()
 check('brute-force finding: 12 events grouped by account+IP', /12 events/.test(brute) && /ipAddress=203\.0\.113\.9/.test(brute) && /targetUserName=admin/.test(brute))
 check('remediation command rendered with evidence values', /Block 203\.0\.113\.9/.test(brute))
+
+// Correlation: DC01 brute force + log clear, and WS7 PowerShell + shadow-copy deletion each become a chain
+check('executive summary with risk score shown', /Executive summary/.test(main) && /\/100/.test(main))
+check('two attack chains identified (DC01, WS7)', (main.match(/CHAIN-\d/g) ?? []).length >= 2 && /on DC01/.test(main) && /on WS7/.test(main))
+const chainBody = await page.locator('details.chain').first().innerText()
+check('chain shows narrative, link reasons and score breakdown', /Attack narrative/.test(chainBody) && /Why these are linked/.test(chainBody) && /How this score was calculated/.test(chainBody))
 
 const ticks = await page.evaluate(() => window.__ticks)
 const storage = await page.evaluate(async () => ({
@@ -99,6 +107,27 @@ await page.waitForSelector('text=Drop a log file')
 check('Clear removes findings from the DOM', !(await page.locator('main').innerText()).includes('AUD-001 ·'))
 check('zero external requests', external.length === 0)
 check('zero CSP violations', violations.length === 0)
+
+// ---- EVTX (WASM parser under the strict CSP: no fetch, wasm-unsafe-eval only)
+const T = Date.parse('2025-03-01T10:00:00Z')
+const E = (eventId, sec, data, computer = 'SRV9') => ({ eventId, time: new Date(T + sec * 1000), computer, data })
+const evtx = path.join(tmp, 'attack.evtx')
+fs.writeFileSync(evtx, buildEvtx([[
+  E(4624, 0, { TargetUserName: 'bob', TargetLogonId: '0x5A5A', LogonType: '3', IpAddress: '203.0.113.9' }),
+  E(4672, 1, { SubjectUserName: 'bob', SubjectLogonId: '0x5A5A' }),
+  E(4688, 60, { SubjectUserName: 'bob', SubjectLogonId: '0x5A5A', NewProcessName: 'C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe', CommandLine: 'powershell -enc ' + 'QUJD'.repeat(15) }),
+]]))
+const reqBefore = external.length
+await page.locator('section.drop input[type=file]').setInputFiles(evtx)
+await page.waitForSelector('text=Results:', { timeout: 30000 }).catch(() => fail('EVTX analysis did not finish'))
+await openAll()
+const evtxMain = await page.locator('main').innerText()
+check('EVTX parsed (format EVTX, 3 records)', /EVTX/.test(evtxMain) && /3 \(3 parsed, 0 rejected\)/.test(evtxMain))
+check('EVTX: logon/priv/process linked by Logon ID into a chain (LAT-001)', /LAT-001/.test(evtxMain) && /CHAIN-1/.test(evtxMain))
+check('EVTX load made no network requests', external.length === reqBefore)
+await page.click('text=Clear all data')
+await page.waitForSelector('text=Drop a log file')
+
 check('no console errors', errors.length === 0)
 if (external.length) console.log(external); if (violations.length) console.log(violations); if (errors.length) console.log(errors)
 const ok = checks.every(([, v]) => v)

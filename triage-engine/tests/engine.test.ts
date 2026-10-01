@@ -12,7 +12,7 @@ const T0 = Date.UTC(2025, 2, 1, 10, 0, 0)
 const ev = (o: Partial<CanonicalEvent> & { eventId: number }): CanonicalEvent => ({ ts: T0, computer: 'WS1', ...o })
 const run = (events: CanonicalEvent[], extra = '') => {
   const { comp } = buildRules([])
-  const eng = new RuleEngine(comp.rules, {}, comp.deferred.map((d) => d.id))
+  const eng = new RuleEngine(comp.rules)
   events.forEach((e) => eng.process(e))
   return eng.finalize()
 }
@@ -118,16 +118,12 @@ describe('engine behaviour', () => {
     const f = run([ev({ eventId: 4698 }), ev({ eventId: 1102 }), ev({ eventId: 4672, subjectUserName: 'bob' })]).findings.map((x) => x.severity)
     expect(f).toEqual(['critical', 'medium', 'info'])
   })
-  it('reports deferred sequence rules', () => {
-    expect(run([]).stats.rulesDeferred).toEqual(['LAT-001'])
-  })
   it('end-to-end via analyze(): CSV in, findings out', async () => {
     const csv = 'EventID,TimeGenerated,Computer,CommandLine,NewProcessName\n4688,2025-03-01T10:00:00Z,WS1,vssadmin delete shadows /all,C:\\Windows\\System32\\vssadmin.exe\n4624,2025-03-01T10:00:01Z,WS1,,\n'
     const r = await analyze(new Blob([csv]), [], { format: 'csv' })
     expect(r!.findings.map((f) => f.ruleId)).toEqual(['IMP-001'])
     expect(r!.engine.eventsProcessed).toBe(2)
     expect(r!.ruleLoad.errors).toEqual([])
-    expect(r!.engine.rulesDeferred).toEqual(['LAT-001'])
   })
 })
 

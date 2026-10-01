@@ -2,7 +2,7 @@ import YAML from 'yaml'
 import validatePack from '../../generated/validateRules'
 import { TACTICS, TECHNIQUES } from '../attack'
 import { compileRule } from './compile'
-import type { CompiledRule, RuleDef, RulePack } from './types'
+import type { CompiledRule, RulePack } from './types'
 
 export const MAX_RULE_FILE_BYTES = 2_000_000
 
@@ -52,14 +52,13 @@ export function loadPack(text: string, format: 'json' | 'yaml', label = 'pack'):
 
 export interface CompileResult {
   rules: CompiledRule[]
-  deferred: RuleDef[]
   errors: string[]
   warnings: string[]
 }
 
 /** Compile packs in order; a later pack's rule with the same id overrides the earlier one. A bad rule never kills the pack. */
 export function compilePacks(packs: RulePack[]): CompileResult {
-  const byId = new Map<string, CompiledRule | RuleDef>()
+  const byId = new Map<string, CompiledRule>()
   const errors: string[] = []
   const warnings: string[] = []
   for (const p of packs) {
@@ -68,13 +67,9 @@ export function compilePacks(packs: RulePack[]): CompileResult {
     for (const r of p.rules) {
       if (r.enabled === false) continue
       if (byId.has(r.id)) warnings.push(`rule ${r.id} from "${p.pack.id}" overrides an earlier definition`)
-      if (r.kind === 'sequence') { byId.set(r.id, r); continue }
       try { byId.set(r.id, compileRule(r, p.pack.id, lists)) }
       catch (e) { byId.delete(r.id); errors.push(`${p.pack.id}: ${(e as Error).message}`) }
     }
   }
-  const rules: CompiledRule[] = []
-  const deferred: RuleDef[] = []
-  for (const v of byId.values()) ('def' in v ? rules.push(v) : deferred.push(v))
-  return { rules, deferred, errors, warnings }
+  return { rules: [...byId.values()], errors, warnings }
 }
