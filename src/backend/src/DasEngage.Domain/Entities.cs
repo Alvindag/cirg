@@ -16,6 +16,10 @@ public enum MovementType { Receipt, IssueToRep, ReturnFromRep, Distribution, Wri
 
 public enum SampleRequestStatus { Pending, Approved, Rejected, Fulfilled, Cancelled }
 
+public enum AiFeature { Transcription, VisitSummary }
+
+public enum AiStatus { Draft, Accepted, Rejected, Failed }
+
 public enum FollowUpStatus { Open, Done, Cancelled }
 
 /// <summary>Base for all tenant-owned, syncable rows. Ids are client-generatable (UUID) for offline creation.</summary>
@@ -38,6 +42,8 @@ public class Tenant
     public bool IsActive { get; set; } = true;
     /// <summary>The customer's Microsoft Entra directory (tenant) id; links incoming Entra tokens to this tenant.</summary>
     public string? ExternalTenantId { get; set; }
+    /// <summary>Generative AI (transcription, summaries) is off until a tenant administrator opts in.</summary>
+    public bool AiEnabled { get; set; }
 }
 
 public class Territory : TenantEntity
@@ -248,4 +254,29 @@ public class SampleDistribution : TenantEntity
     public DateTime DistributedAt { get; set; }
     public Guid? SignatureAttachmentId { get; set; }
     public string? Notes { get; set; }
+}
+
+/// <summary>
+/// One call to a generative model (or its result). This is both the draft the rep reviews and the AI model-use register:
+/// who used which model for what, when, how much, and whether a person accepted the output. Prompts are stored only as a hash.
+/// </summary>
+public class AiOutput : TenantEntity
+{
+    public Guid UserId { get; set; }
+    public AiFeature Feature { get; set; }
+    /// <summary>"Attachment" (transcription) or "Visit" (summary).</summary>
+    public string SubjectType { get; set; } = "";
+    public Guid SubjectId { get; set; }
+    public AiStatus Status { get; set; } = AiStatus.Draft;
+    /// <summary>Transcript text, or the summary as JSON. Always a draft until a person accepts it.</summary>
+    public string Content { get; set; } = "";
+    /// <summary>What the person actually accepted, if they changed it.</summary>
+    public string? EditedContent { get; set; }
+    public string Model { get; set; } = "";
+    public string PromptHash { get; set; } = "";
+    public int InputTokens { get; set; }
+    public int OutputTokens { get; set; }
+    public int LatencyMs { get; set; }
+    public string? Error { get; set; }
+    public DateTime? DecidedAt { get; set; }
 }

@@ -16,6 +16,17 @@ builder.Services.AddScoped<HttpCurrentUser>();
 builder.Services.AddScoped<TeamScope>();
 builder.Services.AddScoped<CustomerImporter>();
 builder.Services.AddScoped<SampleService>();
+
+// AI: Azure OpenAI over REST (managed identity), or nothing. Rule-based analytics always work without it.
+builder.Services.Configure<DasEngage.Api.Ai.AiOptions>(builder.Configuration.GetSection("Ai"));
+builder.Services.AddHttpClient<DasEngage.Api.Ai.AzureOpenAi>(c => c.Timeout = TimeSpan.FromSeconds(100));
+builder.Services.AddScoped<DasEngage.Api.Ai.IChatModel>(sp =>
+    sp.GetRequiredService<Microsoft.Extensions.Options.IOptions<DasEngage.Api.Ai.AiOptions>>().Value.Provider == "azure"
+        ? sp.GetRequiredService<DasEngage.Api.Ai.AzureOpenAi>() : new DasEngage.Api.Ai.UnavailableModel());
+builder.Services.AddScoped<DasEngage.Api.Ai.ITranscriber>(sp =>
+    sp.GetRequiredService<Microsoft.Extensions.Options.IOptions<DasEngage.Api.Ai.AiOptions>>().Value.Provider == "azure"
+        ? sp.GetRequiredService<DasEngage.Api.Ai.AzureOpenAi>() : new DasEngage.Api.Ai.UnavailableModel());
+builder.Services.AddScoped<DasEngage.Api.Ai.AiService>();
 builder.Services.AddScoped<ICurrentUser>(sp => sp.GetRequiredService<HttpCurrentUser>());
 
 // Database: PostgreSQL by default; tests swap in the in-memory provider via ConfigureTestServices.

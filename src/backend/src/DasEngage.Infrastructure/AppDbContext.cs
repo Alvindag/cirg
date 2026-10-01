@@ -30,6 +30,7 @@ public class AppDbContext : DbContext
     public DbSet<FollowUpTask> Tasks => Set<FollowUpTask>();
     public DbSet<GpsPing> GpsPings => Set<GpsPing>();
     public DbSet<Attachment> Attachments => Set<Attachment>();
+    public DbSet<AiOutput> AiOutputs => Set<AiOutput>();
     public DbSet<SampleBatch> SampleBatches => Set<SampleBatch>();
     public DbSet<StockMovement> StockMovements => Set<StockMovement>();
     public DbSet<SampleRequest> SampleRequests => Set<SampleRequest>();
@@ -49,6 +50,8 @@ public class AppDbContext : DbContext
         b.Entity<GpsPing>().HasIndex(x => new { x.TenantId, x.RepId, x.RecordedAt });
         b.Entity<Attachment>().HasIndex(x => new { x.TenantId, x.VisitId });
         b.Entity<SampleBatch>().HasIndex(x => new { x.TenantId, x.ProductId, x.BatchNumber }).IsUnique();
+        b.Entity<AiOutput>().HasIndex(x => new { x.TenantId, x.UserId, x.CreatedAt });
+        b.Entity<AiOutput>().HasIndex(x => new { x.TenantId, x.SubjectId });
         b.Entity<StockMovement>().HasIndex(x => new { x.TenantId, x.BatchId, x.HolderId });
         b.Entity<SampleRequest>().HasIndex(x => new { x.TenantId, x.RepId, x.Status });
         b.Entity<SampleDistribution>().HasIndex(x => new { x.TenantId, x.RepId, x.DistributedAt });
@@ -71,6 +74,7 @@ public class AppDbContext : DbContext
         b.Entity<FollowUpTask>().HasQueryFilter(e => e.TenantId == CurrentTenantId && e.DeletedAt == null);
         b.Entity<GpsPing>().HasQueryFilter(e => e.TenantId == CurrentTenantId && e.DeletedAt == null);
         b.Entity<Attachment>().HasQueryFilter(e => e.TenantId == CurrentTenantId && e.DeletedAt == null);
+        b.Entity<AiOutput>().HasQueryFilter(e => e.TenantId == CurrentTenantId && e.DeletedAt == null);
         b.Entity<SampleBatch>().HasQueryFilter(e => e.TenantId == CurrentTenantId && e.DeletedAt == null);
         b.Entity<StockMovement>().HasQueryFilter(e => e.TenantId == CurrentTenantId && e.DeletedAt == null);
         b.Entity<SampleRequest>().HasQueryFilter(e => e.TenantId == CurrentTenantId && e.DeletedAt == null);

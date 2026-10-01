@@ -18,6 +18,7 @@ public static class Endpoints
         AdminUsers.Map(api);
         AttachmentEndpoints.Map(api);
         SampleEndpoints.Map(api);
+        Ai.AiEndpoints.Map(api);
     }
 
     // ---------- Customers ----------
