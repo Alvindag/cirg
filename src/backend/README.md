@@ -9,8 +9,10 @@ dotnet ef database update -p src/DasEngage.Infrastructure -s src/DasEngage.Api
 dotnet run --project src/DasEngage.Api      # Swagger at /swagger
 dotnet test
 ```
-Production auth is Entra ID (`Auth:Authority`, `Auth:Audience`). `Auth:DevSigningKey` is honoured only in Development/Testing.
-Tokens must carry claims `tid` (tenant), `uid` (app user id), `terr` (territory, optional) and a role claim.
+Production auth is Microsoft Entra ID: see `docs/entra-setup.md` (app registrations, `Auth:*` settings, onboarding with
+`provision-tenant`). The API maps the token's directory id to a tenant and its object id to a user, and takes role, territory and
+active status from the database (role and `das_*` claims inside tokens are ignored; deactivated users are cut off within a minute).
+`Auth:DevSigningKey` is honoured only in Development/Testing; dev tokens carry the claims `das_tid`, `das_uid`, optional `das_terr`, and a role.
 
 ## What's implemented
 Customers (CRUD, territory scoping, segmentation, product interests), planned visits, GPS check-in/out with geofence check,
@@ -41,8 +43,8 @@ Roles: area/regional/national managers and admin. Sample: `samples/customers-imp
 
 ## Not yet done (known gaps)
 - PostgreSQL row-level security policies (defence in depth) – add in a migration.
-- Deactivated users still hold valid tokens until expiry; add an active-user check (or short token lifetimes) at the gateway.
-- The `terr` claim comes from the token; keep the IdP in sync with `AppUser.TerritoryId`.
+- Entra sign-in is tested with locally signed tokens (the real Entra metadata endpoint is not reachable from the build environment); verify once against a real tenant.
+- No self-service tenant sign-up or tenant admin UI; customers are onboarded with `provision-tenant`.
 - Customer search uses `ILike` (PostgreSQL only), so it is not covered by the in-memory tests; run integration tests against Postgres (Testcontainers) before go-live.
 - Attachment/voice-note upload to Blob Storage, approval workflows, e-signatures, PostGIS spatial queries, Power BI reporting views.
 - Sync pull is cursor-by-`UpdatedAt` (server clock); move to a monotonic version column if clock skew becomes an issue.

@@ -51,7 +51,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                 );
                 if (ok != true) return;
               }
-              await ref.read(sessionProvider.notifier).signOut();
+              await ref.read(sessionManagerProvider).signOut();
             },
           ),
         ],

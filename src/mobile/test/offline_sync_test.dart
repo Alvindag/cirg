@@ -18,7 +18,6 @@ class FakeLocation implements LocationProvider {
   Future<Fix?> current() async => fix;
 }
 
-const _session = Session(baseUrl: 'https://api.test', token: 't');
 
 Map<String, dynamic> pullBody({int cursor = 100, List customers = const [], List planned = const [], List tasks = const [], List products = const []}) =>
     {'cursor': cursor, 'customers': customers, 'plannedVisits': planned, 'tasks': tasks, 'products': products};
@@ -40,7 +39,10 @@ void main() {
   });
   tearDown(() => db.close());
 
-  SyncService serviceWith(http.Client client) => SyncService(db, ApiClient(client, () => _session));
+  SyncService serviceWith(http.Client client) => SyncService(
+        db,
+        ApiClient(client, baseUrl: () => 'https://api.test', accessToken: ({bool force = false}) async => force ? 't2' : 't'),
+      );
 
   Future<void> seedCustomer() => db.applyPull(pullBody(customers: [customerJson('c1', 'Dr Ama Boateng')]));
 

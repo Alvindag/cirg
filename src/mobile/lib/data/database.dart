@@ -173,6 +173,15 @@ class AppDatabase extends _$AppDatabase {
         readsFrom: {visits, callReports, followUpTasks, gpsPings},
       ).watchSingle().map((r) => r.read<int>('n'));
 
+  Future<int> pendingCount() => watchPendingCount().first;
+
+  /// Removes every row (used when a different user signs in on this device).
+  Future<void> wipe() => transaction(() async {
+        for (final t in allTables) {
+          await delete(t).go();
+        }
+      });
+
   // ---- sync state ----
 
   Future<String?> getState(String key) async =>

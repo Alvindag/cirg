@@ -16,7 +16,7 @@ class EngageApp extends ConsumerStatefulWidget {
 }
 
 class _EngageAppState extends ConsumerState<EngageApp> {
-  late final Future<void> _restore = ref.read(sessionProvider.notifier).restore();
+  late final Future<void> _restore = ref.read(sessionManagerProvider).restore();
 
   @override
   Widget build(BuildContext context) {

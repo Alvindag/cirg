@@ -43,6 +43,7 @@ public class AppDbContext : DbContext
         b.Entity<CallReport>().HasIndex(x => new { x.TenantId, x.UpdatedAt });
         b.Entity<GpsPing>().HasIndex(x => new { x.TenantId, x.RepId, x.RecordedAt });
         b.Entity<AppUser>().HasIndex(x => new { x.TenantId, x.ExternalId }).IsUnique();
+        b.Entity<Tenant>().HasIndex(x => x.ExternalTenantId).IsUnique();
         b.Entity<AuditLog>().HasIndex(x => new { x.TenantId, x.Id });
 
         // Tenant isolation + soft delete on every tenant-owned entity.

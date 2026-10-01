@@ -28,6 +28,8 @@ public class Tenant
     public Guid Id { get; set; } = Guid.NewGuid();
     public string Name { get; set; } = "";
     public bool IsActive { get; set; } = true;
+    /// <summary>The customer's Microsoft Entra directory (tenant) id; links incoming Entra tokens to this tenant.</summary>
+    public string? ExternalTenantId { get; set; }
 }
 
 public class Territory : TenantEntity

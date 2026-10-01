@@ -11,33 +11,66 @@ class ApiException implements Exception {
   String toString() => 'ApiException($statusCode): $message';
 }
 
+/// The signed-in user's connection details.
 class Session {
-  const Session({required this.baseUrl, required this.token});
+  const Session({
+    required this.baseUrl,
+    required this.accessToken,
+    required this.expiresAt,
+    required this.tenant,
+    this.refreshToken,
+    this.userId,
+  });
+
   final String baseUrl;
-  final String token;
+  final String accessToken;
+  final DateTime expiresAt;
+  final String? refreshToken;
+
+  /// Directory the user signed in to (used for silent refresh).
+  final String tenant;
+
+  /// Entra object id (oid) of the user; identifies who owns the data on this device.
+  final String? userId;
+
+  Session copyWith({String? accessToken, String? refreshToken, DateTime? expiresAt}) => Session(
+        baseUrl: baseUrl,
+        accessToken: accessToken ?? this.accessToken,
+        refreshToken: refreshToken ?? this.refreshToken,
+        expiresAt: expiresAt ?? this.expiresAt,
+        tenant: tenant,
+        userId: userId,
+      );
 }
 
 /// Thin JSON client for the DAS Engage API. Throws [ApiException] on non-2xx.
+/// A 401 triggers one forced token refresh and a retry before giving up.
 class ApiClient {
-  ApiClient(this._http, this._session);
+  ApiClient(this._http, {required this.baseUrl, required this.accessToken});
 
   final http.Client _http;
-  final Session Function() _session;
+  final String Function() baseUrl;
 
-  Map<String, String> get _headers =>
-      {'Authorization': 'Bearer ${_session().token}', 'Content-Type': 'application/json'};
+  /// Returns a valid access token (refreshing if needed), or null when signed out.
+  final Future<String?> Function({bool force}) accessToken;
 
   Uri _uri(String path, [Map<String, String>? query]) =>
-      Uri.parse('${_session().baseUrl.replaceAll(RegExp(r'/+$'), '')}/api/v1$path').replace(queryParameters: query);
+      Uri.parse('${baseUrl().replaceAll(RegExp(r'/+$'), '')}/api/v1$path').replace(queryParameters: query);
 
-  Future<Map<String, dynamic>> pull(int sinceTicks) async =>
-      _decode(await _http.get(_uri('/sync/pull', {'since': '$sinceTicks'}), headers: _headers).timeout(const Duration(seconds: 60)));
+  Future<Map<String, dynamic>> pull(int sinceTicks) => _send((h) => _http.get(_uri('/sync/pull', {'since': '$sinceTicks'}), headers: h));
 
-  Future<Map<String, dynamic>> push(Map<String, dynamic> payload) async => _decode(await _http
-      .post(_uri('/sync/push'), headers: _headers, body: jsonEncode(payload))
-      .timeout(const Duration(seconds: 60)));
+  Future<Map<String, dynamic>> push(Map<String, dynamic> payload) =>
+      _send((h) => _http.post(_uri('/sync/push'), headers: h, body: jsonEncode(payload)));
 
-  Map<String, dynamic> _decode(http.Response r) {
+  Future<Map<String, dynamic>> _send(Future<http.Response> Function(Map<String, String> headers) call) async {
+    Future<http.Response> attempt({bool force = false}) async {
+      final token = await accessToken(force: force);
+      if (token == null) throw ApiException(401, 'Not signed in.');
+      return call({'Authorization': 'Bearer $token', 'Content-Type': 'application/json'}).timeout(const Duration(seconds: 60));
+    }
+
+    var r = await attempt();
+    if (r.statusCode == 401) r = await attempt(force: true);
     if (r.statusCode < 200 || r.statusCode >= 300) throw ApiException(r.statusCode, r.body);
     return jsonDecode(r.body) as Map<String, dynamic>;
   }

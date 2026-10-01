@@ -36,8 +36,8 @@ public class ApiFactory : WebApplicationFactory<Program>
 
     public HttpClient ClientFor(Guid tenant, Guid user, string role, Guid? territory = null)
     {
-        var claims = new List<Claim> { new("tid", tenant.ToString()), new("uid", user.ToString()), new(ClaimTypes.Role, role) };
-        if (territory != null) claims.Add(new("terr", territory.ToString()!));
+        var claims = new List<Claim> { new("das_tid", tenant.ToString()), new("das_uid", user.ToString()), new(ClaimTypes.Role, role) };
+        if (territory != null) claims.Add(new("das_terr", territory.ToString()!));
         var token = new JwtSecurityTokenHandler().WriteToken(new JwtSecurityToken(
             claims: claims, expires: DateTime.UtcNow.AddHours(1),
             signingCredentials: new SigningCredentials(new SymmetricSecurityKey(Encoding.UTF8.GetBytes(Key)), SecurityAlgorithms.HmacSha256)));

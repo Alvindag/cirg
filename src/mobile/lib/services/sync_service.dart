@@ -6,11 +6,14 @@ import '../data/database.dart';
 import 'api_client.dart';
 
 class SyncResult {
-  const SyncResult({this.pushed = 0, this.pulled = false, this.error, this.authFailed = false});
+  const SyncResult({this.pushed = 0, this.pulled = false, this.error, this.authFailed = false, this.forbidden = false});
   final int pushed;
   final bool pulled;
   final String? error;
   final bool authFailed;
+
+  /// 403: signed in with Entra, but this account is not a user of the system (or was deactivated).
+  final bool forbidden;
   bool get ok => error == null;
 }
 
@@ -36,7 +39,7 @@ class SyncService {
       await _pull();
       return SyncResult(pushed: pushed, pulled: true);
     } on ApiException catch (e) {
-      return SyncResult(error: e.toString(), authFailed: e.isAuth);
+      return SyncResult(error: e.toString(), authFailed: e.isAuth, forbidden: e.statusCode == 403);
     } catch (e) {
       return SyncResult(error: e.toString()); // offline, timeout, bad payload: try again later
     } finally {
