@@ -42,6 +42,8 @@ public class AppClaimsTransformation : IClaimsTransformation
     public async Task<ClaimsPrincipal> TransformAsync(ClaimsPrincipal principal)
     {
         if (principal.Identity?.IsAuthenticated != true || principal.HasClaim(c => c.Type == AppClaims.Resolved)) return principal;
+        // An integration key was verified by our own handler (never a token), so its identity is already complete.
+        if (principal.Identities.Any(i => i.AuthenticationType == Erp.ApiKeyAuth.AuthType)) return principal;
         // Development/test tokens carry the application claims directly.
         if (_dev && principal.HasClaim(c => c.Type == AppClaims.Tenant)) return principal;
 

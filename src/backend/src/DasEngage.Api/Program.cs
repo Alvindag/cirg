@@ -15,7 +15,16 @@ builder.Services.ConfigureHttpJsonOptions(o => o.SerializerOptions.Converters.Ad
 builder.Services.AddScoped<HttpCurrentUser>();
 builder.Services.AddScoped<TeamScope>();
 builder.Services.AddScoped<CustomerImporter>();
+builder.Services.AddScoped<DasEngage.Api.Erp.ErpOutbox>();
 builder.Services.AddScoped<SampleService>();
+
+// ERP integration: a gateway speaking the DAS Engage contract (docs/erp-integration.md), reached over https.
+builder.Services.AddSingleton<DasEngage.Api.Erp.ISecretProvider, DasEngage.Api.Erp.ConfigSecretProvider>();
+builder.Services.AddHttpClient<DasEngage.Api.Erp.RestErpConnector>(c => c.Timeout = TimeSpan.FromSeconds(30));
+builder.Services.AddScoped<DasEngage.Api.Erp.IErpConnector>(sp => sp.GetRequiredService<DasEngage.Api.Erp.RestErpConnector>());
+builder.Services.AddScoped<DasEngage.Api.Erp.ErpImporter>();
+builder.Services.AddScoped<DasEngage.Api.Erp.ErpSync>();
+builder.Services.AddHostedService<DasEngage.Api.Erp.ErpWorker>();
 
 // AI: Azure OpenAI over REST (managed identity), or nothing. Rule-based analytics always work without it.
 builder.Services.Configure<DasEngage.Api.Ai.AiOptions>(builder.Configuration.GetSection("Ai"));
@@ -55,7 +64,8 @@ builder.Services.AddCors(o => o.AddDefaultPolicy(p =>
 }));
 builder.Services.AddMemoryCache();
 builder.Services.AddScoped<Microsoft.AspNetCore.Authentication.IClaimsTransformation, AppClaimsTransformation>();
-builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme).AddJwtBearer();
+builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme).AddJwtBearer()
+    .AddScheme<Microsoft.AspNetCore.Authentication.AuthenticationSchemeOptions, DasEngage.Api.Erp.ApiKeyHandler>(DasEngage.Api.Erp.ApiKeyAuth.Scheme, null);
 builder.Services.AddOptions<JwtBearerOptions>(JwtBearerDefaults.AuthenticationScheme).Configure<IConfiguration, IHostEnvironment>((o, config, env) =>
 {
     var auth = config.GetSection("Auth");
@@ -99,6 +109,8 @@ builder.Services.AddOptions<Microsoft.AspNetCore.Authorization.AuthorizationOpti
         .Build();
     o.DefaultPolicy = policy;
     o.FallbackPolicy = policy;
+    // ERP middleware authenticates with an integration key, never a user token, and can reach only the /integration endpoints.
+    o.AddPolicy("Integration", p => p.AddAuthenticationSchemes(DasEngage.Api.Erp.ApiKeyAuth.Scheme).RequireAuthenticatedUser().RequireRole(DasEngage.Api.Erp.ApiKeyAuth.Role));
 });
 
 builder.Services.AddEndpointsApiExplorer();
@@ -117,6 +129,7 @@ app.UseAuthorization();
 
 app.MapHealthChecks("/health").AllowAnonymous();
 app.MapApi();
+DasEngage.Api.Erp.ErpEndpoints.MapIntegration(app);
 
 if (args.Length > 0 && args[0] == "provision-tenant")
 {

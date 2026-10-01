@@ -27,7 +27,8 @@ public class SampleService
     public const int MaxQuantityPerLine = 1000;
 
     private readonly AppDbContext _db;
-    public SampleService(AppDbContext db) => _db = db;
+    private readonly Erp.ErpOutbox _outbox;
+    public SampleService(AppDbContext db, Erp.ErpOutbox outbox) { _db = db; _outbox = outbox; }
 
     public static DateOnly Today => DateOnly.FromDateTime(DateTime.UtcNow);
 
@@ -46,6 +47,9 @@ public class SampleService
         await tx.CommitAsync();
         return result;
     }
+
+    /// <summary>Adds a warehouse receipt without saving (the caller saves, so it can be part of a bigger change).</summary>
+    public void ReceiveInto(Guid batchId, int quantity, string note, DateTime at) => Move(batchId, null, quantity, MovementType.Receipt, null, note, at);
 
     private void Move(Guid batchId, Guid? holder, int delta, MovementType type, Guid? refId, string? note, DateTime at) =>
         _db.StockMovements.Add(new StockMovement { BatchId = batchId, HolderId = holder, Delta = delta, Type = type, RefId = refId, Note = note, OccurredAt = at });
@@ -74,6 +78,12 @@ public class SampleService
         if (d.HolderId is { } h && await _db.Users.FirstOrDefaultAsync(u => u.Id == h) is null) return "Holder not found.";
         if (d.Delta < 0 && await Balance(d.BatchId, d.HolderId) < -d.Delta) return "Not enough stock for this adjustment.";
         Move(d.BatchId, d.HolderId, d.Delta, type, null, d.Reason.Trim(), DateTime.UtcNow);
+        if (await _outbox.IsEnabled())
+        {
+            var info = (await _outbox.Batches(new[] { d.BatchId }))[d.BatchId];
+            await _outbox.Enqueue("sample.adjustment", new { kind = type == MovementType.WriteOff ? "writeoff" : "adjustment", location = d.HolderId == null ? "warehouse" : "rep", repId = d.HolderId,
+                itemCode = info.ItemCode, batchNumber = info.BatchNumber, delta = d.Delta, reason = d.Reason.Trim(), at = DateTime.UtcNow });
+        }
         await _db.SaveChangesAsync();
         return null;
     }
@@ -87,6 +97,11 @@ public class SampleService
         var now = DateTime.UtcNow;
         Move(d.BatchId, d.RepId, -d.Quantity, MovementType.ReturnFromRep, null, d.Note, now);
         Move(d.BatchId, null, d.Quantity, MovementType.ReturnFromRep, null, d.Note, now);
+        if (await _outbox.IsEnabled())
+        {
+            var info = (await _outbox.Batches(new[] { d.BatchId }))[d.BatchId];
+            await _outbox.Enqueue("sample.return", new { repId = d.RepId, itemCode = info.ItemCode, batchNumber = info.BatchNumber, quantity = d.Quantity, note = d.Note, at = now });
+        }
         await _db.SaveChangesAsync();
         return null;
     }
@@ -156,6 +171,13 @@ public class SampleService
         }
         req.Status = SampleRequestStatus.Fulfilled;
         req.FulfilledAt = now;
+        if (await _outbox.IsEnabled())
+        {
+            var info = await _outbox.Batches(plan.Select(p => p.BatchId));
+            var rep = await _db.Users.AsNoTracking().FirstOrDefaultAsync(u => u.Id == req.RepId);
+            await _outbox.Enqueue("sample.issue", new { requestId = req.Id, repId = req.RepId, repName = rep?.FullName, issuedAt = now,
+                lines = plan.Select(p => new { itemCode = info[p.BatchId].ItemCode, batchNumber = info[p.BatchId].BatchNumber, quantity = p.Quantity }) });
+        }
         await _db.SaveChangesAsync();
         return (null, plan);
     }
@@ -194,6 +216,14 @@ public class SampleService
             Quantity = d.Quantity, DistributedAt = at, SignatureAttachmentId = d.SignatureAttachmentId, Notes = d.Notes?.Trim(),
         });
         Move(d.BatchId, repId, -d.Quantity, MovementType.Distribution, id, null, at);
+        if (await _outbox.IsEnabled())
+        {
+            var info = (await _outbox.Batches(new[] { d.BatchId }))[d.BatchId];
+            var customer = await _db.Customers.AsNoTracking().FirstOrDefaultAsync(c => c.Id == d.CustomerId);
+            var rep = await _db.Users.AsNoTracking().FirstOrDefaultAsync(u => u.Id == repId);
+            await _outbox.Enqueue("sample.distribution", new { distributionId = id, repId, repName = rep?.FullName, customerAccountCode = customer?.ErpAccountCode, customerName = customer?.Name,
+                itemCode = info.ItemCode, batchNumber = info.BatchNumber, quantity = d.Quantity, distributedAt = at, signed = d.SignatureAttachmentId != null });
+        }
         await _db.SaveChangesAsync();
         return new(id, "accepted", null);
     }

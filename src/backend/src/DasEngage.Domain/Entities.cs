@@ -20,7 +20,14 @@ public enum AiFeature { Transcription, VisitSummary }
 
 public enum AiStatus { Draft, Accepted, Rejected, Failed }
 
+public enum OutboxStatus { Pending, Sent, DeadLetter }
+
+public enum RequisitionStatus { Draft, Approved, Received, Rejected, Cancelled }
+
 public enum FollowUpStatus { Open, Done, Cancelled }
+
+/// <summary>High-volume or machine-written rows that are not individually audited (the audit log would drown in them).</summary>
+public interface IUnaudited { }
 
 /// <summary>Base for all tenant-owned, syncable rows. Ids are client-generatable (UUID) for offline creation.</summary>
 public abstract class TenantEntity
@@ -70,6 +77,10 @@ public class Product : TenantEntity
     public string Name { get; set; } = "";
     public string? Code { get; set; }
     public string? TherapeuticArea { get; set; }
+    /// <summary>Standard unit cost from the ERP; values the samples given out.</summary>
+    public decimal? StandardCost { get; set; }
+    /// <summary>Warehouse sample stock below this triggers a purchase suggestion.</summary>
+    public int? ReorderLevel { get; set; }
 }
 
 public class Customer : TenantEntity
@@ -89,6 +100,8 @@ public class Customer : TenantEntity
     public double? Longitude { get; set; }
     /// <summary>Target visits per month, driven by segment.</summary>
     public int TargetVisitsPerMonth { get; set; }
+    /// <summary>The customer's account code in the ERP (links invoices to this customer).</summary>
+    public string? ErpAccountCode { get; set; }
     public List<CustomerProductInterest> ProductInterests { get; set; } = new();
 }
 
@@ -279,4 +292,108 @@ public class AiOutput : TenantEntity
     public int LatencyMs { get; set; }
     public string? Error { get; set; }
     public DateTime? DecidedAt { get; set; }
+}
+
+/// <summary>How a tenant is connected to its ERP. The secret itself is never stored here, only the name of the secret in the vault/configuration.</summary>
+public class ErpConnection : TenantEntity
+{
+    /// <summary>"rest" (an ERP gateway implementing the DAS Engage contract) or "none" (CSV and push only).</summary>
+    public string Provider { get; set; } = "none";
+    public string? BaseUrl { get; set; }
+    public string? SecretName { get; set; }
+    public bool Enabled { get; set; }
+    public bool OutboundEnabled { get; set; }
+    public bool PullEnabled { get; set; }
+    public int PullIntervalMinutes { get; set; } = 60;
+    public string Currency { get; set; } = "GHS";
+    public DateTime? LastPullAt { get; set; }
+    public string? LastError { get; set; }
+    /// <summary>JSON: the last cursor received per entity, so a pull continues where it stopped.</summary>
+    public string? Cursors { get; set; }
+}
+
+/// <summary>A credential for ERP middleware to push data in. Only a hash is stored; the key is shown once when created.</summary>
+public class IntegrationKey : TenantEntity
+{
+    public string Name { get; set; } = "";
+    public string Prefix { get; set; } = "";
+    public string KeyHash { get; set; } = "";
+    public DateTime? RevokedAt { get; set; }
+    public DateTime? LastUsedAt { get; set; }
+}
+
+/// <summary>Transactional outbox: changes that must reach the ERP are written in the same transaction as the business change, then delivered with retries.</summary>
+public class OutboxMessage : TenantEntity, IUnaudited
+{
+    public string Type { get; set; } = "";
+    public string Payload { get; set; } = "";
+    public OutboxStatus Status { get; set; } = OutboxStatus.Pending;
+    public int Attempts { get; set; }
+    public DateTime NextAttemptAt { get; set; } = DateTime.UtcNow;
+    public string? LastError { get; set; }
+    public string? ExternalRef { get; set; }
+    public DateTime? SentAt { get; set; }
+}
+
+/// <summary>One run of an import or export, for the integration log.</summary>
+public class SyncRun : TenantEntity, IUnaudited
+{
+    public string Entity { get; set; } = "";
+    /// <summary>push (middleware), pull (scheduled), csv (uploaded by a person).</summary>
+    public string Source { get; set; } = "";
+    public DateTime StartedAt { get; set; }
+    public DateTime? FinishedAt { get; set; }
+    public int Created { get; set; }
+    public int Updated { get; set; }
+    public int Skipped { get; set; }
+    public int Errors { get; set; }
+    public string? Message { get; set; }
+}
+
+/// <summary>An invoice (or credit note) line from the ERP.</summary>
+public class SalesFact : TenantEntity, IUnaudited
+{
+    public string ExternalId { get; set; } = "";
+    public string DocumentNumber { get; set; } = "";
+    public DateOnly SaleDate { get; set; }
+    public string AccountCode { get; set; } = "";
+    public Guid? CustomerId { get; set; }
+    public string ItemCode { get; set; } = "";
+    public Guid? ProductId { get; set; }
+    public decimal Quantity { get; set; }
+    public decimal NetAmount { get; set; }
+    public string Currency { get; set; } = "GHS";
+}
+
+/// <summary>Remembers ERP documents already applied (goods receipts), so a re-sent document does nothing.</summary>
+public class ErpDocument : TenantEntity, IUnaudited
+{
+    public string Type { get; set; } = "";
+    public string ExternalId { get; set; } = "";
+    public string Result { get; set; } = "";
+}
+
+/// <summary>The ERP's view of warehouse sample stock, kept to reconcile against our ledger.</summary>
+public class ErpStockSnapshot : TenantEntity, IUnaudited
+{
+    public string ItemCode { get; set; } = "";
+    public Guid? ProductId { get; set; }
+    public string? BatchNumber { get; set; }
+    public decimal Quantity { get; set; }
+    public DateTime AsOf { get; set; }
+}
+
+public class PurchaseRequisition : TenantEntity
+{
+    public Guid ProductId { get; set; }
+    public int Quantity { get; set; }
+    public DateOnly? NeededBy { get; set; }
+    public string? Note { get; set; }
+    public RequisitionStatus Status { get; set; } = RequisitionStatus.Draft;
+    public Guid RequestedBy { get; set; }
+    public Guid? ApprovedBy { get; set; }
+    public DateTime? ApprovedAt { get; set; }
+    public string? ErpReference { get; set; }
+    public int ReceivedQuantity { get; set; }
+    public string? DecisionNote { get; set; }
 }

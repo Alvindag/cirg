@@ -31,6 +31,14 @@ public class AppDbContext : DbContext
     public DbSet<GpsPing> GpsPings => Set<GpsPing>();
     public DbSet<Attachment> Attachments => Set<Attachment>();
     public DbSet<AiOutput> AiOutputs => Set<AiOutput>();
+    public DbSet<ErpConnection> ErpConnections => Set<ErpConnection>();
+    public DbSet<IntegrationKey> IntegrationKeys => Set<IntegrationKey>();
+    public DbSet<OutboxMessage> OutboxMessages => Set<OutboxMessage>();
+    public DbSet<SyncRun> SyncRuns => Set<SyncRun>();
+    public DbSet<SalesFact> SalesFacts => Set<SalesFact>();
+    public DbSet<ErpDocument> ErpDocuments => Set<ErpDocument>();
+    public DbSet<ErpStockSnapshot> ErpStockSnapshots => Set<ErpStockSnapshot>();
+    public DbSet<PurchaseRequisition> PurchaseRequisitions => Set<PurchaseRequisition>();
     public DbSet<SampleBatch> SampleBatches => Set<SampleBatch>();
     public DbSet<StockMovement> StockMovements => Set<StockMovement>();
     public DbSet<SampleRequest> SampleRequests => Set<SampleRequest>();
@@ -51,6 +59,18 @@ public class AppDbContext : DbContext
         b.Entity<Attachment>().HasIndex(x => new { x.TenantId, x.VisitId });
         b.Entity<SampleBatch>().HasIndex(x => new { x.TenantId, x.ProductId, x.BatchNumber }).IsUnique();
         b.Entity<AiOutput>().HasIndex(x => new { x.TenantId, x.UserId, x.CreatedAt });
+        b.Entity<Product>().Property(x => x.StandardCost).HasPrecision(18, 4);
+        b.Entity<SalesFact>().Property(x => x.NetAmount).HasPrecision(18, 2);
+        b.Entity<SalesFact>().Property(x => x.Quantity).HasPrecision(18, 3);
+        b.Entity<ErpStockSnapshot>().Property(x => x.Quantity).HasPrecision(18, 3);
+        b.Entity<SalesFact>().HasIndex(x => new { x.TenantId, x.ExternalId }).IsUnique();
+        b.Entity<SalesFact>().HasIndex(x => new { x.TenantId, x.SaleDate });
+        b.Entity<SalesFact>().HasIndex(x => new { x.TenantId, x.CustomerId, x.SaleDate });
+        b.Entity<ErpDocument>().HasIndex(x => new { x.TenantId, x.Type, x.ExternalId }).IsUnique();
+        b.Entity<IntegrationKey>().HasIndex(x => x.Prefix).IsUnique();
+        b.Entity<OutboxMessage>().HasIndex(x => new { x.Status, x.NextAttemptAt });
+        b.Entity<Customer>().HasIndex(x => new { x.TenantId, x.ErpAccountCode });
+        b.Entity<Product>().HasIndex(x => new { x.TenantId, x.Code });
         b.Entity<AiOutput>().HasIndex(x => new { x.TenantId, x.SubjectId });
         b.Entity<StockMovement>().HasIndex(x => new { x.TenantId, x.BatchId, x.HolderId });
         b.Entity<SampleRequest>().HasIndex(x => new { x.TenantId, x.RepId, x.Status });
@@ -74,6 +94,14 @@ public class AppDbContext : DbContext
         b.Entity<FollowUpTask>().HasQueryFilter(e => e.TenantId == CurrentTenantId && e.DeletedAt == null);
         b.Entity<GpsPing>().HasQueryFilter(e => e.TenantId == CurrentTenantId && e.DeletedAt == null);
         b.Entity<Attachment>().HasQueryFilter(e => e.TenantId == CurrentTenantId && e.DeletedAt == null);
+        b.Entity<ErpConnection>().HasQueryFilter(e => e.TenantId == CurrentTenantId && e.DeletedAt == null);
+        b.Entity<IntegrationKey>().HasQueryFilter(e => e.TenantId == CurrentTenantId && e.DeletedAt == null);
+        b.Entity<OutboxMessage>().HasQueryFilter(e => e.TenantId == CurrentTenantId && e.DeletedAt == null);
+        b.Entity<SyncRun>().HasQueryFilter(e => e.TenantId == CurrentTenantId && e.DeletedAt == null);
+        b.Entity<SalesFact>().HasQueryFilter(e => e.TenantId == CurrentTenantId && e.DeletedAt == null);
+        b.Entity<ErpDocument>().HasQueryFilter(e => e.TenantId == CurrentTenantId && e.DeletedAt == null);
+        b.Entity<ErpStockSnapshot>().HasQueryFilter(e => e.TenantId == CurrentTenantId && e.DeletedAt == null);
+        b.Entity<PurchaseRequisition>().HasQueryFilter(e => e.TenantId == CurrentTenantId && e.DeletedAt == null);
         b.Entity<AiOutput>().HasQueryFilter(e => e.TenantId == CurrentTenantId && e.DeletedAt == null);
         b.Entity<SampleBatch>().HasQueryFilter(e => e.TenantId == CurrentTenantId && e.DeletedAt == null);
         b.Entity<StockMovement>().HasQueryFilter(e => e.TenantId == CurrentTenantId && e.DeletedAt == null);
@@ -102,7 +130,7 @@ public class AppDbContext : DbContext
                 e.Entity.CreatedBy = _current.UserId;
                 e.Entity.UpdatedAt = now;
                 e.Entity.UpdatedBy = _current.UserId;
-                audits.Add(("create", e.Entity.GetType().Name, e.Entity.Id, null));
+                if (e.Entity is not IUnaudited) audits.Add(("create", e.Entity.GetType().Name, e.Entity.Id, null));
             }
             else if (e.State == EntityState.Modified)
             {
@@ -111,7 +139,9 @@ public class AppDbContext : DbContext
                 e.Property(x => x.TenantId).IsModified = false;
                 e.Property(x => x.CreatedAt).IsModified = false;
                 var action = e.Entity.DeletedAt != null ? "delete" : "update";
-                audits.Add((action, e.Entity.GetType().Name, e.Entity.Id, ChangedFields(e)));
+                var changes = ChangedFields(e);
+                // a save that changed nothing meaningful (or only a last-used timestamp) is not an auditable event
+                if (e.Entity is not IUnaudited && (action == "delete" || changes != null)) audits.Add((action, e.Entity.GetType().Name, e.Entity.Id, changes));
             }
         }
 
@@ -138,7 +168,7 @@ public class AppDbContext : DbContext
 
     private static string? ChangedFields(EntityEntry e)
     {
-        var d = e.Properties.Where(p => p.IsModified && p.Metadata.Name is not ("UpdatedAt" or "UpdatedBy"))
+        var d = e.Properties.Where(p => p.IsModified && p.Metadata.Name is not ("UpdatedAt" or "UpdatedBy" or "LastUsedAt"))
             .ToDictionary(p => p.Metadata.Name, p => new { from = p.OriginalValue, to = p.CurrentValue });
         return d.Count == 0 ? null : JsonSerializer.Serialize(d);
     }

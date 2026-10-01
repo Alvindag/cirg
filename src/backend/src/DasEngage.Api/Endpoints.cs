@@ -19,6 +19,7 @@ public static class Endpoints
         AttachmentEndpoints.Map(api);
         SampleEndpoints.Map(api);
         Ai.AiEndpoints.Map(api);
+        Erp.ErpEndpoints.Map(api);
     }
 
     // ---------- Customers ----------
