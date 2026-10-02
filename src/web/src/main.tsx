@@ -4,6 +4,7 @@ import { BrowserRouter } from 'react-router-dom'
 import { App } from './App'
 import { AuthGate } from './auth/AuthGate'
 import { applyTheme, getTheme } from './lib/theme'
+import '@fontsource-variable/inter'
 import './styles.css'
 
 applyTheme(getTheme())

@@ -1,5 +1,6 @@
 import type { ReactNode } from 'react'
 import { useCountUp } from '../lib/motion'
+import { useReveal } from '../lib/reveal'
 
 /** A shimmering placeholder (the words stay for screen readers). */
 export function Loading({ what = 'Loading' }: { what?: string }) {
@@ -36,8 +37,9 @@ export function Kpi({ label, value, hint, tone, num, format }: { label: string; 
 }
 
 export function Section({ title, actions, children }: { title: string; actions?: ReactNode; children: ReactNode }) {
+  const ref = useReveal<HTMLElement>()
   return (
-    <section className="card">
+    <section className="card" ref={ref}>
       <div className="card-head">
         <h2>{title}</h2>
         <div>{actions}</div>

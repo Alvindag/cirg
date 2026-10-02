@@ -77,7 +77,7 @@ try {
   const headers = (await ctx.request.get(base)).headers()
   if (!headers['content-security-policy']?.includes("default-src 'self'")) errors.push('the security headers were not applied to the build')
   if (shots) mkdirSync(shots, { recursive: true })
-  const shot = async (name) => { if (shots) await page.screenshot({ path: `${shots}/${name}.png`, fullPage: true }) }
+  const shot = async (name) => { if (shots) { await new Promise((r) => setTimeout(r, 700)); await page.screenshot({ path: `${shots}/${name}.png`, fullPage: true }) } }
   const expectText = async (text) => page.getByText(text, { exact: false }).first().waitFor({ timeout: 8000 })
 
   await page.goto(base)
@@ -88,12 +88,17 @@ try {
   await page.waitForSelector('.recharts-bar-rectangle', { timeout: 8000 })
   await expectText('GHS 482,500')
   await shot('overview')
+  await page.evaluate(() => document.documentElement.setAttribute('data-theme', 'dark'))
+  await new Promise((r) => setTimeout(r, 900))
+  await shot('overview-dark')
+  await page.evaluate(() => document.documentElement.removeAttribute('data-theme'))
 
   // live data: the page shows how fresh it is, and picks up new numbers without a reload
   await page.getByText('Live · updated').first().waitFor({ timeout: 8000 })
   liveCalls = 197
   await page.getByRole('button', { name: 'Refresh' }).first().click()
-  await expectText('197')
+  // the headline number counts up to its new value; wait for it to finish (a hidden copy of the final value is there from the start)
+  await page.waitForFunction(() => [...document.querySelectorAll('.kpi-value')].some((e) => e.textContent.trim() === '197'), null, { timeout: 8000 })
   if (await page.getByText('184', { exact: true }).count()) errors.push('the old number is still on screen after a refresh')
 
   await page.getByRole('link', { name: 'Customers' }).click()

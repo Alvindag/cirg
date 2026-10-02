@@ -1,4 +1,5 @@
-import { NavLink, Outlet } from 'react-router-dom'
+import { useEffect } from 'react'
+import { NavLink, Outlet, useLocation } from 'react-router-dom'
 import { useApp } from '../context'
 import { BrandMark } from './BrandMark'
 import { Notifications } from './Notifications'
@@ -8,6 +9,12 @@ import { canSeeErp, isManager } from '../lib/roles'
 export function Layout() {
   const { me, signOut } = useApp()
   const manager = isManager(me.role)
+  // The page's mood: a faint tint in the background that changes with the section (see styles.css), so you can tell where you are at a glance.
+  const section = useLocation().pathname.split('/')[1] || 'overview'
+  useEffect(() => {
+    document.documentElement.setAttribute('data-section', section)
+    return () => document.documentElement.removeAttribute('data-section')
+  }, [section])
   return (
     <div className="shell">
       <header className="topbar">
