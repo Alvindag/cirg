@@ -111,7 +111,8 @@ public class AzureOpenAi : IChatModel, ITranscriber
         file.Headers.ContentType = new MediaTypeHeaderValue(contentType);
         form.Add(file, "file", fileName);
         form.Add(new StringContent("json"), "response_format");
-        if (!string.IsNullOrWhiteSpace(language)) form.Add(new StringContent(language), "language");
+        // only a language code ever reaches the form: anything else is dropped here as well as refused at the endpoint
+        if (LanguageTag.IsValid(language)) form.Add(new StringContent(language!), "language");
         using var req = new HttpRequestMessage(HttpMethod.Post, Url(_o.TranscriptionDeployment, "audio/transcriptions")) { Content = form };
         await Authorize(req, ct);
         HttpResponseMessage r;
@@ -124,4 +125,11 @@ public class AzureOpenAi : IChatModel, ITranscriber
             return new TranscriptResult(doc.RootElement.GetProperty("text").GetString() ?? "", language);
         }
     }
+}
+
+/// <summary>A short language code such as "en", "fr" or "pt-BR" (the speech model takes ISO 639 codes; free text is never passed on).</summary>
+public static class LanguageTag
+{
+    private static readonly System.Text.RegularExpressions.Regex Pattern = new("^[a-zA-Z]{2,3}(-[a-zA-Z0-9]{2,8})?$", System.Text.RegularExpressions.RegexOptions.Compiled);
+    public static bool IsValid(string? tag) => !string.IsNullOrWhiteSpace(tag) && tag.Length <= 12 && Pattern.IsMatch(tag);
 }

@@ -189,6 +189,24 @@ public class AiApiTests : IClassFixture<AiFactory>
         Assert.Equal(HttpStatusCode.BadRequest, (await c.RepClient.PostAsJsonAsync("/api/v1/ai/transcriptions", new TranscribeRequest(photo, null))).StatusCode);
     }
 
+    [Theory]
+    [InlineData("<script>alert(1)</script>")]
+    [InlineData("english please")]
+    [InlineData("en\r\nContent-Disposition: form-data")]
+    public async Task A_language_that_is_not_a_language_code_is_refused_before_anything_is_sent(string language)
+    {
+        var c = await Setup();
+        var note = await VoiceNote(c);
+        var before = _f.Transcriber.Calls;
+        Assert.Equal(HttpStatusCode.BadRequest, (await c.RepClient.PostAsJsonAsync("/api/v1/ai/transcriptions", new TranscribeRequest(note, language))).StatusCode);
+        Assert.Equal(before, _f.Transcriber.Calls);
+    }
+
+    [Theory]
+    [InlineData("en", true)] [InlineData("fr", true)] [InlineData("pt-BR", true)] [InlineData("twi", true)]
+    [InlineData("", false)] [InlineData(null, false)] [InlineData("e", false)] [InlineData("en-", false)] [InlineData("en_GB", false)] [InlineData("english-language-long", false)]
+    public void Language_codes_are_recognised(string? tag, bool valid) => Assert.Equal(valid, DasEngage.Api.Ai.LanguageTag.IsValid(tag));
+
     // ---------- visit summaries ----------
 
     [Fact]

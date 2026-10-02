@@ -113,12 +113,10 @@ jobs:
           cache-from: type=gha
           cache-to: type=gha,mode=max
       - name: Scan for known vulnerabilities (fixed HIGH and CRITICAL fail the build)
-        uses: aquasecurity/trivy-action@0.28.0
-        with:
-          image-ref: das-engage-api:ci
-          severity: HIGH,CRITICAL
-          ignore-unfixed: true
-          exit-code: "1"
+        # Trivy from its published image, pinned: no third-party action to resolve
+        run: |
+          docker run --rm -v /var/run/docker.sock:/var/run/docker.sock aquasec/trivy:0.58.1 \
+            image --severity HIGH,CRITICAL --ignore-unfixed --exit-code 1 --no-progress das-engage-api:ci
       - name: Run the migration job and the API from the image
         run: |
           ENVV="-e ConnectionStrings__Default=Host=localhost;Database=das_engage;Username=postgres;Password=postgres -e Auth__Authority=https://login.microsoftonline.com/organizations/v2.0 -e Auth__ValidAudiences__0=api://ci -e Erp__Worker__Enabled=false -e ASPNETCORE_URLS=http://+:8081"
@@ -262,6 +260,7 @@ jobs:
       - uses: gitleaks/gitleaks-action@v2
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITLEAKS_ENABLE_COMMENTS: "false" # the token cannot comment on pull requests; findings are in the job summary
 
   # One required check for branch protection: everything above must pass.
   ci-ok:
