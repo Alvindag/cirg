@@ -81,3 +81,6 @@ The pill under the title bar says whether the phone is up to date. When a sync f
 ## Look
 Colours come from the DAS logo (red for identity, charcoal for structure, blue for actions) and follow the phone's light or dark setting. The theme is in `lib/ui/theme.dart`.
 
+## Trying it on a phone against your own PC
+Run `scripts/dev-api-lan.ps1` on the PC: it starts the API on every network address (the normal launch profile listens on localhost only, which no phone can reach), opens the firewall port, and prints the addresses to type into the phone. On the sign-in screen enter the address with its port (for example `http://192.168.1.148:5111`), tap **Test connection**, and only then paste the token.
+

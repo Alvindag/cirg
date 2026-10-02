@@ -5,6 +5,7 @@ import '../config.dart';
 import '../providers.dart';
 import 'theme.dart';
 import '../services/auth_provider.dart';
+import '../services/server_check.dart';
 
 /// Sign in with Microsoft (Entra ID). Development builds (--dart-define=DEV_LOGIN=true) also offer a pasted token.
 class LoginScreen extends ConsumerStatefulWidget {
@@ -18,6 +19,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   final _url = TextEditingController(text: AppConfig.apiBaseUrl);
   final _token = TextEditingController();
   bool _busy = false;
+  ServerCheck? _check;
   String? _error;
 
   @override
@@ -41,6 +43,14 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
       if (mounted) setState(() => _busy = false);
     }
   }
+
+  Future<void> _test() => _run(() async {
+        setState(() => _check = null);
+        final result = await checkServer(_url.text);
+        if (!mounted) return;
+        if (result.ok && result.address != null) _url.text = result.address!;
+        setState(() => _check = result);
+      });
 
   Future<void> _microsoft() => _run(() {
         final tenant = AppConfig.tenantIsFixed ? AppConfig.entraTenant : _org.text.trim();
@@ -70,7 +80,28 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
           ),
         if (AppConfig.apiBaseUrl.isEmpty) ...[
           TextField(controller: _url, keyboardType: TextInputType.url, decoration: const InputDecoration(labelText: 'Server address', hintText: 'http://192.168.1.20:5111', helperText: 'The address of your DAS Engage server')),
-          const SizedBox(height: 12),
+          const SizedBox(height: 8),
+          Align(
+            alignment: Alignment.centerLeft,
+            child: TextButton.icon(
+              onPressed: _busy ? null : _test,
+              icon: const Icon(Icons.wifi_find),
+              label: const Text('Test connection'),
+            ),
+          ),
+          if (_check != null)
+            Card(
+              margin: const EdgeInsets.only(bottom: 12),
+              color: _check!.ok ? const Color(0xFFE2F3EA) : Theme.of(context).colorScheme.errorContainer,
+              child: Padding(
+                padding: const EdgeInsets.all(12),
+                child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                  Icon(_check!.ok ? Icons.check_circle : Icons.error_outline, color: _check!.ok ? const Color(0xFF17734A) : Theme.of(context).colorScheme.error),
+                  const SizedBox(width: 10),
+                  Expanded(child: Text(_check!.message, style: TextStyle(color: _check!.ok ? const Color(0xFF0B3D26) : null))),
+                ]),
+              ),
+            ),
         ],
         if (AppConfig.entraConfigured) ...[
           if (!AppConfig.tenantIsFixed) ...[

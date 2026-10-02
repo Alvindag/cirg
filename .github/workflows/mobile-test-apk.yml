@@ -9,7 +9,7 @@ on:
     paths: [".github/workflows/mobile-test-apk.yml"]
 
 # To get a fresh APK from a branch before this file reaches the default branch, edit the line below (any change to this file triggers a build).
-# build: 3
+# build: 4
 permissions:
   contents: read
 
