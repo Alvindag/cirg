@@ -92,7 +92,7 @@ function SignIn({ message, source, onDevToken }: { message?: string; source?: To
       {message && <div className="error" role="alert">{message}</div>}
       {source && <button className="primary" onClick={() => void source.signIn()}>Sign in with Microsoft</button>}
       {config.devLogin && (
-        <form onSubmit={submit} className="form" aria-label="Development sign-in">
+        <form onSubmit={submit} className="form signin-form" aria-label="Development sign-in">
           <h3>Development sign-in</h3>
           {!source && <p className="muted small">Microsoft sign-in is not set up on this site; paste a development token.</p>}
           {problem && <div className="error" role="alert">{problem}</div>}
