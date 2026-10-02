@@ -16,12 +16,14 @@ const Erp = lazy(() => import('./pages/Erp').then((m) => ({ default: m.Erp })))
 const Audit = lazy(() => import('./pages/Audit').then((m) => ({ default: m.Audit })))
 
 export function App() {
-  const { me } = useApp()
+  const { me, signOut } = useApp()
   if (!canUseDashboard(me.role)) {
     return (
       <main className="center">
         <h1>DAS Engage 360</h1>
         <p>The web dashboard is for managers and the commercial team. Sales representatives work in the DAS Engage mobile app.</p>
+        <p className="muted small">Signed in as {me.fullName} ({me.role}).</p>
+        <p><button className="primary" onClick={signOut}>Sign out</button></p>
       </main>
     )
   }
