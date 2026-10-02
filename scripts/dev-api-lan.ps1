@@ -12,7 +12,8 @@ Usage (PowerShell, from the repository folder):
 param(
   [string]$Password = $env:PGPASSWORD,
   [string]$Database = "das_engage",
-  [int]$Port = 5111
+  [int]$Port = 5111,
+  [switch]$SkipMigrations
 )
 $ErrorActionPreference = "Stop"
 
@@ -52,5 +53,17 @@ Write-Host ""
 
 $env:ConnectionStrings__Default = "Host=localhost;Database=$Database;Username=postgres;Password=$Password"
 $env:ASPNETCORE_ENVIRONMENT = "Development"
-Push-Location (Join-Path $PSScriptRoot "..\src\backend\src\DasEngage.Api")
+$root = Join-Path $PSScriptRoot "..\src\backend\src"
+
+# New versions of the app add database columns; apply them first, otherwise queries fail with "column ... does not exist".
+if (-not $SkipMigrations) {
+  Write-Host "Applying database migrations..." -ForegroundColor Cyan
+  dotnet ef database update --project (Join-Path $root "DasEngage.Infrastructure") --startup-project (Join-Path $root "DasEngage.Api") --connection $env:ConnectionStrings__Default
+  if ($LASTEXITCODE -ne 0) {
+    Write-Host "The database update failed. Is the dotnet-ef tool installed (dotnet tool install --global dotnet-ef --version 8.0.11) and the password right?" -ForegroundColor Red
+    exit 1
+  }
+}
+
+Push-Location (Join-Path $root "DasEngage.Api")
 try { dotnet run --no-launch-profile --urls "http://0.0.0.0:$Port" } finally { Pop-Location }
