@@ -48,7 +48,13 @@ export interface LastKnown { repId: string; recordedAt: string; latitude: number
 export interface ImportRow { row: number; status: string; message: string | null; customerId: string | null; matchedCustomerId: string | null }
 export interface ImportResult { dryRun: boolean; total: number; created: number; updated: number; skipped: number; errors: number; rows: ImportRow[] }
 
-export interface Product { id: string; name: string; code: string | null }
+export interface Product {
+  id: string; name: string; code: string | null
+  therapeuticArea?: string | null; standardCost?: number | null; reorderLevel?: number | null
+  /** Most units one customer may be given in `sampleLimitDays` days; null = no limit. */
+  sampleLimitPerCustomer?: number | null; sampleLimitDays?: number | null
+}
+export interface AppNotification { id: string; kind: string; title: string; body: string | null; createdAt: string; readAt: string | null }
 export interface Batch { id: string; productId: string; batchNumber: string; expiryDate: string; status: string; statusReason: string | null }
 
 export interface SampleRequest {

@@ -18,3 +18,6 @@ export const canUseDashboard = (r: Role) => dashboardRoles.includes(r)
 
 /** The ERP integration pages: administrators manage them, executives can see them. */
 export const canSeeErp = (r: Role) => ['Admin', 'NationalSalesManager', 'Executive'].includes(r)
+
+/** Mirrors the API's `Roles.CustomerEditors` (reps edit on the phone). */
+export const canEditCustomers = (r: Role) => ['AreaManager', 'RegionalManager', 'NationalSalesManager', 'KeyAccountManager', 'Marketing', 'Admin'].includes(r)

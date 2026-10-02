@@ -29,6 +29,22 @@ export function Team() {
     }
   }
 
+  function editTerritory(t: Territory) {
+    const name = window.prompt('Territory name:', t.name)
+    if (name === null) return
+    if (!name.trim()) { setError('A territory needs a name.'); return }
+    const region = window.prompt('Region (empty for none):', t.region ?? '')
+    if (region === null) return
+    const district = window.prompt('District (empty for none):', t.district ?? '')
+    if (district === null) return
+    void act(() => api.put(`/admin/territories/${t.id}`, { id: t.id, name: name.trim(), region: region.trim() || null, district: district.trim() || null }), `${name.trim()} saved.`)
+  }
+
+  function deleteTerritory(t: Territory) {
+    if (!window.confirm(`Delete the territory ${t.name}? It can only be deleted when no people or customers are assigned to it.`)) return
+    void act(() => api.del(`/admin/territories/${t.id}`), `${t.name} deleted.`)
+  }
+
   async function deactivate(u: AppUser) {
     const hasReports = (users.data ?? []).some((x) => x.managerId === u.id && x.isActive)
     let reassign: string | undefined
@@ -77,8 +93,16 @@ export function Team() {
         {territories.error && <ErrorBox message={territories.error} onRetry={territories.reload} />}
         {territories.data && (territories.data.length === 0 ? <Empty>No territories yet.</Empty> : (
           <table>
-            <thead><tr><th>Name</th><th>Region</th><th>District</th></tr></thead>
-            <tbody>{territories.data.map((t) => <tr key={t.id}><td>{t.name}</td><td>{t.region ?? '—'}</td><td>{t.district ?? '—'}</td></tr>)}</tbody>
+            <thead><tr><th>Name</th><th>Region</th><th>District</th>{admin && <th />}</tr></thead>
+            <tbody>{territories.data.map((t) => (
+              <tr key={t.id}>
+                <td>{t.name}</td><td>{t.region ?? '—'}</td><td>{t.district ?? '—'}</td>
+                {admin && <td className="actions">
+                  <button aria-label={`Edit territory ${t.name}`} onClick={() => editTerritory(t)}>Edit</button>
+                  <button aria-label={`Delete territory ${t.name}`} onClick={() => deleteTerritory(t)}>Delete</button>
+                </td>}
+              </tr>
+            ))}</tbody>
           </table>
         ))}
         {admin && <AddTerritory onCreate={(body) => act(() => api.post('/admin/territories', body), 'Territory added.')} />}

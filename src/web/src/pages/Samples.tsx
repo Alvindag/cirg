@@ -43,9 +43,11 @@ const statusTone = (s: string) => (s === 'Fulfilled' ? 'good' : s === 'Approved'
 function Requests() {
   const { api, me } = useApp()
   const [status, setStatus] = useState('Pending')
-  const { name: userName } = useUserNames()
+  const [repId, setRepId] = useState('')
+  const { name: userName, users } = useUserNames()
   const { name: productName } = useProducts()
-  const list = useAsync(() => api.get<SampleRequest[]>('/samples/requests', { status }), [status])
+  // "All" leaves the status out so the history of every request can be searched
+  const list = useAsync(() => api.get<SampleRequest[]>('/samples/requests', { status: status === 'All' ? undefined : status, repId: repId || undefined }), [status, repId])
   const [message, setMessage] = useState<string>()
   const [error, setError] = useState<string>()
 
@@ -74,15 +76,21 @@ function Requests() {
 
   return (
     <Section title="Sample requests" actions={
-      <select aria-label="Status" value={status} onChange={(e) => setStatus(e.target.value)}>
-        {['Pending', 'Approved', 'Fulfilled', 'Rejected', 'Cancelled'].map((s) => <option key={s}>{s}</option>)}
-      </select>
+      <span className="filters">
+        <select aria-label="Rep" value={repId} onChange={(e) => setRepId(e.target.value)}>
+          <option value="">All reps</option>
+          {users.filter((u) => u.role === 'Rep').map((u) => <option key={u.id} value={u.id}>{u.fullName}</option>)}
+        </select>
+        <select aria-label="Status" value={status} onChange={(e) => setStatus(e.target.value)}>
+          {['All', 'Pending', 'Approved', 'Fulfilled', 'Rejected', 'Cancelled'].map((s) => <option key={s}>{s}</option>)}
+        </select>
+      </span>
     }>
       {message && <div className="notice" role="status">{message}</div>}
       {error && <ErrorBox message={error} />}
       {list.error && <ErrorBox message={list.error} onRetry={list.reload} />}
       {list.loading && !list.data && <Loading />}
-      {list.data && (list.data.length === 0 ? <Empty>No {status.toLowerCase()} requests.</Empty> : (
+      {list.data && (list.data.length === 0 ? <Empty>{status === 'All' ? 'No requests' : `No ${status.toLowerCase()} requests`}{repId ? ' for this rep' : ''}.</Empty> : (
         <table>
           <thead><tr><th>Requested</th><th>Rep</th><th>Product</th><th className="num">Qty</th><th>Status</th><th>Note</th><th /></tr></thead>
           <tbody>
@@ -112,14 +120,42 @@ function Requests() {
 }
 
 function Stock() {
-  const { api } = useApp()
+  const { api, me } = useApp()
+  const admin = isAdmin(me.role)
   const { name: userName } = useUserNames()
   const { name: productName } = useProducts()
   const stock = useAsync(() => api.get<StockRow[]>('/samples/reports/stock'), [])
   const rows = stock.data ?? []
+  const [message, setMessage] = useState<string>()
+  const [error, setError] = useState<string>()
+
+  async function act(fn: () => Promise<unknown>, ok: string) {
+    setError(undefined); setMessage(undefined)
+    try { await fn(); setMessage(ok); stock.reload() } catch (e) { setError(e instanceof Error ? e.message : String(e)) }
+  }
+  // Write-offs are negative (damage, loss, expiry); corrections can add stock back. A reason is always required and stock cannot go below zero.
+  const adjust = (r: StockRow) => {
+    const raw = window.prompt(`Change in units for batch ${r.batchNumber} (${r.location === 'Warehouse' ? 'warehouse' : userName(r.holderId)}, ${r.quantity} held). Use a negative number to write off:`)
+    if (raw === null) return
+    const delta = Number(raw)
+    if (!Number.isInteger(delta) || delta === 0) { setError('Enter a whole number other than zero.'); return }
+    if (delta < 0 && -delta > r.quantity) { setError(`Only ${r.quantity} units are held.`); return }
+    const reason = window.prompt('Reason (required, kept in the audit trail):')
+    if (!reason?.trim()) return
+    void act(() => api.post('/samples/adjustments', { batchId: r.batchId, holderId: r.holderId, delta, reason, type: delta < 0 ? 'WriteOff' : 'Adjustment' }), `Stock changed by ${delta}.`)
+  }
+  const giveBack = (r: StockRow) => {
+    const raw = window.prompt(`Return how many units of batch ${r.batchNumber} from ${userName(r.holderId)} to the warehouse? (${r.quantity} held)`, String(r.quantity))
+    if (raw === null) return
+    const qty = Number(raw)
+    if (!Number.isInteger(qty) || qty < 1 || qty > r.quantity) { setError(`Enter a whole number from 1 to ${r.quantity}.`); return }
+    void act(() => api.post('/samples/returns', { repId: r.holderId, batchId: r.batchId, quantity: qty, note: null }), `${qty} units returned to the warehouse.`)
+  }
   const attention = rows.filter((r) => r.actionRequired)
   return (
     <Section title="Where the stock is">
+      {message && <div className="notice" role="status">{message}</div>}
+      {error && <ErrorBox message={error} />}
       {stock.error && <ErrorBox message={stock.error} onRetry={stock.reload} />}
       {stock.loading && !stock.data && <Loading />}
       {attention.length > 0 && (
@@ -129,7 +165,7 @@ function Stock() {
       )}
       {stock.data && (rows.length === 0 ? <Empty>No stock recorded yet.</Empty> : (
         <table>
-          <thead><tr><th>Held by</th><th>Product</th><th>Batch</th><th>Expires</th><th>Status</th><th className="num">Qty</th></tr></thead>
+          <thead><tr><th>Held by</th><th>Product</th><th>Batch</th><th>Expires</th><th>Status</th><th className="num">Qty</th>{admin && <th />}</tr></thead>
           <tbody>
             {rows.map((r) => (
               <tr key={`${r.batchId}-${r.holderId}`} className={r.actionRequired ? 'flag' : ''}>
@@ -139,6 +175,10 @@ function Stock() {
                 <td>{fmtDate(r.expiryDate)} {r.expired ? <Badge tone="bad">Expired</Badge> : r.expiringSoon ? <Badge tone="warn">{r.daysToExpiry} days</Badge> : null}</td>
                 <td>{r.status === 'Active' ? <Badge tone="good">Active</Badge> : <Badge tone="bad">{r.status}</Badge>}</td>
                 <td className="num">{fmtInt(r.quantity)}</td>
+                {admin && <td className="actions">
+                  <button onClick={() => adjust(r)}>Adjust or write off</button>
+                  {r.location === 'Rep' && <button onClick={() => giveBack(r)}>Return to warehouse</button>}
+                </td>}
               </tr>
             ))}
           </tbody>
@@ -157,9 +197,9 @@ function Batches() {
   const [error, setError] = useState<string>()
   const [form, setForm] = useState({ productId: '', batchNumber: '', expiryDate: '' })
 
-  async function act(fn: () => Promise<unknown>, ok: string) {
+  async function act<T>(fn: () => Promise<T>, ok: string | ((r: T) => string)) {
     setError(undefined); setMessage(undefined)
-    try { await fn(); setMessage(ok); batches.reload() } catch (e) { setError(e instanceof Error ? e.message : String(e)) }
+    try { const r = await fn(); setMessage(typeof ok === 'function' ? ok(r) : ok); batches.reload() } catch (e) { setError(e instanceof Error ? e.message : String(e)) }
   }
   const receive = (b: Batch) => {
     const q = Number(window.prompt(`Receive how many units of batch ${b.batchNumber} into the warehouse?`))
@@ -169,7 +209,10 @@ function Batches() {
   const setStatus = (b: Batch, status: 'Quarantined' | 'Recalled' | 'Active') => {
     const reason = status === 'Active' ? '' : window.prompt(`Reason for marking batch ${b.batchNumber} as ${status.toLowerCase()}:`)
     if (status !== 'Active' && !reason?.trim()) return
-    void act(() => api.post(`/samples/batches/${b.id}/status`, { status, reason }), `Batch ${b.batchNumber} is now ${status.toLowerCase()}.`)
+    void act(
+      () => api.post<{ notified?: number }>(`/samples/batches/${b.id}/status`, { status, reason }),
+      (r) => `Batch ${b.batchNumber} is now ${status.toLowerCase()}.` + (r?.notified ? ` ${r.notified} rep${r.notified === 1 ? ' was' : 's were'} notified.` : ''),
+    )
   }
   const create = (e: FormEvent) => {
     e.preventDefault()
@@ -201,6 +244,7 @@ function Batches() {
           </tbody>
         </table>
       ))}
+      {admin && <Limits products={products} />}
       {admin && (
         <form className="form" onSubmit={create} aria-label="Add batch">
           <h3>Add a batch</h3>
@@ -261,5 +305,51 @@ function ComplianceTab() {
         </>
       )}
     </>
+  )
+}
+
+/** Per-customer sample limits: how many units of a product one customer may be given in a period. Enforced when hand-overs are recorded. */
+function Limits({ products }: { products: Product[] }) {
+  const { api } = useApp()
+  const [overrides, setOverrides] = useState<Record<string, { limit: number | null; days: number | null }>>({})
+  const [message, setMessage] = useState<string>()
+  const [error, setError] = useState<string>()
+  const current = (p: Product) => overrides[p.id] ?? { limit: p.sampleLimitPerCustomer ?? null, days: p.sampleLimitDays ?? null }
+
+  async function save(p: Product, limit: number | null, days: number | null) {
+    setError(undefined); setMessage(undefined)
+    try {
+      await api.put(`/admin/products/${p.id}`, { name: p.name, therapeuticArea: p.therapeuticArea ?? null, standardCost: p.standardCost ?? null, reorderLevel: p.reorderLevel ?? null, sampleLimitPerCustomer: limit, sampleLimitDays: days })
+      setOverrides((o) => ({ ...o, [p.id]: { limit, days } }))
+      setMessage(limit === null ? `${p.name}: no limit.` : `${p.name}: at most ${limit} per customer every ${days} days.`)
+    } catch (e) { setError(e instanceof Error ? e.message : String(e)) }
+  }
+  const edit = (p: Product) => {
+    const cur = current(p)
+    const limit = window.prompt(`Most units of ${p.name} one customer may be given (leave empty for no limit):`, cur.limit === null ? '' : String(cur.limit))
+    if (limit === null) return
+    if (limit.trim() === '') { void save(p, null, null); return }
+    const n = Number(limit)
+    if (!Number.isInteger(n) || n < 1) { setError('Enter a whole number of at least 1.'); return }
+    const days = window.prompt('...within how many days?', String(cur.days ?? 30))
+    if (days === null) return
+    const d = Number(days)
+    if (!Number.isInteger(d) || d < 1 || d > 3650) { setError('Enter a whole number of days from 1 to 3650.'); return }
+    void save(p, n, d)
+  }
+  return (
+    <Section title="Per-customer sample limits">
+      {message && <div className="notice" role="status">{message}</div>}
+      {error && <ErrorBox message={error} />}
+      {products.length === 0 ? <Empty>No products yet.</Empty> : (
+        <table>
+          <thead><tr><th>Product</th><th>Limit</th><th /></tr></thead>
+          <tbody>{products.map((p) => {
+            const c = current(p)
+            return <tr key={p.id}><td>{p.name}</td><td>{c.limit === null ? 'No limit' : `${c.limit} per customer per ${c.days} days`}</td><td className="actions"><button onClick={() => edit(p)}>Set limit for {p.name}</button></td></tr>
+          })}</tbody>
+        </table>
+      )}
+    </Section>
   )
 }

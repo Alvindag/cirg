@@ -187,7 +187,7 @@ describe('Samples', () => {
     const api = fakeApi({ ...base([request()]), 'POST /samples/requests/r1/approve': () => ({}) })
     vi.spyOn(window, 'prompt').mockReturnValue('30')
     renderApp(<Samples />, api, me('AreaManager'))
-    expect(await screen.findByText('Kofi Rep')).toBeInTheDocument()
+    expect(await screen.findByRole('cell', { name: 'Kofi Rep' })).toBeInTheDocument() // (the rep filter lists the name too)
     expect(screen.getByText('Amoxil')).toBeInTheDocument()
     await userEvent.click(screen.getByText('Approve'))
     await waitFor(() => expect(api.post).toHaveBeenCalledWith('/samples/requests/r1/approve', { quantity: 30, note: null }))

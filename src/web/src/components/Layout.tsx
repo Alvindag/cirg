@@ -1,5 +1,6 @@
 import { NavLink, Outlet } from 'react-router-dom'
 import { useApp } from '../context'
+import { Notifications } from './Notifications'
 import { canSeeErp, isManager } from '../lib/roles'
 
 export function Layout() {
@@ -19,6 +20,7 @@ export function Layout() {
           {manager && <NavLink to="/audit">Audit</NavLink>}
         </nav>
         <div className="who">
+          <Notifications />
           <span>{me.fullName} <span className="muted small">({me.role})</span></span>
           <button onClick={signOut}>Sign out</button>
         </div>

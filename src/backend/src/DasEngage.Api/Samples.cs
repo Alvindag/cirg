@@ -35,17 +35,39 @@ public class SampleService
     public async Task<int> Balance(Guid batchId, Guid? holderId) =>
         await _db.StockMovements.Where(m => m.BatchId == batchId && m.HolderId == holderId).SumAsync(m => (int?)m.Delta) ?? 0;
 
+    public const int MaxSerializationRetries = 4;
+
+    /// <summary>True when PostgreSQL aborted the transaction because a concurrent one conflicted with it (SQLSTATE 40001, or 40P01 for a deadlock).</summary>
+    public static bool IsSerializationFailure(Exception e)
+    {
+        for (var x = e; x != null; x = x.InnerException)
+            if (x is Npgsql.PostgresException { SqlState: "40001" or "40P01" }) return true;
+        return false;
+    }
+
     /// <summary>
     /// Runs stock-changing work in one serializable transaction on PostgreSQL, so two requests cannot both spend the same stock.
-    /// (Callers should retry on a serialization failure, SQLSTATE 40001.) The in-memory test provider has no transactions.
+    /// When PostgreSQL aborts it because another request conflicted, the work is run again from a clean state (it re-reads the balances, so the
+    /// loser now sees the winner's movement and is refused properly) instead of failing with a 500. The in-memory test provider has no transactions.
     /// </summary>
     public async Task<T> InTransaction<T>(Func<Task<T>> work)
     {
         if (!_db.Database.IsRelational()) return await work();
-        await using IDbContextTransaction tx = await _db.Database.BeginTransactionAsync(System.Data.IsolationLevel.Serializable);
-        var result = await work();
-        await tx.CommitAsync();
-        return result;
+        for (var attempt = 1; ; attempt++)
+        {
+            try
+            {
+                await using IDbContextTransaction tx = await _db.Database.BeginTransactionAsync(System.Data.IsolationLevel.Serializable);
+                var result = await work();
+                await tx.CommitAsync();
+                return result;
+            }
+            catch (Exception e) when (IsSerializationFailure(e) && attempt < MaxSerializationRetries)
+            {
+                _db.ChangeTracker.Clear(); // discard what the aborted attempt had staged
+                await Task.Delay(Random.Shared.Next(10, 40) * attempt);
+            }
+        }
     }
 
     /// <summary>Adds a warehouse receipt without saving (the caller saves, so it can be part of a bigger change).</summary>
@@ -210,6 +232,16 @@ public class SampleService
 
         if (await Balance(d.BatchId, repId) < d.Quantity) return new(id, "rejected", "You do not hold enough of this batch.");
 
+        // Per-customer limit for the product (set on the product): what this customer was already given in the window counts against it
+        var product = await _db.Products.AsNoTracking().FirstOrDefaultAsync(p => p.Id == d.ProductId);
+        if (product is { SampleLimitPerCustomer: { } limit, SampleLimitDays: { } days })
+        {
+            var since = at.AddDays(-days);
+            var given = await _db.SampleDistributions.Where(x => x.CustomerId == d.CustomerId && x.ProductId == d.ProductId && x.DistributedAt > since && x.DistributedAt <= at).SumAsync(x => (int?)x.Quantity) ?? 0;
+            if (given + d.Quantity > limit)
+                return new(id, "rejected", $"Limit reached: this customer may receive {limit} unit(s) of {product.Name} per {days} days and has already been given {given}.");
+        }
+
         _db.SampleDistributions.Add(new SampleDistribution
         {
             Id = id, RepId = repId, VisitId = d.VisitId, CustomerId = d.CustomerId, ProductId = d.ProductId, BatchId = d.BatchId,
@@ -291,9 +323,17 @@ public static class SampleEndpoints
             var b = await db.SampleBatches.FirstOrDefaultAsync(x => x.Id == id);
             if (b is null) return Results.NotFound();
             if (b.Status == BatchStatus.Recalled && status != BatchStatus.Recalled) return Results.Conflict("A recalled batch cannot be reactivated.");
+            var changed = b.Status != status;
             b.Status = status; b.StatusReason = d.Reason?.Trim();
+            // Reps holding the batch are told straight away, in the same save as the status change
+            var notified = 0;
+            if (changed && status != BatchStatus.Active)
+            {
+                var productName = (await db.Products.AsNoTracking().FirstOrDefaultAsync(p => p.Id == b.ProductId))?.Name ?? "Sample";
+                notified = await NotificationEndpoints.BatchHolders(db, b, productName, status);
+            }
             await db.SaveChangesAsync();
-            return Results.Ok(b);
+            return Results.Ok(new { b.Id, b.ProductId, b.BatchNumber, b.ExpiryDate, b.Status, b.StatusReason, notified });
         }).RequireAuthorization(p => p.RequireRole(StockControllers));
     }
 

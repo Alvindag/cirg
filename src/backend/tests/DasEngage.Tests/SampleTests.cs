@@ -394,6 +394,119 @@ public class SampleTests : IClassFixture<ApiFactory>
         Assert.Equal("\"'@SUM(A1)\"", SampleReports.Csv("@SUM(A1)"));
         Assert.Equal("\"\"", SampleReports.Csv(null));
     }
+
+    // ---------- limits, notifications, concurrency ----------
+
+    private static Task<HttpResponseMessage> EditProduct(Org o, string name, int? limit, int? days) =>
+        o.Admin.PutAsJsonAsync($"/api/v1/admin/products/{o.Product}", new ProductEditDto(name, null, null, null, limit, days));
+
+    [Fact]
+    public async Task A_customer_cannot_be_given_more_than_the_product_limit_in_the_period()
+    {
+        var o = await BuildOrg();
+        var b = await Batch(o, "B1", 200, 100);
+        await Stock(o, o.Rep1, 30);
+        (await EditProduct(o, "Amoxil 500", 10, 30)).EnsureSuccessStatusCode();
+        var rep = Rep(o, o.Rep1);
+        var visit = await Visit(o, o.Rep1);
+
+        Assert.Equal(HttpStatusCode.OK, (await rep.PostAsJsonAsync("/api/v1/samples/distributions", Dist(o, b, 6, visit))).StatusCode);
+        var over = await rep.PostAsJsonAsync("/api/v1/samples/distributions", Dist(o, b, 5, visit));
+        Assert.Equal(HttpStatusCode.BadRequest, over.StatusCode);
+        Assert.Contains("already been given 6", await over.Content.ReadAsStringAsync());
+        Assert.Equal(HttpStatusCode.OK, (await rep.PostAsJsonAsync("/api/v1/samples/distributions", Dist(o, b, 4, visit))).StatusCode); // exactly the limit
+        Assert.Equal(20, await Held(o, o.Rep1, b));
+
+        // handing-out from earlier than the window does not count
+        var old = await rep.PostAsJsonAsync("/api/v1/samples/distributions", Dist(o, b, 3, visit, at: DateTime.UtcNow.AddDays(-40)));
+        Assert.Equal(HttpStatusCode.OK, old.StatusCode);
+
+        // removing the limit lifts it
+        (await EditProduct(o, "Amoxil 500", null, null)).EnsureSuccessStatusCode();
+        Assert.Equal(HttpStatusCode.OK, (await rep.PostAsJsonAsync("/api/v1/samples/distributions", Dist(o, b, 5, visit))).StatusCode);
+    }
+
+    [Fact]
+    public async Task Product_limits_are_validated_and_restricted_to_stock_controllers()
+    {
+        var o = await BuildOrg();
+        Assert.Equal(HttpStatusCode.BadRequest, (await EditProduct(o, "Amoxil 500", 10, null)).StatusCode);   // a limit needs its period
+        Assert.Equal(HttpStatusCode.BadRequest, (await EditProduct(o, "Amoxil 500", 0, 30)).StatusCode);
+        Assert.Equal(HttpStatusCode.BadRequest, (await EditProduct(o, " ", null, null)).StatusCode);
+        Assert.Equal(HttpStatusCode.NotFound, (await o.Admin.PutAsJsonAsync($"/api/v1/admin/products/{Guid.NewGuid()}", new ProductEditDto("X", null, null, null, null, null))).StatusCode);
+        Assert.Equal(HttpStatusCode.Forbidden, (await Area(o, o.AreaA).PutAsJsonAsync($"/api/v1/admin/products/{o.Product}", new ProductEditDto("X", null, null, null, null, null))).StatusCode);
+    }
+
+    [Fact]
+    public async Task Reps_holding_a_recalled_batch_are_notified_and_can_read_their_notices()
+    {
+        var o = await BuildOrg();
+        var b = await Batch(o, "B1", 200, 100);
+        await Stock(o, o.Rep1, 10);
+        await Stock(o, o.Rep2, 5, o.AreaA);
+
+        var res = await o.Admin.PostAsJsonAsync($"/api/v1/samples/batches/{b}/status", new BatchStatusDto("Recalled", "Contamination"));
+        var body = await res.Content.ReadFromJsonAsync<JsonElement>();
+        Assert.Equal(2, body.GetProperty("notified").GetInt32()); // the two reps, not the warehouse
+        Assert.Equal("Recalled", body.GetProperty("status").GetString());
+
+        var mine = await Rep(o, o.Rep1).GetFromJsonAsync<JsonElement>("/api/v1/notifications");
+        var n = Assert.Single(mine.EnumerateArray().ToList());
+        Assert.Equal("batch.recalled", n.GetProperty("kind").GetString());
+        Assert.Contains("Amoxil 500", n.GetProperty("title").GetString());
+        Assert.Contains("You hold 10", n.GetProperty("body").GetString());
+        Assert.Empty((await Rep(o, o.Rep3).GetFromJsonAsync<JsonElement>("/api/v1/notifications")).EnumerateArray()); // not holding it: nothing
+
+        // it also arrives with the sync pull, and marking it read removes it
+        var pull = await Rep(o, o.Rep1).GetFromJsonAsync<JsonElement>("/api/v1/sync/pull");
+        Assert.Equal(1, pull.GetProperty("notifications").GetArrayLength());
+        var id = n.GetProperty("id").GetGuid();
+        Assert.Equal(HttpStatusCode.NotFound, (await Rep(o, o.Rep2).PostAsync($"/api/v1/notifications/{id}/read", null)).StatusCode); // someone else's
+        Assert.Equal(HttpStatusCode.NoContent, (await Rep(o, o.Rep1).PostAsync($"/api/v1/notifications/{id}/read", null)).StatusCode);
+        Assert.Empty((await Rep(o, o.Rep1).GetFromJsonAsync<JsonElement>("/api/v1/notifications")).EnumerateArray());
+        Assert.Single((await Rep(o, o.Rep1).GetFromJsonAsync<JsonElement>("/api/v1/notifications?unreadOnly=false")).EnumerateArray().ToList());
+
+        // setting the same status again tells nobody twice
+        var again = await (await o.Admin.PostAsJsonAsync($"/api/v1/samples/batches/{b}/status", new BatchStatusDto("Recalled", "Contamination"))).Content.ReadFromJsonAsync<JsonElement>();
+        Assert.Equal(0, again.GetProperty("notified").GetInt32());
+    }
+
+    [Fact]
+    public async Task Marking_all_notices_read_only_touches_the_callers_own()
+    {
+        var o = await BuildOrg();
+        var b = await Batch(o, "B1", 200, 100);
+        await Stock(o, o.Rep1, 10);
+        await Stock(o, o.Rep2, 5, o.AreaA);
+        (await o.Admin.PostAsJsonAsync($"/api/v1/samples/batches/{b}/status", new BatchStatusDto("Quarantined", "Under test"))).EnsureSuccessStatusCode();
+        Assert.Equal(1, (await (await Rep(o, o.Rep1).PostAsync("/api/v1/notifications/read-all", null)).Content.ReadFromJsonAsync<JsonElement>()).GetProperty("marked").GetInt32());
+        Assert.Single((await Rep(o, o.Rep2).GetFromJsonAsync<JsonElement>("/api/v1/notifications")).EnumerateArray().ToList());
+    }
+
+    /// <summary>Runs on PostgreSQL only (the in-memory provider has no transactions): two reps' hand-overs and one stock source racing must never overspend.</summary>
+    [Fact]
+    public async Task Concurrent_requests_for_the_same_stock_never_overspend_and_never_fail_with_a_server_error()
+    {
+        if (TestDb.Postgres is null) return;
+        var o = await BuildOrg();
+        var b = await Batch(o, "B1", 200, 100);
+        await Stock(o, o.Rep1, 10);
+        var rep = Rep(o, o.Rep1);
+        var visit = await Visit(o, o.Rep1);
+
+        // ten simultaneous hand-overs of 3 against a holding of 10: exactly three can succeed
+        var results = await Task.WhenAll(Enumerable.Range(0, 10).Select(_ => rep.PostAsJsonAsync("/api/v1/samples/distributions", Dist(o, b, 3, visit))));
+        Assert.DoesNotContain(results, r => (int)r.StatusCode >= 500);
+        Assert.Equal(3, results.Count(r => r.StatusCode == HttpStatusCode.OK));
+        Assert.Equal(1, await Held(o, o.Rep1, b));
+    }
+
+    [Fact]
+    public void Only_serialization_failures_and_deadlocks_are_retried()
+    {
+        Assert.False(SampleService.IsSerializationFailure(new InvalidOperationException("x")));
+        Assert.False(SampleService.IsSerializationFailure(new Microsoft.EntityFrameworkCore.DbUpdateException("x", new InvalidOperationException("y"))));
+    }
 }
 
 public class DashboardChartTests : IClassFixture<ApiFactory>

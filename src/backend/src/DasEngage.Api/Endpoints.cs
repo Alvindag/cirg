@@ -18,6 +18,7 @@ public static class Endpoints
         AdminUsers.Map(api);
         AttachmentEndpoints.Map(api);
         SampleEndpoints.Map(api);
+        NotificationEndpoints.Map(api);
         Ai.AiEndpoints.Map(api);
         Erp.ErpEndpoints.Map(api);
     }
@@ -334,6 +335,7 @@ public static class Endpoints
                 plannedVisits = await db.PlannedVisits.IgnoreQueryFilters().Where(p => p.TenantId == u.TenantId && p.UpdatedAt > cursor && (rep == null || p.RepId == rep)).AsNoTracking().ToListAsync(),
                 // Always the full current picture (small): what this user carries, and their own requests from the last 90 days.
                 sampleStock = u.UserId is { } me ? await samples.HoldingsFor(me) : new List<object>(),
+                notifications = await db.Notifications.AsNoTracking().Where(n => n.UserId == u.UserId && n.ReadAt == null && n.CreatedAt > now.AddDays(-30)).OrderByDescending(n => n.CreatedAt).ToListAsync(),
                 sampleRequests = await db.SampleRequests.AsNoTracking().Where(r => r.RepId == u.UserId && r.CreatedAt > now.AddDays(-90)).ToListAsync(),
                 tasks = await db.Tasks.IgnoreQueryFilters().Where(t => t.TenantId == u.TenantId && t.UpdatedAt > cursor && t.AssignedToId == u.UserId).AsNoTracking().ToListAsync(),
             });
@@ -446,6 +448,20 @@ public static class Endpoints
             return Results.Ok(await q.OrderByDescending(a => a.Id).Take(Math.Clamp(take, 1, 500)).ToListAsync());
         });
         g.MapGet("/products", async (AppDbContext db) => Results.Ok(await db.Products.AsNoTracking().OrderBy(p => p.Name).ToListAsync()));
+        g.MapPut("/products/{id:guid}", async (Guid id, ProductEditDto d, AppDbContext db) =>
+        {
+            var p = await db.Products.FirstOrDefaultAsync(x => x.Id == id);
+            if (p is null) return Results.NotFound();
+            if (string.IsNullOrWhiteSpace(d.Name) || d.Name.Length > 200) return Results.BadRequest("Name is required (max 200 characters).");
+            if (d.StandardCost < 0 || d.ReorderLevel < 0) return Results.BadRequest("Cost and reorder level cannot be negative.");
+            // both or neither: a limit without a period (or the reverse) would be ambiguous
+            if ((d.SampleLimitPerCustomer is null) != (d.SampleLimitDays is null)) return Results.BadRequest("Set both the sample limit and its period in days, or neither.");
+            if (d.SampleLimitPerCustomer is < 1 or > 100_000 || d.SampleLimitDays is < 1 or > 3650) return Results.BadRequest("The limit must be at least 1 unit and the period between 1 and 3650 days.");
+            p.Name = d.Name.Trim(); p.TherapeuticArea = d.TherapeuticArea?.Trim(); p.StandardCost = d.StandardCost; p.ReorderLevel = d.ReorderLevel;
+            p.SampleLimitPerCustomer = d.SampleLimitPerCustomer; p.SampleLimitDays = d.SampleLimitDays;
+            await db.SaveChangesAsync();
+            return Results.Ok(p);
+        }).RequireAuthorization(p => p.RequireRole("Admin", "NationalSalesManager"));
         g.MapPost("/products", async (Product p, AppDbContext db) =>
         {
             p.Id = Guid.NewGuid();

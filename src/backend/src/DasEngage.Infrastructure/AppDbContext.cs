@@ -40,6 +40,7 @@ public class AppDbContext : DbContext
     public DbSet<ErpStockSnapshot> ErpStockSnapshots => Set<ErpStockSnapshot>();
     public DbSet<PurchaseRequisition> PurchaseRequisitions => Set<PurchaseRequisition>();
     public DbSet<SampleBatch> SampleBatches => Set<SampleBatch>();
+    public DbSet<Notification> Notifications => Set<Notification>();
     public DbSet<StockMovement> StockMovements => Set<StockMovement>();
     public DbSet<SampleRequest> SampleRequests => Set<SampleRequest>();
     public DbSet<SampleDistribution> SampleDistributions => Set<SampleDistribution>();
@@ -76,6 +77,8 @@ public class AppDbContext : DbContext
         b.Entity<SampleRequest>().HasIndex(x => new { x.TenantId, x.RepId, x.Status });
         b.Entity<SampleDistribution>().HasIndex(x => new { x.TenantId, x.RepId, x.DistributedAt });
         b.Entity<SampleDistribution>().HasIndex(x => new { x.TenantId, x.BatchId });
+        b.Entity<SampleDistribution>().HasIndex(x => new { x.TenantId, x.CustomerId, x.ProductId, x.DistributedAt });
+        b.Entity<Notification>().HasIndex(x => new { x.TenantId, x.UserId, x.ReadAt });
         b.Entity<AppUser>().HasIndex(x => new { x.TenantId, x.ExternalId }).IsUnique();
         b.Entity<Tenant>().HasIndex(x => x.ExternalTenantId).IsUnique();
         b.Entity<AuditLog>().HasIndex(x => new { x.TenantId, x.Id });
@@ -106,6 +109,7 @@ public class AppDbContext : DbContext
         b.Entity<SampleBatch>().HasQueryFilter(e => e.TenantId == CurrentTenantId && e.DeletedAt == null);
         b.Entity<StockMovement>().HasQueryFilter(e => e.TenantId == CurrentTenantId && e.DeletedAt == null);
         b.Entity<SampleRequest>().HasQueryFilter(e => e.TenantId == CurrentTenantId && e.DeletedAt == null);
+        b.Entity<Notification>().HasQueryFilter(e => e.TenantId == CurrentTenantId && e.DeletedAt == null);
         b.Entity<SampleDistribution>().HasQueryFilter(e => e.TenantId == CurrentTenantId && e.DeletedAt == null);
         b.Entity<AuditLog>().HasQueryFilter(e => e.TenantId == CurrentTenantId);
     }

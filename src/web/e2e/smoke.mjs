@@ -30,6 +30,7 @@ const routes = {
   'GET /dashboards/products': () => [{ productId: 'p1', name: 'Amoxil 500', calls: 72, sampleUnits: 310 }, { productId: 'p2', name: 'Cardiostat', calls: 41, sampleUnits: 120 }],
   'GET /gps/last-known': () => [{ repId: 'rep-1', recordedAt: new Date().toISOString(), latitude: 5.6037, longitude: -0.187 }],
   'GET /admin/users': () => users,
+  'GET /notifications': () => [],
   'GET /admin/territories': () => [{ id: 'terr-1', name: 'Accra Central', region: 'Greater Accra', district: 'Accra' }],
   'GET /admin/products': () => [{ id: 'p1', name: 'Amoxil 500', code: 'AMX' }, { id: 'p2', name: 'Cardiostat', code: 'CRD' }],
   'GET /customers': () => ({ total: 2, page: 1, pageSize: 25, items: [

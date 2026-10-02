@@ -26,3 +26,5 @@ public record SyncPushRequest(List<CheckInOp>? CheckIns, List<CallReportOp>? Cal
     List<GpsPingDto>? GpsPings, List<RequestDto>? SampleRequests = null, List<DistributionDto>? SampleDistributions = null);
 public record CheckInOp(Guid VisitId, CheckInDto CheckIn, CheckOutDto? CheckOut);
 public record CallReportOp(CallReportDto Report);
+
+public record ProductEditDto(string Name, string? TherapeuticArea, decimal? StandardCost, int? ReorderLevel, int? SampleLimitPerCustomer, int? SampleLimitDays);

@@ -81,6 +81,9 @@ public class Product : TenantEntity
     public decimal? StandardCost { get; set; }
     /// <summary>Warehouse sample stock below this triggers a purchase suggestion.</summary>
     public int? ReorderLevel { get; set; }
+    /// <summary>Most units of this product one customer may be given in <see cref="SampleLimitDays"/> days (null = no limit).</summary>
+    public int? SampleLimitPerCustomer { get; set; }
+    public int? SampleLimitDays { get; set; }
 }
 
 public class Customer : TenantEntity
@@ -396,4 +399,16 @@ public class PurchaseRequisition : TenantEntity
     public string? ErpReference { get; set; }
     public int ReceivedQuantity { get; set; }
     public string? DecisionNote { get; set; }
+}
+
+/// <summary>Something a person should see: for example a batch they hold was recalled. Delivered through the API and the sync pull.</summary>
+public class Notification : TenantEntity
+{
+    public Guid UserId { get; set; }
+    /// <summary>"batch.recalled", "batch.quarantined", ...</summary>
+    public string Kind { get; set; } = "";
+    public string Title { get; set; } = "";
+    public string? Body { get; set; }
+    public Guid? RefId { get; set; }
+    public DateTime? ReadAt { get; set; }
 }

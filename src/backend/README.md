@@ -64,7 +64,9 @@ Stock is an **immutable ledger** (`StockMovement`): nothing is edited, every cha
   a shortfall needs `allowPartial`. Reps can `/cancel` open requests.
 - **Distribution:** `POST /distributions`, or `sampleDistributions` in `/sync/push`. Validated against batch (active, not expired on the distribution date, right product),
   customer and visit (the rep's own, same customer), and **the rep's own balance**. Idempotent on the id. Sync returns a result per line (`accepted`/`duplicate`/`rejected` + reason),
-  so one refused line never blocks the rest. Stock-changing work runs in a serializable transaction on PostgreSQL (retry on SQLSTATE 40001).
+  so one refused line never blocks the rest. Stock-changing work runs in a serializable transaction on PostgreSQL and is **retried automatically** (up to 4 times, from a clean state) when PostgreSQL aborts it because a concurrent request conflicted (SQLSTATE 40001 / 40P01), so the loser is refused with a proper reason instead of a 500.
+- **Limits:** a product can carry `sampleLimitPerCustomer` units per `sampleLimitDays` days (`PUT /admin/products/{id}`, Admin/NSM; both or neither). A hand-over that would take a customer over the limit in the rolling window is refused with how many were already given.
+- **Notifications** (`/api/v1/notifications`): quarantining or recalling a batch tells every rep who holds stock of it (the response says how many). `GET /notifications` (unread by default), `POST /{id}/read`, `POST /read-all`; unread notices also arrive as `notifications` in `/sync/pull`.
 - **Signatures:** a distribution may reference a signature attachment (`signatureAttachmentId`); it can arrive after the distribution (offline). Reports show `Signed`, `Awaiting upload` or `None`.
 - **Reports (managers, team-scoped):** `/reports/stock` (who holds what, expired/expiring/recalled flags and `actionRequired`), `/reports/distributions` (JSON or `&format=csv`, formula-safe),
   `/reports/compliance` (unsigned hand-overs by rep, stock held past expiry or in recalled batches, write-offs, and a ledger reconciliation), `/reports/ledger?batchId=` (Admin/NSM).
@@ -91,8 +93,7 @@ Config: `Erp:Worker:Enabled`, `Erp:AllowedHosts`, `Secrets:<name>` for the gatew
 - PostgreSQL row-level security policies (defence in depth) – add in a migration.
 - Entra sign-in is tested with locally signed tokens (the real Entra metadata endpoint is not reachable from the build environment); verify once against a real tenant.
 - No self-service tenant sign-up or tenant admin UI; customers are onboarded with `provision-tenant`.
-- Customer search uses `ILike` (PostgreSQL only), so it is not covered by the in-memory tests; run integration tests against Postgres (Testcontainers) before go-live.
-- Sample management: no UI for stock controllers or approvers yet (API only); no per-HCP sample limits; no recall notification push to reps; serializable-transaction retry is not automated.
+- Sample management: recall and quarantine notices reach reps in the app and dashboard (in-app, with the next sync) but are not pushed to a locked phone (needs Firebase / Apple push credentials). Limits are per customer and product over a rolling number of days (`PUT /admin/products/{id}`); there is no limit per rep or per visit.
 - ERP: no ERP-specific adapter yet (depends on DAS's ERP); one background worker instance only; customer master is one-way; credit limits, price lists and orders are not used.
 - Malware scanning of uploads, thumbnails, streaming uploads (bodies are buffered up to the size cap), approval workflows, e-signatures, PostGIS spatial queries, Power BI reporting views.
 - Sync pull is cursor-by-`UpdatedAt` (server clock); move to a monotonic version column if clock skew becomes an issue.
