@@ -9,6 +9,8 @@ import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
 import 'package:record/record.dart';
 
+import '../services/voice_config.dart';
+
 import '../data/database.dart';
 import '../providers.dart';
 import 'signature_pad.dart';
@@ -31,6 +33,7 @@ class _AttachmentsSectionState extends ConsumerState<AttachmentsSection> {
   Timer? _ticker;
   Duration _elapsed = Duration.zero;
   bool _recording = false;
+  bool _starting = false;
   String? _playingId;
 
   @override
@@ -65,16 +68,19 @@ class _AttachmentsSectionState extends ConsumerState<AttachmentsSection> {
     try {
       if (!await _recorder.hasPermission()) return _toast('Microphone permission is needed to record a voice note.');
       final dir = await getTemporaryDirectory();
+      setState(() => _starting = true);
+      await Future<void>.delayed(voiceNoteStartDelay);
       await _recorder.start(
-        const RecordConfig(encoder: AudioEncoder.aacLc, bitRate: 48000, sampleRate: 22050, numChannels: 1),
+        voiceNoteConfig,
         path: p.join(dir.path, 'note_${DateTime.now().millisecondsSinceEpoch}.m4a'),
       );
-      setState(() { _recording = true; _elapsed = Duration.zero; });
+      if (mounted) setState(() { _starting = false; _recording = true; _elapsed = Duration.zero; });
       _ticker = Timer.periodic(const Duration(seconds: 1), (_) {
         setState(() => _elapsed += const Duration(seconds: 1));
         if (_elapsed >= _maxRecording) _stopRecording();
       });
     } catch (e) {
+      if (mounted) setState(() => _starting = false);
       if (mounted) _toast('Could not start recording: $e');
     }
   }
@@ -117,9 +123,9 @@ class _AttachmentsSectionState extends ConsumerState<AttachmentsSection> {
         Wrap(spacing: 8, runSpacing: 8, children: [
           OutlinedButton.icon(onPressed: _recording ? null : _photo, icon: const Icon(Icons.photo_camera), label: const Text('Photo')),
           OutlinedButton.icon(
-            onPressed: _toggleRecording,
+            onPressed: _starting ? null : _toggleRecording,
             icon: Icon(_recording ? Icons.stop_circle : Icons.mic, color: _recording ? Colors.red : null),
-            label: Text(_recording ? 'Stop ${_fmt(_elapsed)}' : 'Voice note'),
+            label: Text(_recording ? 'Stop ${_fmt(_elapsed)}' : _starting ? 'Get ready…' : 'Voice note'),
           ),
           OutlinedButton.icon(onPressed: _recording ? null : _signature, icon: const Icon(Icons.draw), label: const Text('Signature')),
         ]),

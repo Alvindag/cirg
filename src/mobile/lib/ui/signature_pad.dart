@@ -1,6 +1,7 @@
 import 'dart:typed_data';
 import 'dart:ui' as ui;
 
+import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 
 /// Collects finger/stylus strokes and exports them as a PNG (black on white).
@@ -85,15 +86,23 @@ class SignaturePad extends StatelessWidget {
         decoration: BoxDecoration(color: Colors.white, border: Border.all(color: Colors.grey), borderRadius: BorderRadius.circular(8)),
         child: LayoutBuilder(builder: (context, c) {
           controller._size = Size(c.maxWidth, c.maxHeight);
-          return GestureDetector(
-            onPanStart: (d) => controller.start(d.localPosition),
-            onPanUpdate: (d) => controller.extend(d.localPosition),
-            child: ListenableBuilder(
-              listenable: controller,
-              builder: (context, _) => CustomPaint(
-                size: Size.infinite,
-                painter: _PadPainter(controller.strokes),
-                child: controller.isEmpty ? const Center(child: Text('Sign here', style: TextStyle(color: Colors.black38))) : null,
+          // The pad sits inside a scrolling dialog. Without this, the first vertical movement of the pen is taken by the scroll view and the stroke
+          // is cut off. The "eager" recognizer claims the touch at once, so scrolling never starts here, and the raw pointer events draw the line.
+          return RawGestureDetector(
+            gestures: {
+              EagerGestureRecognizer: GestureRecognizerFactoryWithHandlers<EagerGestureRecognizer>(() => EagerGestureRecognizer(), (_) {}),
+            },
+            child: Listener(
+              behavior: HitTestBehavior.opaque,
+              onPointerDown: (e) => controller.start(e.localPosition),
+              onPointerMove: (e) => controller.extend(e.localPosition),
+              child: ListenableBuilder(
+                listenable: controller,
+                builder: (context, _) => CustomPaint(
+                  size: Size.infinite,
+                  painter: _PadPainter(controller.strokes),
+                  child: controller.isEmpty ? const Center(child: Text('Sign here', style: TextStyle(color: Colors.black38))) : null,
+                ),
               ),
             ),
           );

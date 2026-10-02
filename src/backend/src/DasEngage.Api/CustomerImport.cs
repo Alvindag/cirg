@@ -96,8 +96,34 @@ public class CustomerImporter
     private static readonly string[] Known =
     {
         "type", "name", "specialty", "segment", "territory", "parent", "phone", "email", "address", "city",
-        "latitude", "longitude", "target_visits_per_month",
+        "latitude", "longitude", "target_visits_per_month", "channel", "outlet_class",
     };
+
+    private static string Letters(string s) => new string(s.Where(char.IsLetter).Select(char.ToLowerInvariant).ToArray());
+
+    private static readonly Dictionary<string, SalesChannel> ChannelNames = new()
+    {
+        ["vansales"] = SalesChannel.VanSales, ["van"] = SalesChannel.VanSales, ["nationalsales"] = SalesChannel.VanSales,
+        ["medicalsales"] = SalesChannel.MedicalSales, ["medical"] = SalesChannel.MedicalSales, ["institutional"] = SalesChannel.MedicalSales,
+        ["distributor"] = SalesChannel.Distributor, ["wholesaler"] = SalesChannel.Distributor, ["distributorwholesaler"] = SalesChannel.Distributor,
+        ["directkeyaccount"] = SalesChannel.DirectKeyAccount, ["keyaccount"] = SalesChannel.DirectKeyAccount, ["direct"] = SalesChannel.DirectKeyAccount,
+        ["walkin"] = SalesChannel.WalkIn, ["walkinsales"] = SalesChannel.WalkIn, ["walkinheadofficeandbranches"] = SalesChannel.WalkIn,
+        ["unassigned"] = SalesChannel.Unassigned, ["nottaggedyet"] = SalesChannel.Unassigned,
+    };
+
+    private static readonly Dictionary<string, OutletClass> ClassNames = new()
+    {
+        ["teachinghospital"] = OutletClass.TeachingHospital, ["regionalhospital"] = OutletClass.RegionalHospital, ["districthospital"] = OutletClass.DistrictHospital,
+        ["pharmacychain"] = OutletClass.PharmacyChain, ["retailpharmacychain"] = OutletClass.PharmacyChain, ["chain"] = OutletClass.PharmacyChain,
+        ["independentpharmacy"] = OutletClass.IndependentPharmacy, ["independent"] = OutletClass.IndependentPharmacy,
+        ["otcshop"] = OutletClass.OtcShop, ["otc"] = OutletClass.OtcShop, ["clinic"] = OutletClass.ClinicOrOther, ["clinicother"] = OutletClass.ClinicOrOther,
+        ["clinicorother"] = OutletClass.ClinicOrOther, ["other"] = OutletClass.ClinicOrOther,
+        ["unclassified"] = OutletClass.Unclassified, ["notclassifiedyet"] = OutletClass.Unclassified,
+    };
+
+    /// <summary>Accepts the internal name or a plain label ("Van sales", "OTC shop"); empty means not given.</summary>
+    internal static bool TryChannel(string s, out SalesChannel value) { value = SalesChannel.Unassigned; return s.Length == 0 || ChannelNames.TryGetValue(Letters(s), out value); }
+    internal static bool TryOutletClass(string s, out OutletClass value) { value = OutletClass.Unclassified; return s.Length == 0 || ClassNames.TryGetValue(Letters(s), out value); }
 
     /// <summary>A customer already known (in the database or earlier in the file) for matching.</summary>
     private class Known_
@@ -151,6 +177,11 @@ public class CustomerImporter
             var segment = Segment.Unclassified;
             if (Get("segment").Length > 0 && !Enum.TryParse(Get("segment"), true, out segment))
             { results.Add(Fail($"Unknown segment '{Get("segment")}'. Use A, B or C.")); continue; }
+
+            if (!TryChannel(Get("channel"), out var channel))
+            { results.Add(Fail($"Unknown channel '{Get("channel")}'. Use: Van sales, Medical sales, Distributor, Direct key account or Walk-in.")); continue; }
+            if (!TryOutletClass(Get("outlet_class"), out var outletClass))
+            { results.Add(Fail($"Unknown outlet class '{Get("outlet_class")}'. Use: Teaching hospital, Regional hospital, District hospital, Pharmacy chain, Independent pharmacy, OTC shop or Clinic / other.")); continue; }
 
             Guid? territoryId = null;
             if (Get("territory").Length > 0)
@@ -231,6 +262,7 @@ public class CustomerImporter
                 Id = Guid.NewGuid(), Type = type, Name = name, Specialty = Nz(Get("specialty")), Segment = segment,
                 TerritoryId = territoryId, ParentCustomerId = parentId, Phone = Nz(Get("phone")), Email = Nz(Get("email")),
                 Address = Nz(Get("address")), City = Nz(Get("city")), Latitude = lat, Longitude = lng, TargetVisitsPerMonth = target,
+                Channel = channel, OutletClass = outletClass,
             };
             toAdd.Add(c);
             key.Id = c.Id; key.IsNew = true; key.Row = rowNo;
@@ -255,6 +287,8 @@ public class CustomerImporter
                     double.TryParse(v, NumberStyles.Float, CultureInfo.InvariantCulture, out var la2) &&
                     double.TryParse(lo2, NumberStyles.Float, CultureInfo.InvariantCulture, out var lo3)) { c.Latitude = la2; c.Longitude = lo3; }
                 if (values.TryGetValue("target_visits_per_month", out v) && int.TryParse(v, out var tv)) c.TargetVisitsPerMonth = tv;
+                if (values.TryGetValue("channel", out v) && TryChannel(v, out var ch)) c.Channel = ch;
+                if (values.TryGetValue("outlet_class", out v) && TryOutletClass(v, out var oc)) c.OutletClass = oc;
             }
             await _db.SaveChangesAsync();
         }
