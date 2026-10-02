@@ -8,6 +8,7 @@ import { useApp } from '../context'
 import { fmtDateTime, fmtInt } from '../lib/format'
 import { canSeeErp, isAdmin } from '../lib/roles'
 import { useAsync } from '../lib/useAsync'
+import { LiveBadge } from '../components/LiveBadge'
 import { useUserNames } from '../lib/useNames'
 
 type Tab = 'connection' | 'import' | 'outbox' | 'reconciliation' | 'procurement'
@@ -251,7 +252,7 @@ function Outbox() {
   const { api, me } = useApp()
   const admin = isAdmin(me.role)
   const [status, setStatus] = useState('')
-  const box = useAsync(() => api.get<OutboxResult>('/erp/outbox', { status }), [status])
+  const box = useAsync(() => api.get<OutboxResult>('/erp/outbox', { status }), [status], { refreshMs: 60_000 })
   const { act, banners } = useAct(box.reload)
   const n = (s: string) => box.data?.counts.find((c) => c.status === s)?.n ?? 0
   return (
@@ -263,6 +264,7 @@ function Outbox() {
         <Kpi label="Failed (needs attention)" value={fmtInt(n('DeadLetter'))} tone={n('DeadLetter') ? 'bad' : 'good'} hint="the ERP refused these" />
       </div>
       <Section title="Messages to the ERP" actions={<>
+        <LiveBadge updatedAt={box.updatedAt} stale={box.stale} onRefresh={box.reload} />
         <select aria-label="Status" value={status} onChange={(e) => setStatus(e.target.value)}><option value="">All</option><option>Pending</option><option>Sent</option><option>DeadLetter</option></select>{' '}
         {admin && <button onClick={() => act(() => api.post<{ sent: number; retrying: number; deadLettered: number }>('/erp/outbox/dispatch'), (r) => `${r.sent} sent, ${r.retrying} to retry, ${r.deadLettered} failed.`)}>Send now</button>}
       </>}>

@@ -5,7 +5,8 @@ import { RangePicker } from '../components/RangePicker'
 import { useApp } from '../context'
 import { fmtDate, fmtDateTime, fmtInt, rangeLastDays, shortId } from '../lib/format'
 import { canApproveSamples, isAdmin, isManager } from '../lib/roles'
-import { useAsync } from '../lib/useAsync'
+import { liveStatus, useAsync } from '../lib/useAsync'
+import { LiveBadge } from '../components/LiveBadge'
 import { useUserNames } from '../lib/useNames'
 
 type Tab = 'requests' | 'stock' | 'batches' | 'compliance'
@@ -47,7 +48,7 @@ function Requests() {
   const { name: userName, users } = useUserNames()
   const { name: productName } = useProducts()
   // "All" leaves the status out so the history of every request can be searched
-  const list = useAsync(() => api.get<SampleRequest[]>('/samples/requests', { status: status === 'All' ? undefined : status, repId: repId || undefined }), [status, repId])
+  const list = useAsync(() => api.get<SampleRequest[]>('/samples/requests', { status: status === 'All' ? undefined : status, repId: repId || undefined }), [status, repId], { refreshMs: 60_000 })
   const [message, setMessage] = useState<string>()
   const [error, setError] = useState<string>()
 
@@ -77,6 +78,7 @@ function Requests() {
   return (
     <Section title="Sample requests" actions={
       <span className="filters">
+        <LiveBadge updatedAt={liveStatus(list).updatedAt} stale={list.stale} onRefresh={list.reload} />
         <select aria-label="Rep" value={repId} onChange={(e) => setRepId(e.target.value)}>
           <option value="">All reps</option>
           {users.filter((u) => u.role === 'Rep').map((u) => <option key={u.id} value={u.id}>{u.fullName}</option>)}
@@ -124,7 +126,7 @@ function Stock() {
   const admin = isAdmin(me.role)
   const { name: userName } = useUserNames()
   const { name: productName } = useProducts()
-  const stock = useAsync(() => api.get<StockRow[]>('/samples/reports/stock'), [])
+  const stock = useAsync(() => api.get<StockRow[]>('/samples/reports/stock'), [], { refreshMs: 60_000 })
   const rows = stock.data ?? []
   const [message, setMessage] = useState<string>()
   const [error, setError] = useState<string>()

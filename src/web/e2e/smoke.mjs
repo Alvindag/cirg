@@ -21,10 +21,11 @@ const users = [
   { id: 'rep-2', tenantId: 't', fullName: 'Abena Owusu', email: 'a@das.test', role: 'Rep', territoryId: 'terr-1', externalId: 'e2', managerId: 'me', isActive: true },
   { id: 'me', tenantId: 't', fullName: 'Ama Boateng', email: 'ama@das.test', role: 'Admin', territoryId: null, externalId: 'e0', managerId: null, isActive: true },
 ]
+let liveCalls = 184 // the mock API changes this between loads, like a real day's work would
 const day = (n) => new Date(Date.now() - n * 86400000).toISOString().slice(0, 10)
 const routes = {
   'GET /me': () => users[2],
-  'GET /dashboards/sales': () => ({ callsCompleted: 184, plannedVisits: 215, planAdherencePct: 85.6, coveragePct: 72.4, byRep: [
+  'GET /dashboards/sales': () => ({ callsCompleted: liveCalls, plannedVisits: 215, planAdherencePct: 85.6, coveragePct: 72.4, byRep: [
     { repId: 'rep-1', calls: 96, uniqueCustomers: 61, outsideGeofence: 2 }, { repId: 'rep-2', calls: 88, uniqueCustomers: 55, outsideGeofence: 0 }] }),
   'GET /dashboards/trend': () => Array.from({ length: 30 }, (_, i) => ({ date: day(29 - i), calls: 3 + ((i * 7) % 5) })),
   'GET /dashboards/products': () => [{ productId: 'p1', name: 'Amoxil 500', calls: 72, sampleUnits: 310 }, { productId: 'p2', name: 'Cardiostat', calls: 41, sampleUnits: 120 }],
@@ -88,6 +89,13 @@ try {
   await expectText('GHS 482,500')
   await shot('overview')
 
+  // live data: the page shows how fresh it is, and picks up new numbers without a reload
+  await page.getByText('Live · updated').first().waitFor({ timeout: 8000 })
+  liveCalls = 197
+  await page.getByRole('button', { name: 'Refresh' }).first().click()
+  await expectText('197')
+  if (await page.getByText('184', { exact: true }).count()) errors.push('the old number is still on screen after a refresh')
+
   await page.getByRole('link', { name: 'Customers' }).click()
   await expectText('Dr Ama Boateng')
   await shot('customers')
@@ -123,7 +131,7 @@ try {
   // phone width: nothing should overflow horizontally
   await page.setViewportSize({ width: 390, height: 800 })
   await page.getByRole('link', { name: 'Overview' }).click()
-  await expectText('184')
+  await expectText('197')
   const overflow = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth)
   if (overflow > 1) errors.push(`page scrolls horizontally on a phone (${overflow}px)`)
   await shot('overview-phone')

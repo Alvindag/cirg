@@ -6,7 +6,9 @@ import { RangePicker } from '../components/RangePicker'
 import { useApp } from '../context'
 import { fmtDateTime, fmtInt, fmtPct, rangeLastDays } from '../lib/format'
 import { isManager } from '../lib/roles'
-import { useAsync } from '../lib/useAsync'
+import { liveStatus, useAsync } from '../lib/useAsync'
+import { LiveBadge } from '../components/LiveBadge'
+import { useMotion } from '../lib/motion'
 import { useUserNames } from '../lib/useNames'
 
 export function Overview() {
@@ -14,14 +16,19 @@ export function Overview() {
   const [days, setDays] = useState(30)
   const { name } = useUserNames()
   const range = rangeLastDays(days)
-  const sales = useAsync(() => api.get<SalesDashboard>('/dashboards/sales', range), [days])
-  const trend = useAsync(() => api.get<TrendPoint[]>('/dashboards/trend', range), [days])
-  const products = useAsync(() => api.get<ProductEngagement[]>('/dashboards/products', range), [days])
-  const revenue = useAsync(() => api.get<RevenueResult>('/dashboards/revenue', range).catch(() => undefined), [days])
+  const animate = useMotion()
+  const live = { refreshMs: 60_000 } // the whole page refreshes itself every minute
+  const sales = useAsync(() => api.get<SalesDashboard>('/dashboards/sales', range), [days], live)
+  const trend = useAsync(() => api.get<TrendPoint[]>('/dashboards/trend', range), [days], live)
+  const products = useAsync(() => api.get<ProductEngagement[]>('/dashboards/products', range), [days], live)
+  const revenue = useAsync(() => api.get<RevenueResult>('/dashboards/revenue', range).catch(() => undefined), [days], live)
   const positions = useAsync(
     () => (isManager(me.role) ? api.get<LastKnown[]>('/gps/last-known') : Promise.resolve([] as LastKnown[])),
     [me.role],
+    live,
   )
+  const status = liveStatus(sales, trend, products, revenue, positions)
+  const refreshAll = () => { sales.reload(); trend.reload(); products.reload(); revenue.reload(); positions.reload() }
 
   const s = sales.data
   const outside = s?.byRep.reduce((n, r) => n + r.outsideGeofence, 0) ?? 0
@@ -30,6 +37,7 @@ export function Overview() {
     <>
       <div className="page-head">
         <h1>Sales overview</h1>
+        <LiveBadge updatedAt={status.updatedAt} stale={status.stale} onRefresh={refreshAll} />
         <RangePicker days={days} onChange={setDays} />
       </div>
 
@@ -37,10 +45,10 @@ export function Overview() {
       {sales.loading && !s && <Loading />}
       {s && (
         <div className="kpis">
-          <Kpi label="Calls completed" value={fmtInt(s.callsCompleted)} hint={`${fmtInt(s.plannedVisits)} planned`} />
-          <Kpi label="Plan adherence" value={fmtPct(s.planAdherencePct)} tone={s.planAdherencePct >= 80 ? 'good' : s.planAdherencePct >= 50 ? 'warn' : 'bad'} />
-          <Kpi label="Customer coverage" value={fmtPct(s.coveragePct)} hint="customers visited at least once" />
-          <Kpi label="Visits outside geofence" value={fmtInt(outside)} tone={outside > 0 ? 'warn' : 'good'} hint="check-ins far from the customer" />
+          <Kpi label="Calls completed" value={fmtInt(s.callsCompleted)} num={s.callsCompleted} format={fmtInt} hint={`${fmtInt(s.plannedVisits)} planned`} />
+          <Kpi label="Plan adherence" value={fmtPct(s.planAdherencePct)} num={s.planAdherencePct} format={fmtPct} tone={s.planAdherencePct >= 80 ? 'good' : s.planAdherencePct >= 50 ? 'warn' : 'bad'} />
+          <Kpi label="Customer coverage" value={fmtPct(s.coveragePct)} num={s.coveragePct} format={fmtPct} hint="customers visited at least once" />
+          <Kpi label="Visits outside geofence" value={fmtInt(outside)} num={outside} format={fmtInt} tone={outside > 0 ? 'warn' : 'good'} hint="check-ins far from the customer" />
         </div>
       )}
 
@@ -58,7 +66,7 @@ export function Overview() {
                   <XAxis dataKey="date" tickFormatter={(d: string) => d.slice(5)} minTickGap={24} />
                   <YAxis allowDecimals={false} />
                   <Tooltip />
-                  <Line isAnimationActive={false} type="monotone" dataKey="calls" stroke="var(--accent)" strokeWidth={2} dot={false} name="Calls" />
+                  <Line isAnimationActive={animate} type="monotone" dataKey="calls" stroke="var(--accent)" strokeWidth={2} dot={false} name="Calls" />
                 </LineChart>
               </ResponsiveContainer>
             </div>
@@ -74,7 +82,7 @@ export function Overview() {
                   <XAxis type="number" allowDecimals={false} />
                   <YAxis type="category" dataKey="rep" width={120} />
                   <Tooltip />
-                  <Bar isAnimationActive={false} dataKey="calls" fill="var(--accent)" name="Calls" />
+                  <Bar isAnimationActive={animate} dataKey="calls" fill="var(--accent)" name="Calls" />
                 </BarChart>
               </ResponsiveContainer>
             </div>
@@ -94,8 +102,8 @@ export function Overview() {
                 <YAxis allowDecimals={false} />
                 <Tooltip />
                 <Legend />
-                <Bar isAnimationActive={false} dataKey="calls" fill="var(--accent)" name="Calls discussing product" />
-                <Bar isAnimationActive={false} dataKey="sampleUnits" fill="var(--accent-2)" name="Sample units given" />
+                <Bar isAnimationActive={animate} dataKey="calls" fill="var(--accent)" name="Calls discussing product" />
+                <Bar isAnimationActive={animate} dataKey="sampleUnits" fill="var(--accent-2)" name="Sample units given" />
               </BarChart>
             </ResponsiveContainer>
           </div>
@@ -151,12 +159,13 @@ export function Overview() {
 const money = (n: number, currency: string) => `${currency} ${new Intl.NumberFormat('en-GB', { maximumFractionDigits: 0 }).format(n)}`
 
 function RevenueSection({ r }: { r: RevenueResult }) {
+  const animate = useMotion()
   return (
     <>
       <div className="kpis">
-        <Kpi label="Revenue" value={money(r.total, r.currency)} hint={`${fmtInt(r.units)} units invoiced`} />
+        <Kpi label="Revenue" value={money(r.total, r.currency)} num={r.total} format={(n) => money(Math.round(n), r.currency)} hint={`${fmtInt(r.units)} units invoiced`} />
         <Kpi label="Change on previous period" value={r.growthPct === null ? '—' : `${r.growthPct > 0 ? '+' : ''}${r.growthPct}%`} tone={r.growthPct === null ? undefined : r.growthPct >= 0 ? 'good' : 'bad'} hint={`previous: ${money(r.previousTotal, r.currency)}`} />
-        <Kpi label="Customers buying" value={fmtInt(r.customersBuying)} hint={r.unlinkedAmount ? `${money(r.unlinkedAmount, r.currency)} on accounts not linked yet` : undefined} tone={r.unlinkedAmount ? 'warn' : undefined} />
+        <Kpi label="Customers buying" value={fmtInt(r.customersBuying)} num={r.customersBuying} format={fmtInt} hint={r.unlinkedAmount ? `${money(r.unlinkedAmount, r.currency)} on accounts not linked yet` : undefined} tone={r.unlinkedAmount ? 'warn' : undefined} />
       </div>
       <div className="grid-2">
         <Section title="Revenue trend">
@@ -167,7 +176,7 @@ function RevenueSection({ r }: { r: RevenueResult }) {
                 <XAxis dataKey="period" tickFormatter={(p: string) => (r.granularity === 'day' ? p.slice(5) : p)} minTickGap={20} />
                 <YAxis tickFormatter={(v: number) => (v >= 1000 ? `${Math.round(v / 1000)}k` : String(v))} />
                 <Tooltip formatter={(v) => money(Number(v), r.currency)} />
-                <Bar isAnimationActive={false} dataKey="amount" fill="var(--accent)" name="Revenue" />
+                <Bar isAnimationActive={animate} dataKey="amount" fill="var(--accent)" name="Revenue" />
               </BarChart>
             </ResponsiveContainer>
           </div>

@@ -1,7 +1,14 @@
 import type { ReactNode } from 'react'
+import { useCountUp } from '../lib/motion'
 
+/** A shimmering placeholder (the words stay for screen readers). */
 export function Loading({ what = 'Loading' }: { what?: string }) {
-  return <div className="muted" role="status">{what}…</div>
+  return (
+    <div className="skeleton" role="status">
+      <span className="sr-only">{what}…</span>
+      <i /><i /><i />
+    </div>
+  )
 }
 
 export function ErrorBox({ message, onRetry }: { message: string; onRetry?: () => void }) {
@@ -13,11 +20,16 @@ export function ErrorBox({ message, onRetry }: { message: string; onRetry?: () =
   )
 }
 
-export function Kpi({ label, value, hint, tone }: { label: string; value: string; hint?: string; tone?: 'good' | 'warn' | 'bad' }) {
+/** A headline number. Pass `num` and `format` to have it count up (and re-count when it changes); `value` is the text without motion. */
+export function Kpi({ label, value, hint, tone, num, format }: { label: string; value: string; hint?: string; tone?: 'good' | 'warn' | 'bad'; num?: number; format?: (n: number) => string }) {
+  const counted = useCountUp(num ?? 0)
+  const counting = num !== undefined && format !== undefined && counted !== num
   return (
     <div className={`kpi ${tone ?? ''}`}>
       <div className="kpi-label">{label}</div>
-      <div className="kpi-value">{value}</div>
+      <div className="kpi-value">
+        {counting ? <><span aria-hidden="true">{format(counted)}</span><span className="sr-only">{value}</span></> : value}
+      </div>
       {hint && <div className="kpi-hint">{hint}</div>}
     </div>
   )
