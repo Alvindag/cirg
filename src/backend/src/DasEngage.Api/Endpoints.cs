@@ -321,10 +321,15 @@ public static class Endpoints
         var g = api.MapGroup("/sync");
 
         // Pull: everything changed since the cursor (UTC ticks). Tombstones included via DeletedAt.
-        g.MapGet("/pull", async (AppDbContext db, HttpCurrentUser u, SampleService samples, long since = 0) =>
+        g.MapGet("/pull", async (AppDbContext db, HttpCurrentUser u, SampleService samples, long since = 0, string? scope = null) =>
         {
-            var cursor = new DateTime(since, DateTimeKind.Utc);
             var now = DateTime.UtcNow;
+            // What this person is allowed to see (who they are, their role and territory). Changes since the cursor are only enough while that
+            // stays the same: after a move to another territory the customers there changed long ago, so the phone would never get them.
+            // A device that reports a different scope than today's (or none at all) is sent everything again, once. Older apps send no scope.
+            var scopeKey = ScopeKey(u);
+            var full = scope is not null && scope != scopeKey;
+            var cursor = full ? DateTime.MinValue : new DateTime(Math.Clamp(since, DateTime.MinValue.Ticks, DateTime.MaxValue.Ticks), DateTimeKind.Utc);
             var cq = db.Customers.IgnoreQueryFilters().Where(c => c.TenantId == u.TenantId && c.UpdatedAt > cursor);
             if (u.IsRep) cq = cq.Where(c => c.TerritoryId == u.TerritoryId);
             var rep = u.IsRep ? u.UserId : null;
@@ -332,6 +337,8 @@ public static class Endpoints
             return Results.Ok(new
             {
                 cursor = now.Ticks,
+                scope = scopeKey,
+                full,
                 wipe,
                 customers = await cq.Include(c => c.ProductInterests).AsNoTracking().ToListAsync(),
                 products = await db.Products.IgnoreQueryFilters().Where(p => p.TenantId == u.TenantId && p.UpdatedAt > cursor).AsNoTracking().ToListAsync(),
@@ -414,6 +421,10 @@ public static class Endpoints
     }
 
     /// <summary>Runs one pushed item; a refusal (message) or an unexpected save failure becomes that item's "rejected" result instead of failing the batch.</summary>
+    /// <summary>A short fingerprint of what the signed-in person may see: who they are, their role and territory.</summary>
+    internal static string ScopeKey(HttpCurrentUser u) =>
+        Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(System.Text.Encoding.UTF8.GetBytes($"{u.UserId}|{u.Role}|{u.TerritoryId}")))[..16].ToLowerInvariant();
+
     private static async Task<ItemResult> Guarded(AppDbContext db, Guid id, Func<Task<string?>> work)
     {
         try

@@ -38,6 +38,7 @@ class SyncService {
   bool _running = false;
 
   static const _cursorKey = 'pull_cursor';
+  static const _scopeKey = 'pull_scope';
 
   Future<SyncResult> sync() async {
     if (_running) return const SyncResult(error: 'Sync already running.');
@@ -294,7 +295,7 @@ class SyncService {
   /// Returns true when the server asked for this device to be wiped (and it was).
   Future<bool> _pull() async {
     final since = int.tryParse(await _db.getState(_cursorKey) ?? '') ?? 0;
-    final body = await _api.pull(since);
+    final body = await _api.pull(since, scope: await _db.getState(_scopeKey) ?? '');
     if (body['wipe'] == true) {
       // Everything this person had not uploaded was pushed first. Now clear the phone and say so.
       await _db.wipe();
@@ -304,6 +305,7 @@ class SyncService {
     await _db.applyPull(body);
     // Server clock cursor; only advance after the data was stored.
     await _db.setState(_cursorKey, '${body['cursor']}');
+    if (body['scope'] is String) await _db.setState(_scopeKey, body['scope'] as String);
     return false;
   }
 }

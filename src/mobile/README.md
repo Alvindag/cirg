@@ -84,3 +84,6 @@ Colours come from the DAS logo (red for identity, charcoal for structure, blue f
 ## Trying it on a phone against your own PC
 Run `scripts/dev-api-lan.ps1` on the PC: it starts the API on every network address (the normal launch profile listens on localhost only, which no phone can reach), opens the firewall port, and prints the addresses to type into the phone. On the sign-in screen enter the address with its port (for example `http://192.168.1.148:5111`), tap **Test connection**, and only then paste the token.
 
+## Why the server sends a scope with every pull
+A phone asks for what changed since its last sync. That is only enough while the person's scope (who they are, their role and territory) stays the same. When a rep moves to another territory, the customers there changed long ago, so the server would never send them. The server therefore includes a `scope` fingerprint in each pull and the phone sends back the last one it saw; when they differ (or the phone has none yet) the server sends everything again once. If a phone ever looks stuck on old data, Android Settings, Apps, DAS Engage, Storage, Clear data, then sign in again, forces a full download.
+

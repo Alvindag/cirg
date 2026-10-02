@@ -57,7 +57,10 @@ class ApiClient {
   Uri _uri(String path, [Map<String, String>? query]) =>
       Uri.parse('${baseUrl().replaceAll(RegExp(r'/+$'), '')}/api/v1$path').replace(queryParameters: query);
 
-  Future<Map<String, dynamic>> pull(int sinceTicks) => _send((h) => _http.get(_uri('/sync/pull', {'since': '$sinceTicks'}), headers: h));
+  /// [scope] is what the server last told this phone about who it is syncing for (empty if it never did); when it no longer matches,
+  /// for example after a move to another territory, the server sends everything again instead of only the changes.
+  Future<Map<String, dynamic>> pull(int sinceTicks, {String scope = ''}) =>
+      _send((h) => _http.get(_uri('/sync/pull', {'since': '$sinceTicks', 'scope': scope}), headers: h));
 
   Future<Map<String, dynamic>> push(Map<String, dynamic> payload) =>
       _send((h) => _http.post(_uri('/sync/push'), headers: {...h, 'Content-Type': 'application/json'}, body: jsonEncode(payload)));
