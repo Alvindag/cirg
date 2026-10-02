@@ -20,6 +20,11 @@ void main() {
     expect(explainSyncFailure(http.ClientException('something odd'), addr), contains('Cannot reach'));
   });
 
+  test('points out a missing port when a plain-http address times out', () {
+    expect(explainSyncFailure(TimeoutException('x'), 'http://10.48.47.203'), allOf(contains('no port number'), contains('10.48.47.203:5111')));
+    expect(explainSyncFailure(TimeoutException('x'), 'https://api.test'), contains('same Wi-Fi')); // https has its own default port
+  });
+
   test('copes with an empty address and unknown errors, and always reassures that changes are safe', () {
     expect(explainSyncFailure(TimeoutException('x'), ''), contains('the server'));
     expect(explainSyncFailure(StateError('weird'), addr), contains('safe on this phone'));

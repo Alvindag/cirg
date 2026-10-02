@@ -20,6 +20,10 @@ String explainSyncFailure(Object error, String serverAddress) {
   }
   if (text.contains('cleartext')) return 'This build only allows secure (https) server addresses. Use an https address.';
   if (error is TimeoutException || text.contains('timed out')) {
+    final uri = Uri.tryParse(serverAddress.trim());
+    if (uri != null && uri.scheme == 'http' && !uri.hasPort) {
+      return 'The server at $where did not answer. The address has no port number, so the phone is using the standard port 80. If your server uses another port, sign out and add it, for example $where:5111.';
+    }
     return 'The server at $where did not answer in time. Check the address, that this phone is on the same Wi-Fi as the server, and that the server\'s firewall allows the connection.';
   }
   if (text.contains('connection refused')) return 'The server at $where refused the connection. Is it running, and listening on the network (not only on its own localhost)?';
