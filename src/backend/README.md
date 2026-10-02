@@ -73,6 +73,12 @@ Stock is an **immutable ledger** (`StockMovement`): nothing is edited, every cha
 - `sync/pull` now also returns the caller's `sampleStock` (full snapshot) and their `sampleRequests` from the last 90 days.
 - Regulatory rules (sample limits per HCP, signature mandatory, controlled substances, record retention) vary: confirm them with the DAS regulatory team and the Ghana FDA before go-live.
 
+## Offline sync (`/api/v1/sync`)
+`GET /pull?since=` returns everything changed since the cursor (customers, products, planned visits, the caller's tasks, sample stock and requests, unread `notifications`) and `wipe: true` when an administrator asked for this person's device to be cleared.
+`POST /push` is idempotent on client ids and answers **per item** (`customers`, `plannedVisits`, `checkIns`, `callReports`, `tasks`, `sampleRequests`, `sampleDistributions`, each `{ id, status: accepted|rejected, reason }`; `ok` stays for older apps), so a refused item never blocks the rest.
+Items are applied in dependency order: customers (reps add customers to their own territory and edit those in it, never move them), planned visits (or cancel them), visits, reports, tasks. `notificationReads` marks notices read.
+`POST /sync/wiped` confirms a wipe; `POST /admin/users/{id}/wipe-device` (Admin; `?wipe=false` withdraws it) requests one.
+
 ## Dashboard endpoints
 `GET /dashboards/sales`, `/dashboards/trend` (completed calls per day, zero-filled) and `/dashboards/products` (calls discussing each product, sample units given); all team-scoped.
 Browser access needs the dashboard origin in `Cors:AllowedOrigins`.
@@ -97,3 +103,4 @@ Config: `Erp:Worker:Enabled`, `Erp:AllowedHosts`, `Secrets:<name>` for the gatew
 - ERP: no ERP-specific adapter yet (depends on DAS's ERP); one background worker instance only; customer master is one-way; credit limits, price lists and orders are not used.
 - Malware scanning of uploads, thumbnails, streaming uploads (bodies are buffered up to the size cap), approval workflows, e-signatures, PostGIS spatial queries, Power BI reporting views.
 - Sync pull is cursor-by-`UpdatedAt` (server clock); move to a monotonic version column if clock skew becomes an issue.
+- A remote wipe only reaches a phone whose user is still active (a deactivated account is refused before it can sync): request the wipe, then deactivate once it has been confirmed.

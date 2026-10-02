@@ -70,6 +70,8 @@ public class AppUser : TenantEntity
     public Guid? ManagerId { get; set; }
     public Guid? TerritoryId { get; set; }
     public bool IsActive { get; set; } = true;
+    /// <summary>Set by an administrator (lost or stolen phone): the person's device clears its local data at its next sync, then reports back.</summary>
+    public DateTime? WipeRequestedAt { get; set; }
 }
 
 public class Product : TenantEntity

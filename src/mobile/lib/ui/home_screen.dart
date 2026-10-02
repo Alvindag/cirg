@@ -4,6 +4,9 @@ import 'package:intl/intl.dart';
 
 import '../providers.dart';
 import 'customers_tab.dart';
+import 'notifications_screen.dart';
+import 'problems_screen.dart';
+import 'security_screen.dart';
 import 'samples_tab.dart';
 import 'tasks_tab.dart';
 import 'today_tab.dart';
@@ -21,6 +24,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
   Widget build(BuildContext context) {
     final sync = ref.watch(syncCoordinatorProvider);
     final pending = ref.watch(pendingCountProvider).value ?? 0;
+    final unread = ref.watch(unreadCountProvider).value ?? 0;
+    final problems = (ref.watch(problemsProvider).value ?? const []).length;
     const titles = ['Today', 'Customers', 'Samples', 'Tasks'];
     return Scaffold(
       appBar: AppBar(
@@ -34,6 +39,19 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
               icon: Badge(isLabelVisible: pending > 0, label: Text('$pending'), child: const Icon(Icons.sync)),
               onPressed: () => ref.read(syncCoordinatorProvider.notifier).syncNow(),
             ),
+          PopupMenuButton<String>(
+            tooltip: 'More',
+            icon: Badge(isLabelVisible: unread + problems > 0, label: Text('${unread + problems}'), child: const Icon(Icons.more_vert)),
+            onSelected: (v) => Navigator.push(
+              context,
+              MaterialPageRoute(builder: (_) => v == 'notices' ? const NotificationsScreen() : v == 'problems' ? const ProblemsScreen() : const SecurityScreen()),
+            ),
+            itemBuilder: (_) => [
+              PopupMenuItem(value: 'notices', child: Text(unread > 0 ? 'Notices ($unread new)' : 'Notices')),
+              PopupMenuItem(value: 'problems', child: Text(problems > 0 ? 'Problem items ($problems)' : 'Problem items')),
+              const PopupMenuItem(value: 'security', child: Text('Security')),
+            ],
+          ),
           IconButton(
             tooltip: 'Sign out',
             icon: const Icon(Icons.logout),

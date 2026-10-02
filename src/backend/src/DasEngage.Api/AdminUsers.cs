@@ -159,6 +159,17 @@ public static class AdminUsers
             return Results.Ok(user);
         }).RequireAuthorization(p => p.RequireRole(Admins));
 
+        // Lost or stolen phone: the device clears its local data the next time it syncs (it must still be an active user to receive this,
+        // so request the wipe before deactivating the account). Cancel with the same call and wipe=false before it happens.
+        g.MapPost("/{id:guid}/wipe-device", async (Guid id, AppDbContext db, bool wipe = true) =>
+        {
+            var user = await db.Users.FirstOrDefaultAsync(x => x.Id == id);
+            if (user is null) return Results.NotFound();
+            user.WipeRequestedAt = wipe ? DateTime.UtcNow : null;
+            await db.SaveChangesAsync();
+            return Results.Ok(new { user.Id, wipeRequestedAt = user.WipeRequestedAt });
+        }).RequireAuthorization(p => p.RequireRole(Admins));
+
         g.MapPost("/{id:guid}/reactivate", async (Guid id, AppDbContext db) =>
         {
             var user = await db.Users.FirstOrDefaultAsync(x => x.Id == id);

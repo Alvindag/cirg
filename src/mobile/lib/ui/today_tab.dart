@@ -51,7 +51,7 @@ class TodayTab extends ConsumerWidget {
           builder: (context, snap) {
             final items = snap.data ?? const [];
             if (items.isEmpty) {
-              return const Center(child: Padding(padding: EdgeInsets.all(24), child: Text('No visits planned for today.\nPick a customer to start an unplanned visit.', textAlign: TextAlign.center)));
+              return const Center(child: Padding(padding: EdgeInsets.all(24), child: Text('No visits planned for today.\nPick a customer to start an unplanned visit or plan one.', textAlign: TextAlign.center)));
             }
             return ListView.separated(
               itemCount: items.length + 1,
@@ -81,6 +81,24 @@ class TodayTab extends ConsumerWidget {
                   onTap: it.visit == null
                       ? null
                       : () => Navigator.push(context, MaterialPageRoute(builder: (_) => VisitScreen(visitId: it.visit!.id))),
+                  onLongPress: it.visit != null
+                      ? null
+                      : () async {
+                          final cancel = await showDialog<bool>(
+                            context: context,
+                            builder: (d) => AlertDialog(
+                              title: Text('Cancel the visit to ${it.customer.name}?'),
+                              actions: [
+                                TextButton(onPressed: () => Navigator.pop(d, false), child: const Text('Keep it')),
+                                TextButton(onPressed: () => Navigator.pop(d, true), child: const Text('Cancel visit')),
+                              ],
+                            ),
+                          );
+                          if (cancel == true) {
+                            await ref.read(planServiceProvider).cancel(it.planned.id);
+                            ref.read(syncCoordinatorProvider.notifier).syncNow();
+                          }
+                        },
                 );
               },
             );

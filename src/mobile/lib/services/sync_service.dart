@@ -7,9 +7,12 @@ import '../data/database.dart';
 import 'api_client.dart';
 
 class SyncResult {
-  const SyncResult({this.pushed = 0, this.pulled = false, this.error, this.authFailed = false, this.forbidden = false});
+  const SyncResult({this.pushed = 0, this.pulled = false, this.error, this.authFailed = false, this.forbidden = false, this.wiped = false});
   final int pushed;
   final bool pulled;
+
+  /// An administrator asked for this device to be cleared (lost phone); the local data is gone and the person must sign in again.
+  final bool wiped;
   final String? error;
   final bool authFailed;
 
@@ -38,8 +41,8 @@ class SyncService {
     try {
       final pushed = await _push();
       await _uploadAttachments(); // after the push, so the visits they belong to exist on the server
-      await _pull();
-      return SyncResult(pushed: pushed, pulled: true);
+      final wiped = await _pull();
+      return SyncResult(pushed: pushed, pulled: !wiped, wiped: wiped);
     } on ApiException catch (e) {
       return SyncResult(error: e.toString(), authFailed: e.isAuth, forbidden: e.statusCode == 403);
     } catch (e) {
@@ -56,10 +59,27 @@ class SyncService {
     final pings = await _db.select(_db.gpsPings).get();
     final distributions = await (_db.select(_db.sampleDistributions)..where((d) => d.status.equals('pending'))).get();
     final requests = await (_db.select(_db.sampleRequests)..where((r) => r.dirty.equals(true))).get();
-    final count = visits.length + reports.length + tasks.length + pings.length + distributions.length + requests.length;
-    if (count == 0) return 0;
+    final customers = await (_db.select(_db.customers)..where((c) => c.dirty.equals(true))).get();
+    final plans = await (_db.select(_db.plannedVisits)..where((p) => p.dirty.equals(true))).get();
+    final readNotices = await (_db.select(_db.appNotifications)..where((n) => n.readLocally.equals(true))).get();
+    final count = visits.length + reports.length + tasks.length + pings.length + distributions.length + requests.length + customers.length + plans.length;
+    if (count == 0 && readNotices.isEmpty) return 0;
 
     final payload = <String, dynamic>{
+      // Things other items refer to are listed first; the server applies them in that order.
+      'customers': [
+        for (final c in customers)
+          {
+            'id': c.id, 'type': c.type, 'name': c.name, 'specialty': c.specialty, 'segment': c.segment, 'territoryId': c.territoryId,
+            'parentCustomerId': c.parentCustomerId, 'phone': c.phone, 'email': c.email, 'address': c.address, 'city': c.city,
+            'latitude': c.latitude, 'longitude': c.longitude, 'targetVisitsPerMonth': c.targetVisitsPerMonth,
+          },
+      ],
+      'plannedVisits': [
+        for (final p in plans)
+          {'id': p.id, 'customerId': p.customerId, 'plannedDate': p.plannedDate, 'sequence': p.sequence, 'objective': p.objective, 'cancelled': p.status == 'Cancelled'},
+      ],
+      'notificationReads': [for (final n in readNotices) n.id],
       'checkIns': [
         for (final v in visits)
           {
@@ -126,28 +146,73 @@ class SyncService {
     };
 
     final res = await _api.push(payload);
-    if (res['ok'] != true) throw ApiException(422, 'Server rejected part of the batch: ${jsonEncode(res['errors'])}');
+    // Newer servers answer item by item. An older one only says whether the whole batch was fine.
+    final perItem = res.containsKey('checkIns');
+    if (res['ok'] != true && !perItem) throw ApiException(422, 'Server rejected part of the batch: ${jsonEncode(res['errors'])}');
+    Map<String, Map> results(String key) =>
+        {for (final r in (res[key] as List? ?? const []).cast<Map>()) r['id'] as String: r};
+    final customerResults = results('customers');
+    final planResults = results('plannedVisits');
+    final visitResults = results('checkIns');
+    final reportResults = results('callReports');
+    final taskResults = results('tasks');
+    /// True when the server took the item (or, for an old server, took the batch); false when it refused it for good.
+    /// Null when the answer has no entry for it, in which case the item stays queued.
+    bool? taken(Map<String, Map> byId, String id) {
+      final r = byId[id];
+      if (r == null) return perItem ? null : true;
+      return r['status'] != 'rejected';
+    }
+    String why(Map<String, Map> byId, String id) => (byId[id]?['reason'] as String?) ?? 'The server refused it.';
 
     await _db.transaction(() async {
+      for (final c in customers) {
+        final ok = taken(customerResults, c.id);
+        if (ok == null) continue;
+        await (_db.update(_db.customers)..where((x) => x.id.equals(c.id) & x.name.equals(c.name) & x.city.equalsNullable(c.city)))
+            .write(const CustomersCompanion(dirty: Value(false)));
+        if (!ok) await _db.recordProblem(c.id, 'customer', c.name, why(customerResults, c.id));
+      }
+      for (final p in plans) {
+        final ok = taken(planResults, p.id);
+        if (ok == null) continue;
+        await (_db.update(_db.plannedVisits)..where((x) => x.id.equals(p.id) & x.status.equals(p.status))).write(const PlannedVisitsCompanion(dirty: Value(false)));
+        if (!ok) {
+          final customer = await _db.customer(p.customerId);
+          await _db.recordProblem(p.id, 'plan', 'Visit to ${customer?.name ?? 'a customer'} on ${p.plannedDate}', why(planResults, p.id));
+        }
+      }
       for (final v in visits) {
+        final ok = taken(visitResults, v.id);
+        if (ok == null) continue;
         // Only clear if the row was not edited while the request was in flight (e.g. checked out meanwhile).
         await (_db.update(_db.visits)..where((x) => x.id.equals(v.id) & x.checkOutAt.equalsNullable(v.checkOutAt)))
             .write(const VisitsCompanion(dirty: Value(false)));
+        if (!ok) {
+          final customer = await _db.customer(v.customerId);
+          await _db.recordProblem(v.id, 'visit', 'Visit to ${customer?.name ?? 'a customer'} on ${v.checkInAt.substring(0, 10)}', why(visitResults, v.id));
+        }
       }
       for (final r in reports) {
+        final ok = taken(reportResults, r.id);
+        if (ok == null) continue;
         await (_db.update(_db.callReports)
               ..where((x) => x.id.equals(r.id) & x.notes.equalsNullable(r.notes) & x.productsJson.equals(r.productsJson)))
             .write(const CallReportsCompanion(dirty: Value(false)));
+        if (!ok) await _db.recordProblem(r.id, 'report', 'Call report${r.outcome == null ? '' : ' (${r.outcome})'}', why(reportResults, r.id));
       }
       for (final t in tasks) {
+        final ok = taken(taskResults, t.id);
+        if (ok == null) continue;
         await (_db.update(_db.followUpTasks)..where((x) => x.id.equals(t.id) & x.status.equals(t.status)))
             .write(const FollowUpTasksCompanion(dirty: Value(false)));
+        if (!ok) await _db.recordProblem(t.id, 'task', t.title, why(taskResults, t.id));
       }
+      // The server knows these notices are read now; they will not come back in the next pull.
+      await (_db.delete(_db.appNotifications)..where((n) => n.id.isIn(readNotices.map((n) => n.id)))).go();
       await (_db.delete(_db.gpsPings)..where((p) => p.id.isIn(pings.map((p) => p.id)))).go();
 
       // Samples are confirmed or refused line by line, so one rejected line never blocks the others.
-      Map<String, Map> results(String key) =>
-          {for (final r in (res[key] as List? ?? const []).cast<Map>()) r['id'] as String: r};
       final distResults = results('sampleDistributions');
       for (final d in distributions) {
         final r = distResults[d.id];
@@ -222,11 +287,19 @@ class SyncService {
   Future<void> _mark(String id, String status, String error) => (_db.update(_db.attachments)..where((x) => x.id.equals(id)))
       .write(AttachmentsCompanion(uploadStatus: Value(status), uploadError: Value(error)));
 
-  Future<void> _pull() async {
+  /// Returns true when the server asked for this device to be wiped (and it was).
+  Future<bool> _pull() async {
     final since = int.tryParse(await _db.getState(_cursorKey) ?? '') ?? 0;
     final body = await _api.pull(since);
+    if (body['wipe'] == true) {
+      // Everything this person had not uploaded was pushed first. Now clear the phone and say so.
+      await _db.wipe();
+      await _api.confirmWiped();
+      return true;
+    }
     await _db.applyPull(body);
     // Server clock cursor; only advance after the data was stored.
     await _db.setState(_cursorKey, '${body['cursor']}');
+    return false;
   }
 }

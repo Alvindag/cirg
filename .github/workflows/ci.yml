@@ -182,6 +182,52 @@ jobs:
       - run: flutter analyze
       - run: flutter test
 
+  mobile-live:
+    name: Mobile sync against a running API (PostgreSQL)
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: das_live
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U postgres" --health-interval 5s --health-timeout 5s --health-retries 10
+    env:
+      ConnectionStrings__Default: Host=localhost;Database=das_live;Username=postgres;Password=postgres
+      ASPNETCORE_ENVIRONMENT: Development # enables the development signing key; this API only lives for this job
+      Auth__DevSigningKey: dev-only-signing-key-change-me-0123456789abcdef
+      Erp__Worker__Enabled: "false"
+      ASPNETCORE_URLS: http://127.0.0.1:5111
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: ${{ env.DOTNET_VERSION }}
+      - name: Build and start the API
+        working-directory: src/backend
+        run: |
+          dotnet build src/DasEngage.Api -c Release
+          dotnet src/DasEngage.Api/bin/Release/net8.0/DasEngage.Api.dll migrate
+          dotnet src/DasEngage.Api/bin/Release/net8.0/DasEngage.Api.dll > "$RUNNER_TEMP/api.log" 2>&1 &
+          for i in $(seq 1 30); do curl -fsS http://127.0.0.1:5111/health/ready && exit 0; sleep 1; done
+          cat "$RUNNER_TEMP/api.log"; exit 1
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          channel: stable
+          cache: true
+      - name: Live sync tests
+        working-directory: src/mobile
+        env:
+          DAS_API: http://127.0.0.1:5111
+        run: |
+          flutter pub get
+          dart run build_runner build --delete-conflicting-outputs
+          flutter test test/integration --tags integration
+
   infrastructure:
     name: Infrastructure (Bicep build, lint, security scan)
     runs-on: ubuntu-latest
@@ -221,7 +267,7 @@ jobs:
   ci-ok:
     name: CI passed
     if: always()
-    needs: [backend, container, web, mobile, infrastructure, security]
+    needs: [backend, container, web, mobile, mobile-live, infrastructure, security]
     runs-on: ubuntu-latest
     steps:
       - name: Check results

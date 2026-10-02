@@ -23,7 +23,10 @@ public record TaskDto(Guid? Id, Guid? AssignedToId, Guid? CustomerId, Guid? Call
 public record GpsPingDto(Guid? Id, DateTime RecordedAt, double Latitude, double Longitude, double? AccuracyM);
 
 public record SyncPushRequest(List<CheckInOp>? CheckIns, List<CallReportOp>? CallReports, List<TaskDto>? Tasks,
-    List<GpsPingDto>? GpsPings, List<RequestDto>? SampleRequests = null, List<DistributionDto>? SampleDistributions = null);
+    List<GpsPingDto>? GpsPings, List<RequestDto>? SampleRequests = null, List<DistributionDto>? SampleDistributions = null,
+    List<CustomerDto>? Customers = null, List<PlannedVisitOp>? PlannedVisits = null, List<Guid>? NotificationReads = null);
+/// <summary>A visit planned (or cancelled) on the device. Idempotent on the id.</summary>
+public record PlannedVisitOp(Guid Id, Guid CustomerId, DateOnly PlannedDate, int Sequence, string? Objective, bool Cancelled = false);
 public record CheckInOp(Guid VisitId, CheckInDto CheckIn, CheckOutDto? CheckOut);
 public record CallReportOp(CallReportDto Report);
 

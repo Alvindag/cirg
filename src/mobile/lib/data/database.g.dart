@@ -152,6 +152,19 @@ class $CustomersTable extends Customers
     requiredDuringInsert: false,
     defaultValue: const Constant(0),
   );
+  static const VerificationMeta _dirtyMeta = const VerificationMeta('dirty');
+  @override
+  late final GeneratedColumn<bool> dirty = GeneratedColumn<bool>(
+    'dirty',
+    aliasedName,
+    false,
+    type: DriftSqlType.bool,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'CHECK ("dirty" IN (0, 1))',
+    ),
+    defaultValue: const Constant(false),
+  );
   @override
   List<GeneratedColumn> get $columns => [
     id,
@@ -168,6 +181,7 @@ class $CustomersTable extends Customers
     latitude,
     longitude,
     targetVisitsPerMonth,
+    dirty,
   ];
   @override
   String get aliasedName => _alias ?? actualTableName;
@@ -277,6 +291,12 @@ class $CustomersTable extends Customers
         ),
       );
     }
+    if (data.containsKey('dirty')) {
+      context.handle(
+        _dirtyMeta,
+        dirty.isAcceptableOrUnknown(data['dirty']!, _dirtyMeta),
+      );
+    }
     return context;
   }
 
@@ -342,6 +362,10 @@ class $CustomersTable extends Customers
         DriftSqlType.int,
         data['${effectivePrefix}target_visits_per_month'],
       )!,
+      dirty: attachedDatabase.typeMapping.read(
+        DriftSqlType.bool,
+        data['${effectivePrefix}dirty'],
+      )!,
     );
   }
 
@@ -366,6 +390,9 @@ class Customer extends DataClass implements Insertable<Customer> {
   final double? latitude;
   final double? longitude;
   final int targetVisitsPerMonth;
+
+  /// Created or edited on this device and not yet uploaded.
+  final bool dirty;
   const Customer({
     required this.id,
     required this.type,
@@ -381,6 +408,7 @@ class Customer extends DataClass implements Insertable<Customer> {
     this.latitude,
     this.longitude,
     required this.targetVisitsPerMonth,
+    required this.dirty,
   });
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
@@ -417,6 +445,7 @@ class Customer extends DataClass implements Insertable<Customer> {
       map['longitude'] = Variable<double>(longitude);
     }
     map['target_visits_per_month'] = Variable<int>(targetVisitsPerMonth);
+    map['dirty'] = Variable<bool>(dirty);
     return map;
   }
 
@@ -452,6 +481,7 @@ class Customer extends DataClass implements Insertable<Customer> {
           ? const Value.absent()
           : Value(longitude),
       targetVisitsPerMonth: Value(targetVisitsPerMonth),
+      dirty: Value(dirty),
     );
   }
 
@@ -477,6 +507,7 @@ class Customer extends DataClass implements Insertable<Customer> {
       targetVisitsPerMonth: serializer.fromJson<int>(
         json['targetVisitsPerMonth'],
       ),
+      dirty: serializer.fromJson<bool>(json['dirty']),
     );
   }
   @override
@@ -497,6 +528,7 @@ class Customer extends DataClass implements Insertable<Customer> {
       'latitude': serializer.toJson<double?>(latitude),
       'longitude': serializer.toJson<double?>(longitude),
       'targetVisitsPerMonth': serializer.toJson<int>(targetVisitsPerMonth),
+      'dirty': serializer.toJson<bool>(dirty),
     };
   }
 
@@ -515,6 +547,7 @@ class Customer extends DataClass implements Insertable<Customer> {
     Value<double?> latitude = const Value.absent(),
     Value<double?> longitude = const Value.absent(),
     int? targetVisitsPerMonth,
+    bool? dirty,
   }) => Customer(
     id: id ?? this.id,
     type: type ?? this.type,
@@ -532,6 +565,7 @@ class Customer extends DataClass implements Insertable<Customer> {
     latitude: latitude.present ? latitude.value : this.latitude,
     longitude: longitude.present ? longitude.value : this.longitude,
     targetVisitsPerMonth: targetVisitsPerMonth ?? this.targetVisitsPerMonth,
+    dirty: dirty ?? this.dirty,
   );
   Customer copyWithCompanion(CustomersCompanion data) {
     return Customer(
@@ -555,6 +589,7 @@ class Customer extends DataClass implements Insertable<Customer> {
       targetVisitsPerMonth: data.targetVisitsPerMonth.present
           ? data.targetVisitsPerMonth.value
           : this.targetVisitsPerMonth,
+      dirty: data.dirty.present ? data.dirty.value : this.dirty,
     );
   }
 
@@ -574,7 +609,8 @@ class Customer extends DataClass implements Insertable<Customer> {
           ..write('city: $city, ')
           ..write('latitude: $latitude, ')
           ..write('longitude: $longitude, ')
-          ..write('targetVisitsPerMonth: $targetVisitsPerMonth')
+          ..write('targetVisitsPerMonth: $targetVisitsPerMonth, ')
+          ..write('dirty: $dirty')
           ..write(')'))
         .toString();
   }
@@ -595,6 +631,7 @@ class Customer extends DataClass implements Insertable<Customer> {
     latitude,
     longitude,
     targetVisitsPerMonth,
+    dirty,
   );
   @override
   bool operator ==(Object other) =>
@@ -613,7 +650,8 @@ class Customer extends DataClass implements Insertable<Customer> {
           other.city == this.city &&
           other.latitude == this.latitude &&
           other.longitude == this.longitude &&
-          other.targetVisitsPerMonth == this.targetVisitsPerMonth);
+          other.targetVisitsPerMonth == this.targetVisitsPerMonth &&
+          other.dirty == this.dirty);
 }
 
 class CustomersCompanion extends UpdateCompanion<Customer> {
@@ -631,6 +669,7 @@ class CustomersCompanion extends UpdateCompanion<Customer> {
   final Value<double?> latitude;
   final Value<double?> longitude;
   final Value<int> targetVisitsPerMonth;
+  final Value<bool> dirty;
   final Value<int> rowid;
   const CustomersCompanion({
     this.id = const Value.absent(),
@@ -647,6 +686,7 @@ class CustomersCompanion extends UpdateCompanion<Customer> {
     this.latitude = const Value.absent(),
     this.longitude = const Value.absent(),
     this.targetVisitsPerMonth = const Value.absent(),
+    this.dirty = const Value.absent(),
     this.rowid = const Value.absent(),
   });
   CustomersCompanion.insert({
@@ -664,6 +704,7 @@ class CustomersCompanion extends UpdateCompanion<Customer> {
     this.latitude = const Value.absent(),
     this.longitude = const Value.absent(),
     this.targetVisitsPerMonth = const Value.absent(),
+    this.dirty = const Value.absent(),
     this.rowid = const Value.absent(),
   }) : id = Value(id),
        type = Value(type),
@@ -683,6 +724,7 @@ class CustomersCompanion extends UpdateCompanion<Customer> {
     Expression<double>? latitude,
     Expression<double>? longitude,
     Expression<int>? targetVisitsPerMonth,
+    Expression<bool>? dirty,
     Expression<int>? rowid,
   }) {
     return RawValuesInsertable({
@@ -701,6 +743,7 @@ class CustomersCompanion extends UpdateCompanion<Customer> {
       if (longitude != null) 'longitude': longitude,
       if (targetVisitsPerMonth != null)
         'target_visits_per_month': targetVisitsPerMonth,
+      if (dirty != null) 'dirty': dirty,
       if (rowid != null) 'rowid': rowid,
     });
   }
@@ -720,6 +763,7 @@ class CustomersCompanion extends UpdateCompanion<Customer> {
     Value<double?>? latitude,
     Value<double?>? longitude,
     Value<int>? targetVisitsPerMonth,
+    Value<bool>? dirty,
     Value<int>? rowid,
   }) {
     return CustomersCompanion(
@@ -737,6 +781,7 @@ class CustomersCompanion extends UpdateCompanion<Customer> {
       latitude: latitude ?? this.latitude,
       longitude: longitude ?? this.longitude,
       targetVisitsPerMonth: targetVisitsPerMonth ?? this.targetVisitsPerMonth,
+      dirty: dirty ?? this.dirty,
       rowid: rowid ?? this.rowid,
     );
   }
@@ -788,6 +833,9 @@ class CustomersCompanion extends UpdateCompanion<Customer> {
         targetVisitsPerMonth.value,
       );
     }
+    if (dirty.present) {
+      map['dirty'] = Variable<bool>(dirty.value);
+    }
     if (rowid.present) {
       map['rowid'] = Variable<int>(rowid.value);
     }
@@ -811,6 +859,7 @@ class CustomersCompanion extends UpdateCompanion<Customer> {
           ..write('latitude: $latitude, ')
           ..write('longitude: $longitude, ')
           ..write('targetVisitsPerMonth: $targetVisitsPerMonth, ')
+          ..write('dirty: $dirty, ')
           ..write('rowid: $rowid')
           ..write(')'))
         .toString();
@@ -1141,6 +1190,19 @@ class $PlannedVisitsTable extends PlannedVisits
     type: DriftSqlType.string,
     requiredDuringInsert: false,
   );
+  static const VerificationMeta _dirtyMeta = const VerificationMeta('dirty');
+  @override
+  late final GeneratedColumn<bool> dirty = GeneratedColumn<bool>(
+    'dirty',
+    aliasedName,
+    false,
+    type: DriftSqlType.bool,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'CHECK ("dirty" IN (0, 1))',
+    ),
+    defaultValue: const Constant(false),
+  );
   @override
   List<GeneratedColumn> get $columns => [
     id,
@@ -1149,6 +1211,7 @@ class $PlannedVisitsTable extends PlannedVisits
     sequence,
     status,
     objective,
+    dirty,
   ];
   @override
   String get aliasedName => _alias ?? actualTableName;
@@ -1204,6 +1267,12 @@ class $PlannedVisitsTable extends PlannedVisits
         objective.isAcceptableOrUnknown(data['objective']!, _objectiveMeta),
       );
     }
+    if (data.containsKey('dirty')) {
+      context.handle(
+        _dirtyMeta,
+        dirty.isAcceptableOrUnknown(data['dirty']!, _dirtyMeta),
+      );
+    }
     return context;
   }
 
@@ -1237,6 +1306,10 @@ class $PlannedVisitsTable extends PlannedVisits
         DriftSqlType.string,
         data['${effectivePrefix}objective'],
       ),
+      dirty: attachedDatabase.typeMapping.read(
+        DriftSqlType.bool,
+        data['${effectivePrefix}dirty'],
+      )!,
     );
   }
 
@@ -1253,6 +1326,9 @@ class PlannedVisit extends DataClass implements Insertable<PlannedVisit> {
   final int sequence;
   final String status;
   final String? objective;
+
+  /// Planned or cancelled on this device and not yet uploaded.
+  final bool dirty;
   const PlannedVisit({
     required this.id,
     required this.customerId,
@@ -1260,6 +1336,7 @@ class PlannedVisit extends DataClass implements Insertable<PlannedVisit> {
     required this.sequence,
     required this.status,
     this.objective,
+    required this.dirty,
   });
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
@@ -1272,6 +1349,7 @@ class PlannedVisit extends DataClass implements Insertable<PlannedVisit> {
     if (!nullToAbsent || objective != null) {
       map['objective'] = Variable<String>(objective);
     }
+    map['dirty'] = Variable<bool>(dirty);
     return map;
   }
 
@@ -1285,6 +1363,7 @@ class PlannedVisit extends DataClass implements Insertable<PlannedVisit> {
       objective: objective == null && nullToAbsent
           ? const Value.absent()
           : Value(objective),
+      dirty: Value(dirty),
     );
   }
 
@@ -1300,6 +1379,7 @@ class PlannedVisit extends DataClass implements Insertable<PlannedVisit> {
       sequence: serializer.fromJson<int>(json['sequence']),
       status: serializer.fromJson<String>(json['status']),
       objective: serializer.fromJson<String?>(json['objective']),
+      dirty: serializer.fromJson<bool>(json['dirty']),
     );
   }
   @override
@@ -1312,6 +1392,7 @@ class PlannedVisit extends DataClass implements Insertable<PlannedVisit> {
       'sequence': serializer.toJson<int>(sequence),
       'status': serializer.toJson<String>(status),
       'objective': serializer.toJson<String?>(objective),
+      'dirty': serializer.toJson<bool>(dirty),
     };
   }
 
@@ -1322,6 +1403,7 @@ class PlannedVisit extends DataClass implements Insertable<PlannedVisit> {
     int? sequence,
     String? status,
     Value<String?> objective = const Value.absent(),
+    bool? dirty,
   }) => PlannedVisit(
     id: id ?? this.id,
     customerId: customerId ?? this.customerId,
@@ -1329,6 +1411,7 @@ class PlannedVisit extends DataClass implements Insertable<PlannedVisit> {
     sequence: sequence ?? this.sequence,
     status: status ?? this.status,
     objective: objective.present ? objective.value : this.objective,
+    dirty: dirty ?? this.dirty,
   );
   PlannedVisit copyWithCompanion(PlannedVisitsCompanion data) {
     return PlannedVisit(
@@ -1342,6 +1425,7 @@ class PlannedVisit extends DataClass implements Insertable<PlannedVisit> {
       sequence: data.sequence.present ? data.sequence.value : this.sequence,
       status: data.status.present ? data.status.value : this.status,
       objective: data.objective.present ? data.objective.value : this.objective,
+      dirty: data.dirty.present ? data.dirty.value : this.dirty,
     );
   }
 
@@ -1353,14 +1437,22 @@ class PlannedVisit extends DataClass implements Insertable<PlannedVisit> {
           ..write('plannedDate: $plannedDate, ')
           ..write('sequence: $sequence, ')
           ..write('status: $status, ')
-          ..write('objective: $objective')
+          ..write('objective: $objective, ')
+          ..write('dirty: $dirty')
           ..write(')'))
         .toString();
   }
 
   @override
-  int get hashCode =>
-      Object.hash(id, customerId, plannedDate, sequence, status, objective);
+  int get hashCode => Object.hash(
+    id,
+    customerId,
+    plannedDate,
+    sequence,
+    status,
+    objective,
+    dirty,
+  );
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
@@ -1370,7 +1462,8 @@ class PlannedVisit extends DataClass implements Insertable<PlannedVisit> {
           other.plannedDate == this.plannedDate &&
           other.sequence == this.sequence &&
           other.status == this.status &&
-          other.objective == this.objective);
+          other.objective == this.objective &&
+          other.dirty == this.dirty);
 }
 
 class PlannedVisitsCompanion extends UpdateCompanion<PlannedVisit> {
@@ -1380,6 +1473,7 @@ class PlannedVisitsCompanion extends UpdateCompanion<PlannedVisit> {
   final Value<int> sequence;
   final Value<String> status;
   final Value<String?> objective;
+  final Value<bool> dirty;
   final Value<int> rowid;
   const PlannedVisitsCompanion({
     this.id = const Value.absent(),
@@ -1388,6 +1482,7 @@ class PlannedVisitsCompanion extends UpdateCompanion<PlannedVisit> {
     this.sequence = const Value.absent(),
     this.status = const Value.absent(),
     this.objective = const Value.absent(),
+    this.dirty = const Value.absent(),
     this.rowid = const Value.absent(),
   });
   PlannedVisitsCompanion.insert({
@@ -1397,6 +1492,7 @@ class PlannedVisitsCompanion extends UpdateCompanion<PlannedVisit> {
     this.sequence = const Value.absent(),
     this.status = const Value.absent(),
     this.objective = const Value.absent(),
+    this.dirty = const Value.absent(),
     this.rowid = const Value.absent(),
   }) : id = Value(id),
        customerId = Value(customerId),
@@ -1408,6 +1504,7 @@ class PlannedVisitsCompanion extends UpdateCompanion<PlannedVisit> {
     Expression<int>? sequence,
     Expression<String>? status,
     Expression<String>? objective,
+    Expression<bool>? dirty,
     Expression<int>? rowid,
   }) {
     return RawValuesInsertable({
@@ -1417,6 +1514,7 @@ class PlannedVisitsCompanion extends UpdateCompanion<PlannedVisit> {
       if (sequence != null) 'sequence': sequence,
       if (status != null) 'status': status,
       if (objective != null) 'objective': objective,
+      if (dirty != null) 'dirty': dirty,
       if (rowid != null) 'rowid': rowid,
     });
   }
@@ -1428,6 +1526,7 @@ class PlannedVisitsCompanion extends UpdateCompanion<PlannedVisit> {
     Value<int>? sequence,
     Value<String>? status,
     Value<String?>? objective,
+    Value<bool>? dirty,
     Value<int>? rowid,
   }) {
     return PlannedVisitsCompanion(
@@ -1437,6 +1536,7 @@ class PlannedVisitsCompanion extends UpdateCompanion<PlannedVisit> {
       sequence: sequence ?? this.sequence,
       status: status ?? this.status,
       objective: objective ?? this.objective,
+      dirty: dirty ?? this.dirty,
       rowid: rowid ?? this.rowid,
     );
   }
@@ -1462,6 +1562,9 @@ class PlannedVisitsCompanion extends UpdateCompanion<PlannedVisit> {
     if (objective.present) {
       map['objective'] = Variable<String>(objective.value);
     }
+    if (dirty.present) {
+      map['dirty'] = Variable<bool>(dirty.value);
+    }
     if (rowid.present) {
       map['rowid'] = Variable<int>(rowid.value);
     }
@@ -1477,6 +1580,7 @@ class PlannedVisitsCompanion extends UpdateCompanion<PlannedVisit> {
           ..write('sequence: $sequence, ')
           ..write('status: $status, ')
           ..write('objective: $objective, ')
+          ..write('dirty: $dirty, ')
           ..write('rowid: $rowid')
           ..write(')'))
         .toString();
@@ -6568,6 +6672,767 @@ class NextActionsCompanion extends UpdateCompanion<NextAction> {
   }
 }
 
+class $SyncProblemsTable extends SyncProblems
+    with TableInfo<$SyncProblemsTable, SyncProblem> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $SyncProblemsTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _idMeta = const VerificationMeta('id');
+  @override
+  late final GeneratedColumn<String> id = GeneratedColumn<String>(
+    'id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _kindMeta = const VerificationMeta('kind');
+  @override
+  late final GeneratedColumn<String> kind = GeneratedColumn<String>(
+    'kind',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _summaryMeta = const VerificationMeta(
+    'summary',
+  );
+  @override
+  late final GeneratedColumn<String> summary = GeneratedColumn<String>(
+    'summary',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _reasonMeta = const VerificationMeta('reason');
+  @override
+  late final GeneratedColumn<String> reason = GeneratedColumn<String>(
+    'reason',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _createdAtMeta = const VerificationMeta(
+    'createdAt',
+  );
+  @override
+  late final GeneratedColumn<String> createdAt = GeneratedColumn<String>(
+    'created_at',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  @override
+  List<GeneratedColumn> get $columns => [id, kind, summary, reason, createdAt];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'sync_problems';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<SyncProblem> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('id')) {
+      context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
+    } else if (isInserting) {
+      context.missing(_idMeta);
+    }
+    if (data.containsKey('kind')) {
+      context.handle(
+        _kindMeta,
+        kind.isAcceptableOrUnknown(data['kind']!, _kindMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_kindMeta);
+    }
+    if (data.containsKey('summary')) {
+      context.handle(
+        _summaryMeta,
+        summary.isAcceptableOrUnknown(data['summary']!, _summaryMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_summaryMeta);
+    }
+    if (data.containsKey('reason')) {
+      context.handle(
+        _reasonMeta,
+        reason.isAcceptableOrUnknown(data['reason']!, _reasonMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_reasonMeta);
+    }
+    if (data.containsKey('created_at')) {
+      context.handle(
+        _createdAtMeta,
+        createdAt.isAcceptableOrUnknown(data['created_at']!, _createdAtMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_createdAtMeta);
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {id};
+  @override
+  SyncProblem map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return SyncProblem(
+      id: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}id'],
+      )!,
+      kind: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}kind'],
+      )!,
+      summary: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}summary'],
+      )!,
+      reason: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}reason'],
+      )!,
+      createdAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}created_at'],
+      )!,
+    );
+  }
+
+  @override
+  $SyncProblemsTable createAlias(String alias) {
+    return $SyncProblemsTable(attachedDatabase, alias);
+  }
+}
+
+class SyncProblem extends DataClass implements Insertable<SyncProblem> {
+  final String id;
+  final String kind;
+  final String summary;
+  final String reason;
+  final String createdAt;
+  const SyncProblem({
+    required this.id,
+    required this.kind,
+    required this.summary,
+    required this.reason,
+    required this.createdAt,
+  });
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['id'] = Variable<String>(id);
+    map['kind'] = Variable<String>(kind);
+    map['summary'] = Variable<String>(summary);
+    map['reason'] = Variable<String>(reason);
+    map['created_at'] = Variable<String>(createdAt);
+    return map;
+  }
+
+  SyncProblemsCompanion toCompanion(bool nullToAbsent) {
+    return SyncProblemsCompanion(
+      id: Value(id),
+      kind: Value(kind),
+      summary: Value(summary),
+      reason: Value(reason),
+      createdAt: Value(createdAt),
+    );
+  }
+
+  factory SyncProblem.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return SyncProblem(
+      id: serializer.fromJson<String>(json['id']),
+      kind: serializer.fromJson<String>(json['kind']),
+      summary: serializer.fromJson<String>(json['summary']),
+      reason: serializer.fromJson<String>(json['reason']),
+      createdAt: serializer.fromJson<String>(json['createdAt']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'id': serializer.toJson<String>(id),
+      'kind': serializer.toJson<String>(kind),
+      'summary': serializer.toJson<String>(summary),
+      'reason': serializer.toJson<String>(reason),
+      'createdAt': serializer.toJson<String>(createdAt),
+    };
+  }
+
+  SyncProblem copyWith({
+    String? id,
+    String? kind,
+    String? summary,
+    String? reason,
+    String? createdAt,
+  }) => SyncProblem(
+    id: id ?? this.id,
+    kind: kind ?? this.kind,
+    summary: summary ?? this.summary,
+    reason: reason ?? this.reason,
+    createdAt: createdAt ?? this.createdAt,
+  );
+  SyncProblem copyWithCompanion(SyncProblemsCompanion data) {
+    return SyncProblem(
+      id: data.id.present ? data.id.value : this.id,
+      kind: data.kind.present ? data.kind.value : this.kind,
+      summary: data.summary.present ? data.summary.value : this.summary,
+      reason: data.reason.present ? data.reason.value : this.reason,
+      createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('SyncProblem(')
+          ..write('id: $id, ')
+          ..write('kind: $kind, ')
+          ..write('summary: $summary, ')
+          ..write('reason: $reason, ')
+          ..write('createdAt: $createdAt')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(id, kind, summary, reason, createdAt);
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is SyncProblem &&
+          other.id == this.id &&
+          other.kind == this.kind &&
+          other.summary == this.summary &&
+          other.reason == this.reason &&
+          other.createdAt == this.createdAt);
+}
+
+class SyncProblemsCompanion extends UpdateCompanion<SyncProblem> {
+  final Value<String> id;
+  final Value<String> kind;
+  final Value<String> summary;
+  final Value<String> reason;
+  final Value<String> createdAt;
+  final Value<int> rowid;
+  const SyncProblemsCompanion({
+    this.id = const Value.absent(),
+    this.kind = const Value.absent(),
+    this.summary = const Value.absent(),
+    this.reason = const Value.absent(),
+    this.createdAt = const Value.absent(),
+    this.rowid = const Value.absent(),
+  });
+  SyncProblemsCompanion.insert({
+    required String id,
+    required String kind,
+    required String summary,
+    required String reason,
+    required String createdAt,
+    this.rowid = const Value.absent(),
+  }) : id = Value(id),
+       kind = Value(kind),
+       summary = Value(summary),
+       reason = Value(reason),
+       createdAt = Value(createdAt);
+  static Insertable<SyncProblem> custom({
+    Expression<String>? id,
+    Expression<String>? kind,
+    Expression<String>? summary,
+    Expression<String>? reason,
+    Expression<String>? createdAt,
+    Expression<int>? rowid,
+  }) {
+    return RawValuesInsertable({
+      if (id != null) 'id': id,
+      if (kind != null) 'kind': kind,
+      if (summary != null) 'summary': summary,
+      if (reason != null) 'reason': reason,
+      if (createdAt != null) 'created_at': createdAt,
+      if (rowid != null) 'rowid': rowid,
+    });
+  }
+
+  SyncProblemsCompanion copyWith({
+    Value<String>? id,
+    Value<String>? kind,
+    Value<String>? summary,
+    Value<String>? reason,
+    Value<String>? createdAt,
+    Value<int>? rowid,
+  }) {
+    return SyncProblemsCompanion(
+      id: id ?? this.id,
+      kind: kind ?? this.kind,
+      summary: summary ?? this.summary,
+      reason: reason ?? this.reason,
+      createdAt: createdAt ?? this.createdAt,
+      rowid: rowid ?? this.rowid,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (id.present) {
+      map['id'] = Variable<String>(id.value);
+    }
+    if (kind.present) {
+      map['kind'] = Variable<String>(kind.value);
+    }
+    if (summary.present) {
+      map['summary'] = Variable<String>(summary.value);
+    }
+    if (reason.present) {
+      map['reason'] = Variable<String>(reason.value);
+    }
+    if (createdAt.present) {
+      map['created_at'] = Variable<String>(createdAt.value);
+    }
+    if (rowid.present) {
+      map['rowid'] = Variable<int>(rowid.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('SyncProblemsCompanion(')
+          ..write('id: $id, ')
+          ..write('kind: $kind, ')
+          ..write('summary: $summary, ')
+          ..write('reason: $reason, ')
+          ..write('createdAt: $createdAt, ')
+          ..write('rowid: $rowid')
+          ..write(')'))
+        .toString();
+  }
+}
+
+class $AppNotificationsTable extends AppNotifications
+    with TableInfo<$AppNotificationsTable, AppNotification> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $AppNotificationsTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _idMeta = const VerificationMeta('id');
+  @override
+  late final GeneratedColumn<String> id = GeneratedColumn<String>(
+    'id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _kindMeta = const VerificationMeta('kind');
+  @override
+  late final GeneratedColumn<String> kind = GeneratedColumn<String>(
+    'kind',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _titleMeta = const VerificationMeta('title');
+  @override
+  late final GeneratedColumn<String> title = GeneratedColumn<String>(
+    'title',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _bodyMeta = const VerificationMeta('body');
+  @override
+  late final GeneratedColumn<String> body = GeneratedColumn<String>(
+    'body',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _createdAtMeta = const VerificationMeta(
+    'createdAt',
+  );
+  @override
+  late final GeneratedColumn<String> createdAt = GeneratedColumn<String>(
+    'created_at',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _readLocallyMeta = const VerificationMeta(
+    'readLocally',
+  );
+  @override
+  late final GeneratedColumn<bool> readLocally = GeneratedColumn<bool>(
+    'read_locally',
+    aliasedName,
+    false,
+    type: DriftSqlType.bool,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'CHECK ("read_locally" IN (0, 1))',
+    ),
+    defaultValue: const Constant(false),
+  );
+  @override
+  List<GeneratedColumn> get $columns => [
+    id,
+    kind,
+    title,
+    body,
+    createdAt,
+    readLocally,
+  ];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'app_notifications';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<AppNotification> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('id')) {
+      context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
+    } else if (isInserting) {
+      context.missing(_idMeta);
+    }
+    if (data.containsKey('kind')) {
+      context.handle(
+        _kindMeta,
+        kind.isAcceptableOrUnknown(data['kind']!, _kindMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_kindMeta);
+    }
+    if (data.containsKey('title')) {
+      context.handle(
+        _titleMeta,
+        title.isAcceptableOrUnknown(data['title']!, _titleMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_titleMeta);
+    }
+    if (data.containsKey('body')) {
+      context.handle(
+        _bodyMeta,
+        body.isAcceptableOrUnknown(data['body']!, _bodyMeta),
+      );
+    }
+    if (data.containsKey('created_at')) {
+      context.handle(
+        _createdAtMeta,
+        createdAt.isAcceptableOrUnknown(data['created_at']!, _createdAtMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_createdAtMeta);
+    }
+    if (data.containsKey('read_locally')) {
+      context.handle(
+        _readLocallyMeta,
+        readLocally.isAcceptableOrUnknown(
+          data['read_locally']!,
+          _readLocallyMeta,
+        ),
+      );
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {id};
+  @override
+  AppNotification map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return AppNotification(
+      id: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}id'],
+      )!,
+      kind: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}kind'],
+      )!,
+      title: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}title'],
+      )!,
+      body: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}body'],
+      ),
+      createdAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}created_at'],
+      )!,
+      readLocally: attachedDatabase.typeMapping.read(
+        DriftSqlType.bool,
+        data['${effectivePrefix}read_locally'],
+      )!,
+    );
+  }
+
+  @override
+  $AppNotificationsTable createAlias(String alias) {
+    return $AppNotificationsTable(attachedDatabase, alias);
+  }
+}
+
+class AppNotification extends DataClass implements Insertable<AppNotification> {
+  final String id;
+  final String kind;
+  final String title;
+  final String? body;
+  final String createdAt;
+  final bool readLocally;
+  const AppNotification({
+    required this.id,
+    required this.kind,
+    required this.title,
+    this.body,
+    required this.createdAt,
+    required this.readLocally,
+  });
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['id'] = Variable<String>(id);
+    map['kind'] = Variable<String>(kind);
+    map['title'] = Variable<String>(title);
+    if (!nullToAbsent || body != null) {
+      map['body'] = Variable<String>(body);
+    }
+    map['created_at'] = Variable<String>(createdAt);
+    map['read_locally'] = Variable<bool>(readLocally);
+    return map;
+  }
+
+  AppNotificationsCompanion toCompanion(bool nullToAbsent) {
+    return AppNotificationsCompanion(
+      id: Value(id),
+      kind: Value(kind),
+      title: Value(title),
+      body: body == null && nullToAbsent ? const Value.absent() : Value(body),
+      createdAt: Value(createdAt),
+      readLocally: Value(readLocally),
+    );
+  }
+
+  factory AppNotification.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return AppNotification(
+      id: serializer.fromJson<String>(json['id']),
+      kind: serializer.fromJson<String>(json['kind']),
+      title: serializer.fromJson<String>(json['title']),
+      body: serializer.fromJson<String?>(json['body']),
+      createdAt: serializer.fromJson<String>(json['createdAt']),
+      readLocally: serializer.fromJson<bool>(json['readLocally']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'id': serializer.toJson<String>(id),
+      'kind': serializer.toJson<String>(kind),
+      'title': serializer.toJson<String>(title),
+      'body': serializer.toJson<String?>(body),
+      'createdAt': serializer.toJson<String>(createdAt),
+      'readLocally': serializer.toJson<bool>(readLocally),
+    };
+  }
+
+  AppNotification copyWith({
+    String? id,
+    String? kind,
+    String? title,
+    Value<String?> body = const Value.absent(),
+    String? createdAt,
+    bool? readLocally,
+  }) => AppNotification(
+    id: id ?? this.id,
+    kind: kind ?? this.kind,
+    title: title ?? this.title,
+    body: body.present ? body.value : this.body,
+    createdAt: createdAt ?? this.createdAt,
+    readLocally: readLocally ?? this.readLocally,
+  );
+  AppNotification copyWithCompanion(AppNotificationsCompanion data) {
+    return AppNotification(
+      id: data.id.present ? data.id.value : this.id,
+      kind: data.kind.present ? data.kind.value : this.kind,
+      title: data.title.present ? data.title.value : this.title,
+      body: data.body.present ? data.body.value : this.body,
+      createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
+      readLocally: data.readLocally.present
+          ? data.readLocally.value
+          : this.readLocally,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('AppNotification(')
+          ..write('id: $id, ')
+          ..write('kind: $kind, ')
+          ..write('title: $title, ')
+          ..write('body: $body, ')
+          ..write('createdAt: $createdAt, ')
+          ..write('readLocally: $readLocally')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode =>
+      Object.hash(id, kind, title, body, createdAt, readLocally);
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is AppNotification &&
+          other.id == this.id &&
+          other.kind == this.kind &&
+          other.title == this.title &&
+          other.body == this.body &&
+          other.createdAt == this.createdAt &&
+          other.readLocally == this.readLocally);
+}
+
+class AppNotificationsCompanion extends UpdateCompanion<AppNotification> {
+  final Value<String> id;
+  final Value<String> kind;
+  final Value<String> title;
+  final Value<String?> body;
+  final Value<String> createdAt;
+  final Value<bool> readLocally;
+  final Value<int> rowid;
+  const AppNotificationsCompanion({
+    this.id = const Value.absent(),
+    this.kind = const Value.absent(),
+    this.title = const Value.absent(),
+    this.body = const Value.absent(),
+    this.createdAt = const Value.absent(),
+    this.readLocally = const Value.absent(),
+    this.rowid = const Value.absent(),
+  });
+  AppNotificationsCompanion.insert({
+    required String id,
+    required String kind,
+    required String title,
+    this.body = const Value.absent(),
+    required String createdAt,
+    this.readLocally = const Value.absent(),
+    this.rowid = const Value.absent(),
+  }) : id = Value(id),
+       kind = Value(kind),
+       title = Value(title),
+       createdAt = Value(createdAt);
+  static Insertable<AppNotification> custom({
+    Expression<String>? id,
+    Expression<String>? kind,
+    Expression<String>? title,
+    Expression<String>? body,
+    Expression<String>? createdAt,
+    Expression<bool>? readLocally,
+    Expression<int>? rowid,
+  }) {
+    return RawValuesInsertable({
+      if (id != null) 'id': id,
+      if (kind != null) 'kind': kind,
+      if (title != null) 'title': title,
+      if (body != null) 'body': body,
+      if (createdAt != null) 'created_at': createdAt,
+      if (readLocally != null) 'read_locally': readLocally,
+      if (rowid != null) 'rowid': rowid,
+    });
+  }
+
+  AppNotificationsCompanion copyWith({
+    Value<String>? id,
+    Value<String>? kind,
+    Value<String>? title,
+    Value<String?>? body,
+    Value<String>? createdAt,
+    Value<bool>? readLocally,
+    Value<int>? rowid,
+  }) {
+    return AppNotificationsCompanion(
+      id: id ?? this.id,
+      kind: kind ?? this.kind,
+      title: title ?? this.title,
+      body: body ?? this.body,
+      createdAt: createdAt ?? this.createdAt,
+      readLocally: readLocally ?? this.readLocally,
+      rowid: rowid ?? this.rowid,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (id.present) {
+      map['id'] = Variable<String>(id.value);
+    }
+    if (kind.present) {
+      map['kind'] = Variable<String>(kind.value);
+    }
+    if (title.present) {
+      map['title'] = Variable<String>(title.value);
+    }
+    if (body.present) {
+      map['body'] = Variable<String>(body.value);
+    }
+    if (createdAt.present) {
+      map['created_at'] = Variable<String>(createdAt.value);
+    }
+    if (readLocally.present) {
+      map['read_locally'] = Variable<bool>(readLocally.value);
+    }
+    if (rowid.present) {
+      map['rowid'] = Variable<int>(rowid.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('AppNotificationsCompanion(')
+          ..write('id: $id, ')
+          ..write('kind: $kind, ')
+          ..write('title: $title, ')
+          ..write('body: $body, ')
+          ..write('createdAt: $createdAt, ')
+          ..write('readLocally: $readLocally, ')
+          ..write('rowid: $rowid')
+          ..write(')'))
+        .toString();
+  }
+}
+
 class $SyncStateTable extends SyncState
     with TableInfo<$SyncStateTable, SyncStateData> {
   @override
@@ -6792,6 +7657,10 @@ abstract class _$AppDatabase extends GeneratedDatabase {
       $SampleDistributionsTable(this);
   late final $SampleRequestsTable sampleRequests = $SampleRequestsTable(this);
   late final $NextActionsTable nextActions = $NextActionsTable(this);
+  late final $SyncProblemsTable syncProblems = $SyncProblemsTable(this);
+  late final $AppNotificationsTable appNotifications = $AppNotificationsTable(
+    this,
+  );
   late final $SyncStateTable syncState = $SyncStateTable(this);
   @override
   Iterable<TableInfo<Table, Object?>> get allTables =>
@@ -6810,6 +7679,8 @@ abstract class _$AppDatabase extends GeneratedDatabase {
     sampleDistributions,
     sampleRequests,
     nextActions,
+    syncProblems,
+    appNotifications,
     syncState,
   ];
 }
@@ -6829,6 +7700,7 @@ typedef $$CustomersTableCreateCompanionBuilder = CustomersCompanion Function({
   Value<double?> latitude,
   Value<double?> longitude,
   Value<int> targetVisitsPerMonth,
+  Value<bool> dirty,
   Value<int> rowid,
 });
 typedef $$CustomersTableUpdateCompanionBuilder = CustomersCompanion Function({
@@ -6846,6 +7718,7 @@ typedef $$CustomersTableUpdateCompanionBuilder = CustomersCompanion Function({
   Value<double?> latitude,
   Value<double?> longitude,
   Value<int> targetVisitsPerMonth,
+  Value<bool> dirty,
   Value<int> rowid,
 });
 
@@ -6925,6 +7798,11 @@ class $$CustomersTableFilterComposer
 
   ColumnFilters<int> get targetVisitsPerMonth => $composableBuilder(
     column: $table.targetVisitsPerMonth,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<bool> get dirty => $composableBuilder(
+    column: $table.dirty,
     builder: (column) => ColumnFilters(column),
   );
 }
@@ -7007,6 +7885,11 @@ class $$CustomersTableOrderingComposer
     column: $table.targetVisitsPerMonth,
     builder: (column) => ColumnOrderings(column),
   );
+
+  ColumnOrderings<bool> get dirty => $composableBuilder(
+    column: $table.dirty,
+    builder: (column) => ColumnOrderings(column),
+  );
 }
 
 class $$CustomersTableAnnotationComposer
@@ -7065,6 +7948,9 @@ class $$CustomersTableAnnotationComposer
     column: $table.targetVisitsPerMonth,
     builder: (column) => column,
   );
+
+  GeneratedColumn<bool> get dirty =>
+      $composableBuilder(column: $table.dirty, builder: (column) => column);
 }
 
 class $$CustomersTableTableManager
@@ -7109,6 +7995,7 @@ class $$CustomersTableTableManager
                 Value<double?> latitude = const Value.absent(),
                 Value<double?> longitude = const Value.absent(),
                 Value<int> targetVisitsPerMonth = const Value.absent(),
+                Value<bool> dirty = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
               }) => CustomersCompanion(
                 id: id,
@@ -7125,6 +8012,7 @@ class $$CustomersTableTableManager
                 latitude: latitude,
                 longitude: longitude,
                 targetVisitsPerMonth: targetVisitsPerMonth,
+                dirty: dirty,
                 rowid: rowid,
               ),
           createCompanionCallback:
@@ -7143,6 +8031,7 @@ class $$CustomersTableTableManager
                 Value<double?> latitude = const Value.absent(),
                 Value<double?> longitude = const Value.absent(),
                 Value<int> targetVisitsPerMonth = const Value.absent(),
+                Value<bool> dirty = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
               }) => CustomersCompanion.insert(
                 id: id,
@@ -7159,6 +8048,7 @@ class $$CustomersTableTableManager
                 latitude: latitude,
                 longitude: longitude,
                 targetVisitsPerMonth: targetVisitsPerMonth,
+                dirty: dirty,
                 rowid: rowid,
               ),
           withReferenceMapper: (p0) => p0
@@ -7357,6 +8247,7 @@ typedef $$PlannedVisitsTableCreateCompanionBuilder =
       Value<int> sequence,
       Value<String> status,
       Value<String?> objective,
+      Value<bool> dirty,
       Value<int> rowid,
     });
 typedef $$PlannedVisitsTableUpdateCompanionBuilder =
@@ -7367,6 +8258,7 @@ typedef $$PlannedVisitsTableUpdateCompanionBuilder =
       Value<int> sequence,
       Value<String> status,
       Value<String?> objective,
+      Value<bool> dirty,
       Value<int> rowid,
     });
 
@@ -7406,6 +8298,11 @@ class $$PlannedVisitsTableFilterComposer
 
   ColumnFilters<String> get objective => $composableBuilder(
     column: $table.objective,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<bool> get dirty => $composableBuilder(
+    column: $table.dirty,
     builder: (column) => ColumnFilters(column),
   );
 }
@@ -7448,6 +8345,11 @@ class $$PlannedVisitsTableOrderingComposer
     column: $table.objective,
     builder: (column) => ColumnOrderings(column),
   );
+
+  ColumnOrderings<bool> get dirty => $composableBuilder(
+    column: $table.dirty,
+    builder: (column) => ColumnOrderings(column),
+  );
 }
 
 class $$PlannedVisitsTableAnnotationComposer
@@ -7480,6 +8382,9 @@ class $$PlannedVisitsTableAnnotationComposer
 
   GeneratedColumn<String> get objective =>
       $composableBuilder(column: $table.objective, builder: (column) => column);
+
+  GeneratedColumn<bool> get dirty =>
+      $composableBuilder(column: $table.dirty, builder: (column) => column);
 }
 
 class $$PlannedVisitsTableTableManager
@@ -7519,6 +8424,7 @@ class $$PlannedVisitsTableTableManager
                 Value<int> sequence = const Value.absent(),
                 Value<String> status = const Value.absent(),
                 Value<String?> objective = const Value.absent(),
+                Value<bool> dirty = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
               }) => PlannedVisitsCompanion(
                 id: id,
@@ -7527,6 +8433,7 @@ class $$PlannedVisitsTableTableManager
                 sequence: sequence,
                 status: status,
                 objective: objective,
+                dirty: dirty,
                 rowid: rowid,
               ),
           createCompanionCallback:
@@ -7537,6 +8444,7 @@ class $$PlannedVisitsTableTableManager
                 Value<int> sequence = const Value.absent(),
                 Value<String> status = const Value.absent(),
                 Value<String?> objective = const Value.absent(),
+                Value<bool> dirty = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
               }) => PlannedVisitsCompanion.insert(
                 id: id,
@@ -7545,6 +8453,7 @@ class $$PlannedVisitsTableTableManager
                 sequence: sequence,
                 status: status,
                 objective: objective,
+                dirty: dirty,
                 rowid: rowid,
               ),
           withReferenceMapper: (p0) => p0
@@ -10183,6 +11092,451 @@ typedef $$NextActionsTableProcessedTableManager =
       NextAction,
       PrefetchHooks Function()
     >;
+typedef $$SyncProblemsTableCreateCompanionBuilder =
+    SyncProblemsCompanion Function({
+      required String id,
+      required String kind,
+      required String summary,
+      required String reason,
+      required String createdAt,
+      Value<int> rowid,
+    });
+typedef $$SyncProblemsTableUpdateCompanionBuilder =
+    SyncProblemsCompanion Function({
+      Value<String> id,
+      Value<String> kind,
+      Value<String> summary,
+      Value<String> reason,
+      Value<String> createdAt,
+      Value<int> rowid,
+    });
+
+class $$SyncProblemsTableFilterComposer
+    extends Composer<_$AppDatabase, $SyncProblemsTable> {
+  $$SyncProblemsTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<String> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get kind => $composableBuilder(
+    column: $table.kind,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get summary => $composableBuilder(
+    column: $table.summary,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get reason => $composableBuilder(
+    column: $table.reason,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get createdAt => $composableBuilder(
+    column: $table.createdAt,
+    builder: (column) => ColumnFilters(column),
+  );
+}
+
+class $$SyncProblemsTableOrderingComposer
+    extends Composer<_$AppDatabase, $SyncProblemsTable> {
+  $$SyncProblemsTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<String> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get kind => $composableBuilder(
+    column: $table.kind,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get summary => $composableBuilder(
+    column: $table.summary,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get reason => $composableBuilder(
+    column: $table.reason,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get createdAt => $composableBuilder(
+    column: $table.createdAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+}
+
+class $$SyncProblemsTableAnnotationComposer
+    extends Composer<_$AppDatabase, $SyncProblemsTable> {
+  $$SyncProblemsTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<String> get id =>
+      $composableBuilder(column: $table.id, builder: (column) => column);
+
+  GeneratedColumn<String> get kind =>
+      $composableBuilder(column: $table.kind, builder: (column) => column);
+
+  GeneratedColumn<String> get summary =>
+      $composableBuilder(column: $table.summary, builder: (column) => column);
+
+  GeneratedColumn<String> get reason =>
+      $composableBuilder(column: $table.reason, builder: (column) => column);
+
+  GeneratedColumn<String> get createdAt =>
+      $composableBuilder(column: $table.createdAt, builder: (column) => column);
+}
+
+class $$SyncProblemsTableTableManager
+    extends
+        RootTableManager<
+          _$AppDatabase,
+          $SyncProblemsTable,
+          SyncProblem,
+          $$SyncProblemsTableFilterComposer,
+          $$SyncProblemsTableOrderingComposer,
+          $$SyncProblemsTableAnnotationComposer,
+          $$SyncProblemsTableCreateCompanionBuilder,
+          $$SyncProblemsTableUpdateCompanionBuilder,
+          (
+            SyncProblem,
+            BaseReferences<_$AppDatabase, $SyncProblemsTable, SyncProblem>,
+          ),
+          SyncProblem,
+          PrefetchHooks Function()
+        > {
+  $$SyncProblemsTableTableManager(_$AppDatabase db, $SyncProblemsTable table)
+    : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$SyncProblemsTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$SyncProblemsTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$SyncProblemsTableAnnotationComposer($db: db, $table: table),
+          updateCompanionCallback:
+              ({
+                Value<String> id = const Value.absent(),
+                Value<String> kind = const Value.absent(),
+                Value<String> summary = const Value.absent(),
+                Value<String> reason = const Value.absent(),
+                Value<String> createdAt = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => SyncProblemsCompanion(
+                id: id,
+                kind: kind,
+                summary: summary,
+                reason: reason,
+                createdAt: createdAt,
+                rowid: rowid,
+              ),
+          createCompanionCallback:
+              ({
+                required String id,
+                required String kind,
+                required String summary,
+                required String reason,
+                required String createdAt,
+                Value<int> rowid = const Value.absent(),
+              }) => SyncProblemsCompanion.insert(
+                id: id,
+                kind: kind,
+                summary: summary,
+                reason: reason,
+                createdAt: createdAt,
+                rowid: rowid,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map(
+                (e) => (
+                  e.readTable<$SyncProblemsTable, SyncProblem>(table),
+                  BaseReferences<
+                    _$AppDatabase,
+                    $SyncProblemsTable,
+                    SyncProblem
+                  >(db, table, e),
+                ),
+              )
+              .toList(),
+          prefetchHooksCallback: null,
+        ),
+      );
+}
+
+typedef $$SyncProblemsTableProcessedTableManager =
+    ProcessedTableManager<
+      _$AppDatabase,
+      $SyncProblemsTable,
+      SyncProblem,
+      $$SyncProblemsTableFilterComposer,
+      $$SyncProblemsTableOrderingComposer,
+      $$SyncProblemsTableAnnotationComposer,
+      $$SyncProblemsTableCreateCompanionBuilder,
+      $$SyncProblemsTableUpdateCompanionBuilder,
+      (
+        SyncProblem,
+        BaseReferences<_$AppDatabase, $SyncProblemsTable, SyncProblem>,
+      ),
+      SyncProblem,
+      PrefetchHooks Function()
+    >;
+typedef $$AppNotificationsTableCreateCompanionBuilder =
+    AppNotificationsCompanion Function({
+      required String id,
+      required String kind,
+      required String title,
+      Value<String?> body,
+      required String createdAt,
+      Value<bool> readLocally,
+      Value<int> rowid,
+    });
+typedef $$AppNotificationsTableUpdateCompanionBuilder =
+    AppNotificationsCompanion Function({
+      Value<String> id,
+      Value<String> kind,
+      Value<String> title,
+      Value<String?> body,
+      Value<String> createdAt,
+      Value<bool> readLocally,
+      Value<int> rowid,
+    });
+
+class $$AppNotificationsTableFilterComposer
+    extends Composer<_$AppDatabase, $AppNotificationsTable> {
+  $$AppNotificationsTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<String> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get kind => $composableBuilder(
+    column: $table.kind,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get title => $composableBuilder(
+    column: $table.title,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get body => $composableBuilder(
+    column: $table.body,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get createdAt => $composableBuilder(
+    column: $table.createdAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<bool> get readLocally => $composableBuilder(
+    column: $table.readLocally,
+    builder: (column) => ColumnFilters(column),
+  );
+}
+
+class $$AppNotificationsTableOrderingComposer
+    extends Composer<_$AppDatabase, $AppNotificationsTable> {
+  $$AppNotificationsTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<String> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get kind => $composableBuilder(
+    column: $table.kind,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get title => $composableBuilder(
+    column: $table.title,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get body => $composableBuilder(
+    column: $table.body,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get createdAt => $composableBuilder(
+    column: $table.createdAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<bool> get readLocally => $composableBuilder(
+    column: $table.readLocally,
+    builder: (column) => ColumnOrderings(column),
+  );
+}
+
+class $$AppNotificationsTableAnnotationComposer
+    extends Composer<_$AppDatabase, $AppNotificationsTable> {
+  $$AppNotificationsTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<String> get id =>
+      $composableBuilder(column: $table.id, builder: (column) => column);
+
+  GeneratedColumn<String> get kind =>
+      $composableBuilder(column: $table.kind, builder: (column) => column);
+
+  GeneratedColumn<String> get title =>
+      $composableBuilder(column: $table.title, builder: (column) => column);
+
+  GeneratedColumn<String> get body =>
+      $composableBuilder(column: $table.body, builder: (column) => column);
+
+  GeneratedColumn<String> get createdAt =>
+      $composableBuilder(column: $table.createdAt, builder: (column) => column);
+
+  GeneratedColumn<bool> get readLocally => $composableBuilder(
+    column: $table.readLocally,
+    builder: (column) => column,
+  );
+}
+
+class $$AppNotificationsTableTableManager
+    extends
+        RootTableManager<
+          _$AppDatabase,
+          $AppNotificationsTable,
+          AppNotification,
+          $$AppNotificationsTableFilterComposer,
+          $$AppNotificationsTableOrderingComposer,
+          $$AppNotificationsTableAnnotationComposer,
+          $$AppNotificationsTableCreateCompanionBuilder,
+          $$AppNotificationsTableUpdateCompanionBuilder,
+          (
+            AppNotification,
+            BaseReferences<
+              _$AppDatabase,
+              $AppNotificationsTable,
+              AppNotification
+            >,
+          ),
+          AppNotification,
+          PrefetchHooks Function()
+        > {
+  $$AppNotificationsTableTableManager(
+    _$AppDatabase db,
+    $AppNotificationsTable table,
+  ) : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$AppNotificationsTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$AppNotificationsTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$AppNotificationsTableAnnotationComposer($db: db, $table: table),
+          updateCompanionCallback:
+              ({
+                Value<String> id = const Value.absent(),
+                Value<String> kind = const Value.absent(),
+                Value<String> title = const Value.absent(),
+                Value<String?> body = const Value.absent(),
+                Value<String> createdAt = const Value.absent(),
+                Value<bool> readLocally = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => AppNotificationsCompanion(
+                id: id,
+                kind: kind,
+                title: title,
+                body: body,
+                createdAt: createdAt,
+                readLocally: readLocally,
+                rowid: rowid,
+              ),
+          createCompanionCallback:
+              ({
+                required String id,
+                required String kind,
+                required String title,
+                Value<String?> body = const Value.absent(),
+                required String createdAt,
+                Value<bool> readLocally = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => AppNotificationsCompanion.insert(
+                id: id,
+                kind: kind,
+                title: title,
+                body: body,
+                createdAt: createdAt,
+                readLocally: readLocally,
+                rowid: rowid,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map(
+                (e) => (
+                  e.readTable<$AppNotificationsTable, AppNotification>(table),
+                  BaseReferences<
+                    _$AppDatabase,
+                    $AppNotificationsTable,
+                    AppNotification
+                  >(db, table, e),
+                ),
+              )
+              .toList(),
+          prefetchHooksCallback: null,
+        ),
+      );
+}
+
+typedef $$AppNotificationsTableProcessedTableManager =
+    ProcessedTableManager<
+      _$AppDatabase,
+      $AppNotificationsTable,
+      AppNotification,
+      $$AppNotificationsTableFilterComposer,
+      $$AppNotificationsTableOrderingComposer,
+      $$AppNotificationsTableAnnotationComposer,
+      $$AppNotificationsTableCreateCompanionBuilder,
+      $$AppNotificationsTableUpdateCompanionBuilder,
+      (
+        AppNotification,
+        BaseReferences<_$AppDatabase, $AppNotificationsTable, AppNotification>,
+      ),
+      AppNotification,
+      PrefetchHooks Function()
+    >;
 typedef $$SyncStateTableCreateCompanionBuilder = SyncStateCompanion Function({
   required String key,
   required String value,
@@ -10351,6 +11705,10 @@ class $AppDatabaseManager {
       $$SampleRequestsTableTableManager(_db, _db.sampleRequests);
   $$NextActionsTableTableManager get nextActions =>
       $$NextActionsTableTableManager(_db, _db.nextActions);
+  $$SyncProblemsTableTableManager get syncProblems =>
+      $$SyncProblemsTableTableManager(_db, _db.syncProblems);
+  $$AppNotificationsTableTableManager get appNotifications =>
+      $$AppNotificationsTableTableManager(_db, _db.appNotifications);
   $$SyncStateTableTableManager get syncState =>
       $$SyncStateTableTableManager(_db, _db.syncState);
 }

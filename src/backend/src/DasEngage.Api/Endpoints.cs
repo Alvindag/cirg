@@ -327,9 +327,11 @@ public static class Endpoints
             var cq = db.Customers.IgnoreQueryFilters().Where(c => c.TenantId == u.TenantId && c.UpdatedAt > cursor);
             if (u.IsRep) cq = cq.Where(c => c.TerritoryId == u.TerritoryId);
             var rep = u.IsRep ? u.UserId : null;
+            var wipe = u.UserId is { } uid && await db.Users.AsNoTracking().AnyAsync(x => x.Id == uid && x.WipeRequestedAt != null);
             return Results.Ok(new
             {
                 cursor = now.Ticks,
+                wipe,
                 customers = await cq.Include(c => c.ProductInterests).AsNoTracking().ToListAsync(),
                 products = await db.Products.IgnoreQueryFilters().Where(p => p.TenantId == u.TenantId && p.UpdatedAt > cursor).AsNoTracking().ToListAsync(),
                 plannedVisits = await db.PlannedVisits.IgnoreQueryFilters().Where(p => p.TenantId == u.TenantId && p.UpdatedAt > cursor && (rep == null || p.RepId == rep)).AsNoTracking().ToListAsync(),
@@ -341,32 +343,142 @@ public static class Endpoints
             });
         });
 
-        // Push: idempotent on client-generated ids; safe to retry.
-        g.MapPost("/push", async (SyncPushRequest req, AppDbContext db, HttpCurrentUser u, SampleService samples) =>
+        // Push: idempotent on client-generated ids; safe to retry. Every item gets its own result, so one refused item
+        // (a visit to a customer that no longer exists, for example) never blocks the rest of the batch.
+        g.MapPost("/push", async (SyncPushRequest req, AppDbContext db, HttpCurrentUser u, SampleService samples, TeamScope team) =>
         {
             if (u.UserId is null) return Results.Forbid();
+            var me = u.UserId.Value;
             var errors = new List<string>();
+
+            // Order matters: things other items refer to come first (a new customer, then a visit planned for it, then the visit).
+            var customers = new List<ItemResult>();
+            foreach (var c in req.Customers ?? new())
+                customers.Add(await Guarded(db, c.Id ?? Guid.Empty, () => UpsertCustomer(db, u, team, c)));
+
+            var planned = new List<ItemResult>();
+            foreach (var p in req.PlannedVisits ?? new())
+                planned.Add(await Guarded(db, p.Id, () => SavePlanned(db, me, p)));
+
+            var checkIns = new List<ItemResult>();
             foreach (var op in req.CheckIns ?? new())
-            {
-                var v = await CheckIn(db, u.UserId.Value, op.CheckIn with { VisitId = op.VisitId });
-                if (v is null) { errors.Add($"visit {op.VisitId}: unknown customer"); continue; }
-                if (op.CheckOut is { } co && v.CheckOutAt is null) { ApplyCheckOut(v, co); await db.SaveChangesAsync(); }
-            }
+                checkIns.Add(await Guarded(db, op.VisitId, async () =>
+                {
+                    var v = await CheckIn(db, me, op.CheckIn with { VisitId = op.VisitId });
+                    if (v is null) { errors.Add($"visit {op.VisitId}: unknown customer"); return "This customer is not available any more."; }
+                    if (op.CheckOut is { } co && v.CheckOutAt is null) { ApplyCheckOut(v, co); await db.SaveChangesAsync(); }
+                    return null;
+                }));
+
+            var reports = new List<ItemResult>();
             foreach (var op in req.CallReports ?? new())
-                if (await SaveCallReport(db, u.UserId.Value, op.Report) is null)
+                reports.Add(await Guarded(db, op.Report.Id ?? Guid.Empty, async () =>
+                {
+                    if (await SaveCallReport(db, me, op.Report) is not null) return null;
                     errors.Add($"call report {op.Report.Id}: unknown visit");
-            foreach (var t in req.Tasks ?? new()) await SaveTask(db, u, t);
-            if (req.GpsPings is { Count: > 0 } pings) await SavePings(db, u.UserId.Value, pings);
+                    return "The visit this report belongs to is not on the server.";
+                }));
+
+            var tasks = new List<ItemResult>();
+            foreach (var t in req.Tasks ?? new())
+                tasks.Add(await Guarded(db, t.Id ?? Guid.Empty, async () => { await SaveTask(db, u, t); return null; }));
+
+            if (req.GpsPings is { Count: > 0 } pings) await SavePings(db, me, pings);
+
+            if (req.NotificationReads is { Count: > 0 } reads)
+            {
+                foreach (var n in await db.Notifications.Where(n => reads.Contains(n.Id) && n.UserId == me && n.ReadAt == null).ToListAsync()) n.ReadAt = DateTime.UtcNow;
+                await db.SaveChangesAsync();
+            }
 
             // Samples report a result per item, so one rejected line (expired batch, not enough stock) never blocks the rest of the batch.
             var requests = new List<ItemResult>();
-            foreach (var r in req.SampleRequests ?? new()) requests.Add(await samples.CreateRequest(u.UserId.Value, r));
+            foreach (var r in req.SampleRequests ?? new()) requests.Add(await samples.CreateRequest(me, r));
             var distributions = new List<ItemResult>();
             foreach (var d in req.SampleDistributions ?? new())
-                distributions.Add(await samples.InTransaction(() => samples.RecordDistribution(u.UserId.Value, d)));
+                distributions.Add(await samples.InTransaction(() => samples.RecordDistribution(me, d)));
 
-            return Results.Ok(new { ok = errors.Count == 0, errors, sampleRequests = requests, sampleDistributions = distributions });
+            return Results.Ok(new { ok = errors.Count == 0, errors, customers, plannedVisits = planned, checkIns, callReports = reports, tasks, sampleRequests = requests, sampleDistributions = distributions });
         });
+
+        // The device confirms it cleared its data after a remote wipe was requested.
+        g.MapPost("/wiped", async (AppDbContext db, HttpCurrentUser u) =>
+        {
+            var me = await db.Users.FirstOrDefaultAsync(x => x.Id == u.UserId);
+            if (me is null) return Results.NotFound();
+            me.WipeRequestedAt = null;
+            await db.SaveChangesAsync();
+            return Results.NoContent();
+        });
+    }
+
+    /// <summary>Runs one pushed item; a refusal (message) or an unexpected save failure becomes that item's "rejected" result instead of failing the batch.</summary>
+    private static async Task<ItemResult> Guarded(AppDbContext db, Guid id, Func<Task<string?>> work)
+    {
+        try
+        {
+            var reason = await work();
+            return reason is null ? new(id, "accepted", null) : new(id, "rejected", reason);
+        }
+        catch (Exception e) when (e is DbUpdateException or InvalidOperationException)
+        {
+            db.ChangeTracker.Clear(); // drop what the failed item had staged so the next one starts clean
+            return new(id, "rejected", "It could not be saved. Check the details and try again.");
+        }
+    }
+
+    /// <summary>
+    /// A customer created or changed on the device. Reps can add customers to their own territory and edit the ones in it,
+    /// but never move a customer to another territory (the same rules as the customer endpoints).
+    /// </summary>
+    private static async Task<string?> UpsertCustomer(AppDbContext db, HttpCurrentUser u, TeamScope team, CustomerDto d)
+    {
+        if (d.Id is null) return "The customer has no id.";
+        if (u.Role is null || !Roles.CustomerEditors.Contains(u.Role.ToString()!)) return "Your role cannot add or change customers.";
+        if (string.IsNullOrWhiteSpace(d.Name) || d.Name.Length > 200) return "A name is required (up to 200 characters).";
+        if (d.TargetVisitsPerMonth is < 0 or > 31) return "Visits per month must be between 0 and 31.";
+        var terrs = await team.VisibleTerritoryIds();
+        var existing = await db.Customers.Include(x => x.ProductInterests).FirstOrDefaultAsync(x => x.Id == d.Id);
+        if (existing is null)
+        {
+            if (!u.IsRep && terrs != null && d.TerritoryId != null && !terrs.Contains(d.TerritoryId.Value)) return "That territory is outside your team.";
+            var c = new Customer { Id = d.Id.Value };
+            Apply(c, d);
+            if (u.IsRep) c.TerritoryId = u.TerritoryId;
+            await SetInterests(db, c, d.ProductIds);
+            db.Customers.Add(c);
+        }
+        else
+        {
+            if (terrs != null && (existing.TerritoryId == null || !terrs.Contains(existing.TerritoryId.Value))) return "This customer is not in your territory.";
+            if (terrs != null && d.TerritoryId != null && !terrs.Contains(d.TerritoryId.Value)) return "That territory is outside your team.";
+            var territory = existing.TerritoryId;
+            Apply(existing, d);
+            if (u.IsRep) existing.TerritoryId = territory;
+            await SetInterests(db, existing, d.ProductIds);
+        }
+        await db.SaveChangesAsync();
+        return null;
+    }
+
+    private static async Task<string?> SavePlanned(AppDbContext db, Guid repId, PlannedVisitOp p)
+    {
+        var existing = await db.PlannedVisits.FirstOrDefaultAsync(x => x.Id == p.Id);
+        if (existing is not null)
+        {
+            if (existing.RepId != repId) return "This planned visit belongs to someone else.";
+            if (p.Cancelled && existing.Status == VisitStatus.Planned) existing.Status = VisitStatus.Cancelled;
+            await db.SaveChangesAsync();
+            return null;
+        }
+        if (await db.Customers.AnyAsync(c => c.Id == p.CustomerId) is false) return "This customer is not available any more.";
+        db.PlannedVisits.Add(new PlannedVisit
+        {
+            Id = p.Id, RepId = repId, CustomerId = p.CustomerId, PlannedDate = p.PlannedDate, Sequence = p.Sequence, Objective = p.Objective,
+            Status = p.Cancelled ? VisitStatus.Cancelled : VisitStatus.Planned,
+        });
+        await db.SaveChangesAsync();
+        return null;
     }
 
     // ---------- Dashboards ----------

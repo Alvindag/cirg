@@ -75,6 +75,8 @@
 			</array>
 		</dict>
 	</array>
+	<key>NSFaceIDUsageDescription</key>
+	<string>Unlock DAS Engage 360 with Face ID instead of typing your PIN.</string>
 	<key>NSCameraUsageDescription</key>
 	<string>DAS Engage takes photos you attach to a customer visit.</string>
 	<key>NSMicrophoneUsageDescription</key>

@@ -24,6 +24,8 @@ class Customers extends Table {
   RealColumn get latitude => real().nullable()();
   RealColumn get longitude => real().nullable()();
   IntColumn get targetVisitsPerMonth => integer().withDefault(const Constant(0))();
+  /// Created or edited on this device and not yet uploaded.
+  BoolColumn get dirty => boolean().withDefault(const Constant(false))();
 
   @override
   Set<Column> get primaryKey => {id};
@@ -45,6 +47,8 @@ class PlannedVisits extends Table {
   IntColumn get sequence => integer().withDefault(const Constant(0))();
   TextColumn get status => text().withDefault(const Constant('Planned'))();
   TextColumn get objective => text().nullable()();
+  /// Planned or cancelled on this device and not yet uploaded.
+  BoolColumn get dirty => boolean().withDefault(const Constant(false))();
 
   @override
   Set<Column> get primaryKey => {id};
@@ -189,6 +193,33 @@ class NextActions extends Table {
   Set<Column> get primaryKey => {position};
 }
 
+/// Something the server refused for good (for example a visit to a customer that no longer exists). It is not resent; the person decides
+/// whether to retry it or remove it from this device.
+class SyncProblems extends Table {
+  TextColumn get id => text()(); // id of the refused item
+  TextColumn get kind => text()(); // customer | plan | visit | report | task
+  TextColumn get summary => text()();
+  TextColumn get reason => text()();
+  TextColumn get createdAt => text()();
+
+  @override
+  Set<Column> get primaryKey => {id};
+}
+
+/// Notices from the server (for example a batch the rep holds was recalled). `readLocally` is true once read on this device and
+/// waiting to be told to the server.
+class AppNotifications extends Table {
+  TextColumn get id => text()();
+  TextColumn get kind => text()();
+  TextColumn get title => text()();
+  TextColumn get body => text().nullable()();
+  TextColumn get createdAt => text()();
+  BoolColumn get readLocally => boolean().withDefault(const Constant(false))();
+
+  @override
+  Set<Column> get primaryKey => {id};
+}
+
 class SyncState extends Table {
   TextColumn get key => text()();
   TextColumn get value => text()();
@@ -223,12 +254,12 @@ class PlanItem {
   bool get done => visit?.checkOutAt != null;
 }
 
-@DriftDatabase(tables: [Customers, Products, PlannedVisits, Visits, CallReports, FollowUpTasks, GpsPings, Attachments, SampleStock, SampleDistributions, SampleRequests, NextActions, SyncState])
+@DriftDatabase(tables: [Customers, Products, PlannedVisits, Visits, CallReports, FollowUpTasks, GpsPings, Attachments, SampleStock, SampleDistributions, SampleRequests, NextActions, SyncProblems, AppNotifications, SyncState])
 class AppDatabase extends _$AppDatabase {
   AppDatabase(super.e);
 
   @override
-  int get schemaVersion => 4;
+  int get schemaVersion => 5;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -240,6 +271,12 @@ class AppDatabase extends _$AppDatabase {
             await m.createTable(sampleRequests);
           }
           if (from < 4) await m.createTable(nextActions);
+          if (from < 5) {
+            await m.addColumn(customers, customers.dirty);
+            await m.addColumn(plannedVisits, plannedVisits.dirty);
+            await m.createTable(syncProblems);
+            await m.createTable(appNotifications);
+          }
         },
       );
 
@@ -285,8 +322,9 @@ class AppDatabase extends _$AppDatabase {
         'SELECT (SELECT COUNT(*) FROM visits WHERE dirty = 1) + (SELECT COUNT(*) FROM call_reports WHERE dirty = 1) '
         '+ (SELECT COUNT(*) FROM follow_up_tasks WHERE dirty = 1) + (SELECT COUNT(*) FROM gps_pings) '
         "+ (SELECT COUNT(*) FROM attachments WHERE upload_status = 'pending') "
-        "+ (SELECT COUNT(*) FROM sample_distributions WHERE status = 'pending') + (SELECT COUNT(*) FROM sample_requests WHERE dirty = 1) AS n",
-        readsFrom: {visits, callReports, followUpTasks, gpsPings, attachments, sampleDistributions, sampleRequests},
+        "+ (SELECT COUNT(*) FROM sample_distributions WHERE status = 'pending') + (SELECT COUNT(*) FROM sample_requests WHERE dirty = 1) "
+        '+ (SELECT COUNT(*) FROM customers WHERE dirty = 1) + (SELECT COUNT(*) FROM planned_visits WHERE dirty = 1) AS n',
+        readsFrom: {visits, callReports, followUpTasks, gpsPings, attachments, sampleDistributions, sampleRequests, customers, plannedVisits},
       ).watchSingle().map((r) => r.read<int>('n'));
 
   Future<int> pendingCount() => watchPendingCount().first;
@@ -360,6 +398,72 @@ class AppDatabase extends _$AppDatabase {
   Stream<List<SampleRequest>> watchRequests() =>
       (select(sampleRequests)..orderBy([(r) => OrderingTerm.desc(r.createdAt)])..limit(50)).watch();
 
+  // ---- problems and notices ----
+
+  Stream<List<SyncProblem>> watchProblems() => (select(syncProblems)..orderBy([(p) => OrderingTerm.desc(p.createdAt)])).watch();
+
+  Stream<List<AppNotification>> watchNotifications() =>
+      (select(appNotifications)..orderBy([(n) => OrderingTerm.desc(n.createdAt)])).watch();
+
+  Stream<int> watchUnreadCount() => (selectOnly(appNotifications)
+        ..addColumns([appNotifications.id.count()])
+        ..where(appNotifications.readLocally.equals(false)))
+      .watchSingle()
+      .map((r) => r.read(appNotifications.id.count()) ?? 0);
+
+  /// Marks one notice (or all) as read on this device; the next sync tells the server.
+  Future<void> markNotificationsRead([String? id]) => (update(appNotifications)..where((n) => id == null ? const Constant(true) : n.id.equals(id)))
+      .write(const AppNotificationsCompanion(readLocally: Value(true)));
+
+  Stream<List<Visit>> watchVisitsForCustomer(String customerId, {int limit = 10}) =>
+      (select(visits)..where((v) => v.customerId.equals(customerId))..orderBy([(v) => OrderingTerm.desc(v.checkInAt)])..limit(limit)).watch();
+
+  /// Puts a refused item back in the upload queue (after the cause was fixed, for example the customer was restored).
+  Future<void> retryProblem(SyncProblem p) => transaction(() async {
+        switch (p.kind) {
+          case 'customer':
+            await (update(customers)..where((c) => c.id.equals(p.id))).write(const CustomersCompanion(dirty: Value(true)));
+          case 'plan':
+            await (update(plannedVisits)..where((c) => c.id.equals(p.id))).write(const PlannedVisitsCompanion(dirty: Value(true)));
+          case 'visit':
+            await (update(visits)..where((c) => c.id.equals(p.id))).write(const VisitsCompanion(dirty: Value(true)));
+          case 'report':
+            await (update(callReports)..where((c) => c.id.equals(p.id))).write(const CallReportsCompanion(dirty: Value(true)));
+          case 'task':
+            await (update(followUpTasks)..where((c) => c.id.equals(p.id))).write(const FollowUpTasksCompanion(dirty: Value(true)));
+        }
+        await (delete(syncProblems)..where((x) => x.id.equals(p.id))).go();
+      });
+
+  /// Removes a refused item from this device for good (a visit also takes its call report and captured files with it).
+  Future<void> discardProblem(SyncProblem p) async {
+    if (p.kind == 'visit') {
+      for (final a in await (select(attachments)..where((a) => a.visitId.equals(p.id))).get()) {
+        await deleteFile(a.localPath);
+      }
+    }
+    await transaction(() async {
+      switch (p.kind) {
+        case 'customer':
+          await (delete(customers)..where((c) => c.id.equals(p.id))).go();
+        case 'plan':
+          await (delete(plannedVisits)..where((c) => c.id.equals(p.id))).go();
+        case 'visit':
+          await (delete(attachments)..where((a) => a.visitId.equals(p.id))).go();
+          await (delete(callReports)..where((r) => r.visitId.equals(p.id))).go();
+          await (delete(visits)..where((v) => v.id.equals(p.id))).go();
+        case 'report':
+          await (delete(callReports)..where((c) => c.id.equals(p.id))).go();
+        case 'task':
+          await (delete(followUpTasks)..where((c) => c.id.equals(p.id))).go();
+      }
+      await (delete(syncProblems)..where((x) => x.id.equals(p.id))).go();
+    });
+  }
+
+  Future<void> recordProblem(String id, String kind, String summary, String reason) => into(syncProblems).insertOnConflictUpdate(
+      SyncProblemsCompanion.insert(id: id, kind: kind, summary: summary, reason: reason, createdAt: DateTime.now().toUtc().toIso8601String()));
+
   // ---- attachments ----
 
   Stream<List<Attachment>> watchAttachments(String visitId) => (select(attachments)
@@ -387,6 +491,8 @@ class AppDatabase extends _$AppDatabase {
 
         for (final m in list('customers').cast<Map>()) {
           final id = m['id'] as String;
+          final localCustomer = await (select(customers)..where((c) => c.id.equals(id))).getSingleOrNull();
+          if (localCustomer != null && localCustomer.dirty) continue; // never overwrite unsent local edits
           if (m['deletedAt'] != null) {
             await (delete(customers)..where((c) => c.id.equals(id))).go();
             continue;
@@ -419,6 +525,8 @@ class AppDatabase extends _$AppDatabase {
         }
         for (final m in list('plannedVisits').cast<Map>()) {
           final id = m['id'] as String;
+          final localPlan = await (select(plannedVisits)..where((p) => p.id.equals(id))).getSingleOrNull();
+          if (localPlan != null && localPlan.dirty) continue;
           if (m['deletedAt'] != null) {
             await (delete(plannedVisits)..where((p) => p.id.equals(id))).go();
             continue;
@@ -431,6 +539,23 @@ class AppDatabase extends _$AppDatabase {
             status: Value(m['status']?.toString() ?? 'Planned'),
             objective: Value(s(m, 'objective')),
           ));
+        }
+        // Notices are the server's full unread list: keep the local read marks, drop the ones read elsewhere.
+        if (body.containsKey('notifications')) {
+          final ids = list('notifications').cast<Map>().map((m) => m['id'] as String).toSet();
+          await (delete(appNotifications)..where((n) => n.id.isNotIn(ids))).go();
+          for (final m in list('notifications').cast<Map>()) {
+            final id = m['id'] as String;
+            final local = await (select(appNotifications)..where((n) => n.id.equals(id))).getSingleOrNull();
+            await into(appNotifications).insertOnConflictUpdate(AppNotificationsCompanion.insert(
+              id: id,
+              kind: m['kind'] as String,
+              title: m['title'] as String,
+              body: Value(s(m, 'body')),
+              createdAt: (m['createdAt'] as String?) ?? DateTime.now().toUtc().toIso8601String(),
+              readLocally: Value(local?.readLocally ?? false),
+            ));
+          }
         }
         // Stock is a full snapshot, not a delta. Older servers omit it, in which case nothing changes.
         if (body.containsKey('sampleStock')) {

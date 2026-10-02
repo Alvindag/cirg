@@ -62,6 +62,9 @@ class ApiClient {
   Future<Map<String, dynamic>> push(Map<String, dynamic> payload) =>
       _send((h) => _http.post(_uri('/sync/push'), headers: {...h, 'Content-Type': 'application/json'}, body: jsonEncode(payload)));
 
+  /// Tells the server this device cleared its data after a remote wipe was requested.
+  Future<void> confirmWiped() => _json((h) => _http.post(_uri('/sync/wiped'), headers: h));
+
   Future<Map<String, dynamic>> _send(Future<http.Response> Function(Map<String, String> headers) call) async {
     final r = await _request(call);
     if (r.statusCode < 200 || r.statusCode >= 300) throw ApiException(r.statusCode, r.body);

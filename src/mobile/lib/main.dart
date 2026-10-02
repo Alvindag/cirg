@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'providers.dart';
 import 'ui/home_screen.dart';
+import 'ui/lock_screen.dart';
 import 'ui/login_screen.dart';
 
 void main() {
@@ -33,7 +34,7 @@ class _EngageAppState extends ConsumerState<EngageApp> {
           if (snap.connectionState != ConnectionState.done) {
             return const Scaffold(body: Center(child: CircularProgressIndicator()));
           }
-          return session == null ? const LoginScreen() : const HomeScreen();
+          return session == null ? const LoginScreen() : const LockGate(child: HomeScreen());
         },
       ),
     );

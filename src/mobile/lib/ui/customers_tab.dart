@@ -3,7 +3,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../data/database.dart';
 import '../providers.dart';
-import 'today_tab.dart';
+import 'customer_detail_screen.dart';
+import 'customer_form_screen.dart';
 
 class CustomersTab extends ConsumerStatefulWidget {
   const CustomersTab({super.key});
@@ -17,7 +18,13 @@ class _CustomersTabState extends ConsumerState<CustomersTab> {
   @override
   Widget build(BuildContext context) {
     final db = ref.watch(databaseProvider);
-    return Column(children: [
+    return Scaffold(
+      floatingActionButton: FloatingActionButton.extended(
+        onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const CustomerFormScreen())),
+        icon: const Icon(Icons.person_add),
+        label: const Text('Add customer'),
+      ),
+      body: Column(children: [
       Padding(
         padding: const EdgeInsets.all(12),
         child: TextField(
@@ -39,27 +46,15 @@ class _CustomersTabState extends ConsumerState<CustomersTab> {
                 return ListTile(
                   title: Text(c.name),
                   subtitle: Text([c.type, if (c.specialty != null) c.specialty!, if (c.city != null) c.city!].join(' · ')),
-                  trailing: Text(c.segment),
-                  onTap: () async {
-                    final go = await showDialog<bool>(
-                      context: context,
-                      builder: (d) => AlertDialog(
-                        title: Text(c.name),
-                        content: const Text('Start an unplanned visit here?'),
-                        actions: [
-                          TextButton(onPressed: () => Navigator.pop(d, false), child: const Text('Cancel')),
-                          FilledButton(onPressed: () => Navigator.pop(d, true), child: const Text('Check in')),
-                        ],
-                      ),
-                    );
-                    if (go == true && context.mounted) await startVisit(context, ref, customerId: c.id);
-                  },
+                  trailing: c.dirty ? const Icon(Icons.cloud_upload_outlined, size: 18) : Text(c.segment),
+                  onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => CustomerDetailScreen(customerId: c.id))),
                 );
               },
             );
           },
         ),
       ),
-    ]);
+    ]),
+    );
   }
 }
