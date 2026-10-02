@@ -21,6 +21,7 @@ public static class Endpoints
         NotificationEndpoints.Map(api);
         Ai.AiEndpoints.Map(api);
         Erp.ErpEndpoints.Map(api);
+        RtmEndpoints.Map(api);
     }
 
     // ---------- Customers ----------

@@ -33,6 +33,7 @@ public class AppDbContext : DbContext
     public DbSet<AiOutput> AiOutputs => Set<AiOutput>();
     public DbSet<ErpConnection> ErpConnections => Set<ErpConnection>();
     public DbSet<IntegrationKey> IntegrationKeys => Set<IntegrationKey>();
+    public DbSet<MarketUniverse> MarketUniverse => Set<MarketUniverse>();
     public DbSet<OutboxMessage> OutboxMessages => Set<OutboxMessage>();
     public DbSet<SyncRun> SyncRuns => Set<SyncRun>();
     public DbSet<SalesFact> SalesFacts => Set<SalesFact>();
@@ -69,6 +70,7 @@ public class AppDbContext : DbContext
         b.Entity<SalesFact>().HasIndex(x => new { x.TenantId, x.CustomerId, x.SaleDate });
         b.Entity<ErpDocument>().HasIndex(x => new { x.TenantId, x.Type, x.ExternalId }).IsUnique();
         b.Entity<IntegrationKey>().HasIndex(x => x.Prefix).IsUnique();
+        b.Entity<MarketUniverse>().HasIndex(x => new { x.TenantId, x.OutletClass });
         b.Entity<OutboxMessage>().HasIndex(x => new { x.Status, x.NextAttemptAt });
         b.Entity<Customer>().HasIndex(x => new { x.TenantId, x.ErpAccountCode });
         b.Entity<Product>().HasIndex(x => new { x.TenantId, x.Code });
@@ -98,6 +100,7 @@ public class AppDbContext : DbContext
         b.Entity<GpsPing>().HasQueryFilter(e => e.TenantId == CurrentTenantId && e.DeletedAt == null);
         b.Entity<Attachment>().HasQueryFilter(e => e.TenantId == CurrentTenantId && e.DeletedAt == null);
         b.Entity<ErpConnection>().HasQueryFilter(e => e.TenantId == CurrentTenantId && e.DeletedAt == null);
+        b.Entity<MarketUniverse>().HasQueryFilter(e => e.TenantId == CurrentTenantId && e.DeletedAt == null);
         b.Entity<IntegrationKey>().HasQueryFilter(e => e.TenantId == CurrentTenantId && e.DeletedAt == null);
         b.Entity<OutboxMessage>().HasQueryFilter(e => e.TenantId == CurrentTenantId && e.DeletedAt == null);
         b.Entity<SyncRun>().HasQueryFilter(e => e.TenantId == CurrentTenantId && e.DeletedAt == null);

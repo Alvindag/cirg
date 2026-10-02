@@ -41,6 +41,17 @@ const routes = {
   'GET /samples/reports/stock': () => [
     { holderId: null, location: 'Warehouse', batchId: 'b1', productId: 'p1', batchNumber: 'AMX-2611', expiryDate: '2027-08-01', daysToExpiry: 300, status: 'Active', quantity: 4200, expired: false, expiringSoon: false, actionRequired: false },
     { holderId: 'rep-2', location: 'Rep', batchId: 'b0', productId: 'p1', batchNumber: 'AMX-2501', expiryDate: '2026-09-01', daysToExpiry: -30, status: 'Active', quantity: 25, expired: true, expiringSoon: false, actionRequired: true }],
+  'GET /dashboards/rtm': () => ({ currency: 'GHS', hasUniverse: true, universeScoped: false, universeTotal: 30000, mapped: 3600, reached: 2100, mappedPct: 12, reachedPct: 7, revenue: 482500, top20Share: 78.4,
+    classes: [
+      { outletClass: 'IndependentPharmacy', universe: 14000, mapped: 1500, reached: 900, revenue: 120000 }, { outletClass: 'OtcShop', universe: 9000, mapped: 700, reached: 300, revenue: 40000 },
+      { outletClass: 'PharmacyChain', universe: 4000, mapped: 400, reached: 330, revenue: 130000 }, { outletClass: 'TeachingHospital', universe: 5, mapped: 5, reached: 5, revenue: 90000 },
+      { outletClass: 'RegionalHospital', universe: 20, mapped: 18, reached: 14, revenue: 60000 }, { outletClass: 'DistrictHospital', universe: 130, mapped: 70, reached: 40, revenue: 30000 },
+      { outletClass: 'Unclassified', universe: null, mapped: 900, reached: 511, revenue: 12500 }],
+    channels: [{ channel: 'VanSales', customers: 1900, reached: 1100, revenue: 190000 }, { channel: 'MedicalSales', customers: 600, reached: 520, revenue: 210000 }, { channel: 'Distributor', customers: 150, reached: 110, revenue: 70000 }, { channel: 'Unassigned', customers: 950, reached: 370, revenue: 12500 }],
+    regions: [{ region: 'Greater Accra', universe: 9000, mapped: 1800, reached: 1200, revenue: 260000 }, { region: 'Ashanti', universe: 6000, mapped: 900, reached: 500, revenue: 140000 }, { region: 'Upper East', universe: 900, mapped: 40, reached: 12, revenue: 4000 }, { region: 'No region', universe: null, mapped: 60, reached: 20, revenue: 2500 }],
+    tagging: { total: 3600, noChannel: 950, noClass: 900, noRegion: 60 } }),
+  'GET /rtm/untagged': () => ({ total: 2, items: [{ id: 'c2', name: 'Ernest Chemists Osu', type: 'Pharmacy', city: 'Accra', channel: 'Unassigned', outletClass: 'Unclassified' }] }),
+  'GET /rtm/universe': () => [{ region: null, outletClass: 'IndependentPharmacy', outlets: 14000, source: 'Sales estimate' }],
   'GET /dashboards/revenue': () => ({ currency: 'GHS', total: 482500, previousTotal: 401000, growthPct: 20.3, units: 12840, customersBuying: 64, unlinkedAmount: 7200, granularity: 'month',
     trend: [{ period: '2026-05', amount: 61000, units: 1600 }, { period: '2026-06', amount: 70500, units: 1900 }, { period: '2026-07', amount: 79000, units: 2100 }, { period: '2026-08', amount: 88000, units: 2400 }, { period: '2026-09', amount: 92000, units: 2500 }, { period: '2026-10', amount: 92000, units: 2340 }],
     topCustomers: [{ customerId: 'c1', name: 'Ernest Chemists Osu', amount: 42000 }, { customerId: 'c2', name: 'Dr Ama Boateng', amount: 31500 }], byProduct: [], byTerritory: [] }),
@@ -152,6 +163,12 @@ try {
   await page.getByRole('tab', { name: 'Outbox' }).click()
   await expectText('unknown item')
   await shot('erp-outbox')
+
+  await page.getByRole('link', { name: 'Route to market' }).click()
+  await expectText('Coverage by kind of outlet')
+  await expectText('Independent pharmacy')
+  await expectText('7.0% of the market')
+  await shot('rtm')
 
   await page.getByRole('link', { name: 'Audit' }).click()
   await expectText('SampleBatch')

@@ -205,3 +205,10 @@ kbd { font: inherit; font-size: .72rem; padding: .05rem .35rem; border: 1px soli
 .bento-grip { opacity: .6; }
 .bento-tray { display: flex; flex-wrap: wrap; gap: .5rem; align-items: center; margin-top: 1rem; }
 @media (max-width: 900px) { .bento-cell { grid-column: span 12; } }
+
+/* Route to market: coverage bars */
+.cov { position: relative; height: 10px; min-width: 120px; background: var(--border); border-radius: 6px; overflow: hidden; }
+.cov i { position: absolute; left: 0; top: 0; bottom: 0; border-radius: 6px; }
+.cov-mapped { background: var(--accent-soft); box-shadow: inset 0 0 0 1px var(--accent); }
+.cov-reached { background: var(--accent); }
+:root[data-section='rtm'] { --ambient-a: rgba(15, 95, 156, .2); --ambient-b: rgba(23, 115, 74, .10); }

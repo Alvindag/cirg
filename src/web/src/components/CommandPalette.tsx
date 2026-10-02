@@ -75,6 +75,7 @@ export function CommandPalette() {
       { id: 'insights', title: 'Insights', group: 'Go to', keywords: 'scores opportunities territory balance ai', run: go('/insights') },
     ]
     if (isManager(me.role)) {
+      list.push({ id: 'rtm', title: 'Route to market', group: 'Go to', keywords: 'coverage channels distributors segments market size gaps regions', run: go('/rtm') })
       list.push({ id: 'team', title: 'Team and territories', group: 'Go to', keywords: 'people users reps managers', run: go('/team') })
       list.push({ id: 'samples', title: 'Samples', group: 'Go to', keywords: 'stock batches requests compliance recall', run: go('/samples') })
       list.push({ id: 'audit', title: 'Audit log', group: 'Go to', keywords: 'history changes', run: go('/audit') })

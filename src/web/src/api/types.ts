@@ -162,3 +162,19 @@ export interface StockReconciliation {
 }
 export interface Suggestion { productId: string; itemCode: string | null; name: string; reorderLevel: number; available: number; onOrder: number; monthlyUsage: number; monthsOfCover: number | null; belowReorderLevel: boolean; suggestedQuantity: number }
 export interface Requisition { id: string; productId: string; quantity: number; neededBy: string | null; note: string | null; status: 'Draft' | 'Approved' | 'Received' | 'Rejected' | 'Cancelled'; requestedBy: string; erpReference: string | null; receivedQuantity: number; decisionNote: string | null; createdAt: string }
+
+// ---- Route to market ----
+export type SalesChannel = 'Unassigned' | 'VanSales' | 'MedicalSales' | 'Distributor' | 'DirectKeyAccount' | 'WalkIn'
+export type OutletClass = 'Unclassified' | 'TeachingHospital' | 'RegionalHospital' | 'DistrictHospital' | 'PharmacyChain' | 'IndependentPharmacy' | 'OtcShop' | 'ClinicOrOther'
+export interface RtmRow { universe: number | null; mapped: number; reached: number; revenue: number }
+export interface RtmDashboard {
+  currency: string; hasUniverse: boolean; universeScoped: boolean; universeTotal: number | null
+  mapped: number; reached: number; mappedPct: number | null; reachedPct: number | null
+  revenue: number; top20Share: number | null
+  classes: (RtmRow & { outletClass: OutletClass })[]
+  channels: { channel: SalesChannel; customers: number; reached: number; revenue: number }[]
+  regions: (RtmRow & { region: string })[]
+  tagging: { total: number; noChannel: number; noClass: number; noRegion: number }
+}
+export interface UniverseRow { region: string | null; outletClass: OutletClass; outlets: number; source: string | null }
+export interface UntaggedList { total: number; items: { id: string; name: string; type: string; city: string | null; channel: SalesChannel; outletClass: OutletClass }[] }

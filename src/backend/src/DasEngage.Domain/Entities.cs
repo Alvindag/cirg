@@ -6,6 +6,12 @@ public enum CustomerType { Doctor, Pharmacist, Hospital, Clinic, Pharmacy, Distr
 
 public enum Segment { A, B, C, Unclassified }
 
+/// <summary>How DAS serves an outlet today (the route to market). Unassigned until someone tags it.</summary>
+public enum SalesChannel { Unassigned, VanSales, MedicalSales, Distributor, DirectKeyAccount, WalkIn }
+
+/// <summary>The kinds of outlet the route-to-market review segments the market into.</summary>
+public enum OutletClass { Unclassified, TeachingHospital, RegionalHospital, DistrictHospital, PharmacyChain, IndependentPharmacy, OtcShop, ClinicOrOther }
+
 public enum VisitStatus { Planned, InProgress, Completed, Missed, Cancelled }
 
 public enum AttachmentKind { Photo, VoiceNote, Signature }
@@ -105,6 +111,10 @@ public class Customer : TenantEntity
     public double? Longitude { get; set; }
     /// <summary>Target visits per month, driven by segment.</summary>
     public int TargetVisitsPerMonth { get; set; }
+    /// <summary>Route to market: which channel serves this outlet today.</summary>
+    public SalesChannel Channel { get; set; } = SalesChannel.Unassigned;
+    /// <summary>Route to market: the kind of outlet (teaching hospital, independent pharmacy, OTC shop, ...).</summary>
+    public OutletClass OutletClass { get; set; } = OutletClass.Unclassified;
     /// <summary>The customer's account code in the ERP (links invoices to this customer).</summary>
     public string? ErpAccountCode { get; set; }
     public List<CustomerProductInterest> ProductInterests { get; set; } = new();
@@ -413,4 +423,16 @@ public class Notification : TenantEntity
     public string? Body { get; set; }
     public Guid? RefId { get; set; }
     public DateTime? ReadAt { get; set; }
+}
+
+/// <summary>
+/// How many outlets of a kind exist in a region (or nationally, when Region is empty), as estimated by the business.
+/// The route-to-market view measures how much of this market DAS has mapped and reaches.
+/// </summary>
+public class MarketUniverse : TenantEntity
+{
+    public string? Region { get; set; }
+    public OutletClass OutletClass { get; set; }
+    public int Outlets { get; set; }
+    public string? Source { get; set; }
 }

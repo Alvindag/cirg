@@ -25,6 +25,7 @@ export function Layout() {
           <NavLink to="/" end>Overview</NavLink>
           <NavLink to="/customers">Customers</NavLink>
           <NavLink to="/insights">Insights</NavLink>
+          {manager && <NavLink to="/rtm" aria-label="Route to market" title="Route to market">RTM</NavLink>}
           {manager && <NavLink to="/team">Team</NavLink>}
           {manager && <NavLink to="/samples">Samples</NavLink>}
           {canSeeErp(me.role) && <NavLink to="/erp">ERP</NavLink>}
