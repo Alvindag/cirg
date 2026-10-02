@@ -181,7 +181,7 @@ public class ErpFlowTests : IClassFixture<ErpFactory>
         await using (var db = _f.Db(c.Tenant))
         {
             var stored = await db.IntegrationKeys.AsNoTracking().SingleAsync();
-            Assert.DoesNotContain(key.Split('_')[2], stored.KeyHash); // only a hash is kept
+            Assert.DoesNotContain(key.Split('_', 3)[2], stored.KeyHash); // only a hash is kept
         }
 
         var http = _f.CreateClient();
