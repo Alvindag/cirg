@@ -32,6 +32,9 @@ The API must list the site's origin under `Cors:AllowedOrigins`. See `docs/entra
 - **ERP** (administrators; executives read-only): gateway connection and integration keys, CSV imports with accounts and items still to link, the outbox to the ERP (retry failed messages), stock reconciliation, procurement suggestions and requisitions. The Overview shows revenue once invoices exist. See `docs/erp-integration.md`.
 - **Audit:** the append-only audit log.
 
+## Customisable overview
+On the Sales overview, **Customise** lets each person drag cards into a new order (or use the arrow buttons, which also work from the keyboard), change a card's width, hide cards and bring them back. The layout is saved per person in this browser's `localStorage` (not on the server, so it does not follow someone to another device) and **Reset layout** restores the default. The logic is in `src/lib/layout.ts`, the grid in `src/components/Bento.tsx`.
+
 ## Security notes
 - Entra sign-in uses authorization code + PKCE (MSAL, redirect flow); tokens stay in `sessionStorage` and are acquired silently. The API decides who the user is and what they may do; the UI only hides what the API would refuse.
 - Roles shown in the UI come from `GET /me` (the database), never from the token.

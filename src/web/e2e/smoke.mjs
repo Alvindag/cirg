@@ -93,6 +93,22 @@ try {
   await shot('overview-dark')
   await page.evaluate(() => document.documentElement.removeAttribute('data-theme'))
 
+  // customise: drag a card, hide one, and the layout is remembered
+  const order = () => page.evaluate(() => [...document.querySelectorAll('[data-widget]')].map((e) => e.dataset.widget))
+  await page.getByRole('button', { name: 'Customise' }).click()
+  const before = await order()
+  await page.locator('[data-widget="calls-by-rep"]').dragTo(page.locator('[data-widget="calls-per-day"]'))
+  const after = await order()
+  if (after.indexOf('calls-by-rep') >= after.indexOf('calls-per-day')) errors.push(`dragging a card did not move it (${before} -> ${after})`)
+  await page.getByRole('button', { name: 'Hide Product engagement' }).click()
+  if (await page.locator('[data-widget="products"]').count()) errors.push('a hidden widget is still on the page')
+  const stored = await page.evaluate(() => Object.entries(localStorage).filter(([k]) => k.startsWith('das.dashboard.')).map(([, v]) => v).join(''))
+  if (!stored.includes('"hidden":true')) errors.push('the dashboard layout was not saved')
+  await shot('overview-customise')
+  await page.getByRole('button', { name: 'Reset layout' }).click()
+  await page.getByRole('button', { name: 'Done' }).click()
+  if (!(await page.locator('[data-widget="products"]').count())) errors.push('Reset layout did not bring the hidden widget back')
+
   // live data: the page shows how fresh it is, and picks up new numbers without a reload
   await page.getByText('Live · updated').first().waitFor({ timeout: 8000 })
   liveCalls = 197

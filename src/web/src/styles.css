@@ -190,3 +190,18 @@ kbd { font: inherit; font-size: .72rem; padding: .05rem .35rem; border: 1px soli
 @keyframes shake { 25% { transform: translateX(-4px); } 75% { transform: translateX(4px); } }
 @media (max-width: 1500px) { .cmd-label { display: none; } .cmd-hint kbd { font-size: .8rem; padding: .05rem .4rem; } }
 @media (max-width: 1400px) { .theme-label, .topbar .who .muted { display: none; } .topbar button { padding: .35rem .65rem; } .who { gap: .5rem; } }
+
+/* Customisable dashboard */
+.bento-bar { display: flex; justify-content: flex-end; align-items: center; gap: .5rem; margin-bottom: .75rem; }
+.bento { display: grid; grid-template-columns: repeat(12, minmax(0, 1fr)); gap: 1rem; align-items: start; }
+.bento-cell { grid-column: span var(--span, 12); min-width: 0; position: relative; }
+.bento-cell > .card, .bento-cell > .kpis { margin-bottom: 0; }
+.bento.editing .bento-cell { cursor: grab; outline: 2px dashed var(--border); outline-offset: 4px; border-radius: var(--radius); }
+.bento.editing .bento-cell.dragging { opacity: .45; }
+.bento.editing .bento-cell.over { outline: 2px solid var(--accent); }
+.bento-tools { display: flex; flex-wrap: wrap; align-items: center; gap: .35rem; margin-bottom: .5rem; font-size: .85rem; }
+.bento-tools b { margin-right: auto; }
+.bento-tools button { padding: .2rem .55rem; font-size: .8rem; }
+.bento-grip { opacity: .6; }
+.bento-tray { display: flex; flex-wrap: wrap; gap: .5rem; align-items: center; margin-top: 1rem; }
+@media (max-width: 900px) { .bento-cell { grid-column: span 12; } }

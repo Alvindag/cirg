@@ -8,6 +8,7 @@ import { fmtDateTime, fmtInt, fmtPct, rangeLastDays } from '../lib/format'
 import { isManager } from '../lib/roles'
 import { liveStatus, useAsync } from '../lib/useAsync'
 import { LiveBadge } from '../components/LiveBadge'
+import { Bento, type Widget } from '../components/Bento'
 import { useMotion } from '../lib/motion'
 import { useUserNames } from '../lib/useNames'
 
@@ -33,30 +34,27 @@ export function Overview() {
   const s = sales.data
   const outside = s?.byRep.reduce((n, r) => n + r.outsideGeofence, 0) ?? 0
 
-  return (
-    <>
-      <div className="page-head">
-        <h1>Sales overview</h1>
-        <LiveBadge updatedAt={status.updatedAt} stale={status.stale} onRefresh={refreshAll} />
-        <RangePicker days={days} onChange={setDays} />
-      </div>
+  const hasRevenue = !!revenue.data && (revenue.data.trend.length > 0 || revenue.data.total !== 0)
+  const r = revenue.data
 
-      {sales.error && <ErrorBox message={sales.error} onRetry={sales.reload} />}
-      {sales.loading && !s && <Loading />}
-      {s && (
+  const widgets: Widget[] = [
+    {
+      id: 'kpi-sales', title: 'Key numbers', span: 12, available: !!s,
+      node: s && (
         <div className="kpis">
           <Kpi label="Calls completed" value={fmtInt(s.callsCompleted)} num={s.callsCompleted} format={fmtInt} hint={`${fmtInt(s.plannedVisits)} planned`} />
           <Kpi label="Plan adherence" value={fmtPct(s.planAdherencePct)} num={s.planAdherencePct} format={fmtPct} tone={s.planAdherencePct >= 80 ? 'good' : s.planAdherencePct >= 50 ? 'warn' : 'bad'} />
           <Kpi label="Customer coverage" value={fmtPct(s.coveragePct)} num={s.coveragePct} format={fmtPct} hint="customers visited at least once" />
           <Kpi label="Visits outside geofence" value={fmtInt(outside)} num={outside} format={fmtInt} tone={outside > 0 ? 'warn' : 'good'} hint="check-ins far from the customer" />
         </div>
-      )}
-
-      {revenue.data && (revenue.data.trend.length > 0 || revenue.data.total !== 0) ? <RevenueSection r={revenue.data} /> : (
-        <p className="muted note">{revenue.loading && !revenue.data ? 'Loading revenue…' : 'No ERP sales data yet. Revenue appears here once invoices are imported or pulled from the ERP (ERP integration).'}</p>
-      )}
-
-      <div className="grid-2">
+      ),
+    },
+    { id: 'kpi-revenue', title: 'Revenue numbers', span: 12, available: hasRevenue, node: r && <RevenueKpis r={r} /> },
+    { id: 'revenue-trend', title: 'Revenue trend', span: 6, available: hasRevenue, node: r && <RevenueTrend r={r} /> },
+    { id: 'top-customers', title: 'Top customers', span: 6, available: hasRevenue, node: r && <TopCustomers r={r} /> },
+    {
+      id: 'calls-per-day', title: 'Calls per day', span: 6,
+      node: (
         <Section title="Calls per day">
           {trend.error ? <ErrorBox message={trend.error} /> : !trend.data ? <Loading /> : (
             <div className="chart" aria-label="Calls per day chart">
@@ -72,12 +70,16 @@ export function Overview() {
             </div>
           )}
         </Section>
-
+      ),
+    },
+    {
+      id: 'calls-by-rep', title: 'Calls by rep', span: 6,
+      node: (
         <Section title="Calls by rep">
           {!s ? <Loading /> : s.byRep.length === 0 ? <Empty>No completed calls in this period.</Empty> : (
             <div className="chart" aria-label="Calls by rep chart">
               <ResponsiveContainer width="100%" height={Math.max(160, s.byRep.length * 34)}>
-                <BarChart layout="vertical" data={s.byRep.map((r) => ({ ...r, rep: name(r.repId) }))} margin={{ left: 24, right: 8 }}>
+                <BarChart layout="vertical" data={s.byRep.map((x) => ({ ...x, rep: name(x.repId) }))} margin={{ left: 24, right: 8 }}>
                   <CartesianGrid strokeDasharray="3 3" />
                   <XAxis type="number" allowDecimals={false} />
                   <YAxis type="category" dataKey="rep" width={120} />
@@ -88,108 +90,141 @@ export function Overview() {
             </div>
           )}
         </Section>
-      </div>
-
-      <Section title="Product engagement">
-        {products.error ? <ErrorBox message={products.error} /> : !products.data ? <Loading /> : products.data.length === 0 ? (
-          <Empty>No products discussed or sampled in this period.</Empty>
-        ) : (
-          <div className="chart" aria-label="Product engagement chart">
-            <ResponsiveContainer width="100%" height={260}>
-              <BarChart data={products.data}>
-                <CartesianGrid strokeDasharray="3 3" />
-                <XAxis dataKey="name" />
-                <YAxis allowDecimals={false} />
-                <Tooltip />
-                <Legend />
-                <Bar isAnimationActive={animate} dataKey="calls" fill="var(--accent)" name="Calls discussing product" />
-                <Bar isAnimationActive={animate} dataKey="sampleUnits" fill="var(--accent-2)" name="Sample units given" />
-              </BarChart>
-            </ResponsiveContainer>
-          </div>
-        )}
-      </Section>
-
-      <div className="grid-2">
+      ),
+    },
+    {
+      id: 'products', title: 'Product engagement', span: 12,
+      node: (
+        <Section title="Product engagement">
+          {products.error ? <ErrorBox message={products.error} /> : !products.data ? <Loading /> : products.data.length === 0 ? (
+            <Empty>No products discussed or sampled in this period.</Empty>
+          ) : (
+            <div className="chart" aria-label="Product engagement chart">
+              <ResponsiveContainer width="100%" height={260}>
+                <BarChart data={products.data}>
+                  <CartesianGrid strokeDasharray="3 3" />
+                  <XAxis dataKey="name" />
+                  <YAxis allowDecimals={false} />
+                  <Tooltip />
+                  <Legend />
+                  <Bar isAnimationActive={animate} dataKey="calls" fill="var(--accent)" name="Calls discussing product" />
+                  <Bar isAnimationActive={animate} dataKey="sampleUnits" fill="var(--accent-2)" name="Sample units given" />
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+          )}
+        </Section>
+      ),
+    },
+    {
+      id: 'rep-activity', title: 'Rep activity', span: 6,
+      node: (
         <Section title="Rep activity">
           {!s ? <Loading /> : s.byRep.length === 0 ? <Empty>No activity yet.</Empty> : (
             <table>
               <thead><tr><th>Rep</th><th className="num">Calls</th><th className="num">Customers</th><th className="num">Outside geofence</th></tr></thead>
               <tbody>
-                {s.byRep.map((r) => (
-                  <tr key={r.repId}>
-                    <td>{name(r.repId)}</td>
-                    <td className="num">{r.calls}</td>
-                    <td className="num">{r.uniqueCustomers}</td>
-                    <td className="num">{r.outsideGeofence}</td>
+                {s.byRep.map((x) => (
+                  <tr key={x.repId}>
+                    <td>{name(x.repId)}</td>
+                    <td className="num">{x.calls}</td>
+                    <td className="num">{x.uniqueCustomers}</td>
+                    <td className="num">{x.outsideGeofence}</td>
                   </tr>
                 ))}
               </tbody>
             </table>
           )}
         </Section>
+      ),
+    },
+    {
+      id: 'positions', title: 'Last known positions today', span: 6, available: isManager(me.role),
+      node: (
+        <Section title="Last known positions today">
+          {!positions.data ? <Loading /> : positions.data.length === 0 ? <Empty>No location pings received today.</Empty> : (
+            <table>
+              <thead><tr><th>Rep</th><th>Last seen</th><th>Location</th></tr></thead>
+              <tbody>
+                {positions.data.map((p) => (
+                  <tr key={p.repId}>
+                    <td>{name(p.repId)}</td>
+                    <td>{fmtDateTime(p.recordedAt)}</td>
+                    <td>
+                      <a href={`https://www.openstreetmap.org/?mlat=${p.latitude}&mlon=${p.longitude}#map=15/${p.latitude}/${p.longitude}`} target="_blank" rel="noreferrer noopener">
+                        {p.latitude.toFixed(4)}, {p.longitude.toFixed(4)}
+                      </a>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )}
+        </Section>
+      ),
+    },
+  ]
 
-        {isManager(me.role) && (
-          <Section title="Last known positions today">
-            {!positions.data ? <Loading /> : positions.data.length === 0 ? <Empty>No location pings received today.</Empty> : (
-              <table>
-                <thead><tr><th>Rep</th><th>Last seen</th><th>Location</th></tr></thead>
-                <tbody>
-                  {positions.data.map((p) => (
-                    <tr key={p.repId}>
-                      <td>{name(p.repId)}</td>
-                      <td>{fmtDateTime(p.recordedAt)}</td>
-                      <td>
-                        <a href={`https://www.openstreetmap.org/?mlat=${p.latitude}&mlon=${p.longitude}#map=15/${p.latitude}/${p.longitude}`} target="_blank" rel="noreferrer noopener">
-                          {p.latitude.toFixed(4)}, {p.longitude.toFixed(4)}
-                        </a>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            )}
-          </Section>
-        )}
+  return (
+    <>
+      <div className="page-head">
+        <h1>Sales overview</h1>
+        <LiveBadge updatedAt={status.updatedAt} stale={status.stale} onRefresh={refreshAll} />
+        <RangePicker days={days} onChange={setDays} />
       </div>
+
+      {sales.error && <ErrorBox message={sales.error} onRetry={sales.reload} />}
+      {sales.loading && !s && <Loading />}
+
+      {!hasRevenue && (
+        <p className="muted note">{revenue.loading && !revenue.data ? 'Loading revenue…' : 'No ERP sales data yet. Revenue appears here once invoices are imported or pulled from the ERP (ERP integration).'}</p>
+      )}
+
+      <Bento key={me.id} storageKey={`das.dashboard.overview.${me.id}`} widgets={widgets} />
     </>
   )
 }
 
 const money = (n: number, currency: string) => `${currency} ${new Intl.NumberFormat('en-GB', { maximumFractionDigits: 0 }).format(n)}`
 
-function RevenueSection({ r }: { r: RevenueResult }) {
+function RevenueKpis({ r }: { r: RevenueResult }) {
+  return (
+    <div className="kpis">
+      <Kpi label="Revenue" value={money(r.total, r.currency)} num={r.total} format={(n) => money(Math.round(n), r.currency)} hint={`${fmtInt(r.units)} units invoiced`} />
+      <Kpi label="Change on previous period" value={r.growthPct === null ? '—' : `${r.growthPct > 0 ? '+' : ''}${r.growthPct}%`} tone={r.growthPct === null ? undefined : r.growthPct >= 0 ? 'good' : 'bad'} hint={`previous: ${money(r.previousTotal, r.currency)}`} />
+      <Kpi label="Customers buying" value={fmtInt(r.customersBuying)} num={r.customersBuying} format={fmtInt} hint={r.unlinkedAmount ? `${money(r.unlinkedAmount, r.currency)} on accounts not linked yet` : undefined} tone={r.unlinkedAmount ? 'warn' : undefined} />
+    </div>
+  )
+}
+
+function RevenueTrend({ r }: { r: RevenueResult }) {
   const animate = useMotion()
   return (
-    <>
-      <div className="kpis">
-        <Kpi label="Revenue" value={money(r.total, r.currency)} num={r.total} format={(n) => money(Math.round(n), r.currency)} hint={`${fmtInt(r.units)} units invoiced`} />
-        <Kpi label="Change on previous period" value={r.growthPct === null ? '—' : `${r.growthPct > 0 ? '+' : ''}${r.growthPct}%`} tone={r.growthPct === null ? undefined : r.growthPct >= 0 ? 'good' : 'bad'} hint={`previous: ${money(r.previousTotal, r.currency)}`} />
-        <Kpi label="Customers buying" value={fmtInt(r.customersBuying)} num={r.customersBuying} format={fmtInt} hint={r.unlinkedAmount ? `${money(r.unlinkedAmount, r.currency)} on accounts not linked yet` : undefined} tone={r.unlinkedAmount ? 'warn' : undefined} />
+    <Section title="Revenue trend">
+      <div className="chart" aria-label="Revenue trend chart">
+        <ResponsiveContainer width="100%" height={240}>
+          <BarChart data={r.trend}>
+            <CartesianGrid strokeDasharray="3 3" />
+            <XAxis dataKey="period" tickFormatter={(p: string) => (r.granularity === 'day' ? p.slice(5) : p)} minTickGap={20} />
+            <YAxis tickFormatter={(v: number) => (v >= 1000 ? `${Math.round(v / 1000)}k` : String(v))} />
+            <Tooltip formatter={(v) => money(Number(v), r.currency)} />
+            <Bar isAnimationActive={animate} dataKey="amount" fill="var(--accent)" name="Revenue" />
+          </BarChart>
+        </ResponsiveContainer>
       </div>
-      <div className="grid-2">
-        <Section title="Revenue trend">
-          <div className="chart" aria-label="Revenue trend chart">
-            <ResponsiveContainer width="100%" height={240}>
-              <BarChart data={r.trend}>
-                <CartesianGrid strokeDasharray="3 3" />
-                <XAxis dataKey="period" tickFormatter={(p: string) => (r.granularity === 'day' ? p.slice(5) : p)} minTickGap={20} />
-                <YAxis tickFormatter={(v: number) => (v >= 1000 ? `${Math.round(v / 1000)}k` : String(v))} />
-                <Tooltip formatter={(v) => money(Number(v), r.currency)} />
-                <Bar isAnimationActive={animate} dataKey="amount" fill="var(--accent)" name="Revenue" />
-              </BarChart>
-            </ResponsiveContainer>
-          </div>
-        </Section>
-        <Section title="Top customers">
-          {r.topCustomers.length === 0 ? <Empty>No linked customers have invoices in this period.</Empty> : (
-            <table>
-              <thead><tr><th>Customer</th><th className="num">Revenue</th></tr></thead>
-              <tbody>{r.topCustomers.map((c) => <tr key={c.customerId}><td>{c.name}</td><td className="num">{money(c.amount, r.currency)}</td></tr>)}</tbody>
-            </table>
-          )}
-        </Section>
-      </div>
-    </>
+    </Section>
+  )
+}
+
+function TopCustomers({ r }: { r: RevenueResult }) {
+  return (
+    <Section title="Top customers">
+      {r.topCustomers.length === 0 ? <Empty>No linked customers have invoices in this period.</Empty> : (
+        <table>
+          <thead><tr><th>Customer</th><th className="num">Revenue</th></tr></thead>
+          <tbody>{r.topCustomers.map((c) => <tr key={c.customerId}><td>{c.name}</td><td className="num">{money(c.amount, r.currency)}</td></tr>)}</tbody>
+        </table>
+      )}
+    </Section>
   )
 }
