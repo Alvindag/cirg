@@ -5,6 +5,8 @@ name: Mobile test APK
 # Run it from the Actions tab (Run workflow), then download the "das-engage-test-apk" artifact.
 on:
   workflow_dispatch:
+  push: # also builds when this file changes, so it can be tried before it reaches the default branch (manual runs need it there)
+    paths: [".github/workflows/mobile-test-apk.yml"]
 
 permissions:
   contents: read
