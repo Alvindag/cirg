@@ -12,7 +12,7 @@ Select **Dynamics 365 Business Central** under web → ERP → Connection. Code:
 | BC → DAS | Sales | `salesInvoices` + lines, `salesCreditMemos` + lines | Draft and in-review documents are skipped. Only item lines. Credit memos are negative. Line id = `INV:{number}/{line}` or `CM:{number}/{line}`. Empty currency = the company's local currency. |
 | BC → DAS | Stock levels | `items.inventory` | **Item totals only** (no batches), read as a full snapshot each pull because stock movements do not change an item's modified time. |
 | DAS → BC | Purchase requisitions | `purchaseOrders` + `purchaseOrderLines` | Created as a **draft purchase order** for the vendor in `Erp:BusinessCentral:DefaultVendorNumber`; purchasing reviews and releases it. The order number comes back as the reference. If the line is refused, the empty header is deleted. |
-| DAS → BC | Sample issues, distributions, write-offs, returns | custom API page `sampleMovements` | **Needs a small extension in BC** (below): the standard API cannot post item journals or transfers. |
+| DAS → BC | Sample issues, distributions, write-offs, returns | custom API page `sampleMovements` | **Needs the extension in `src/businesscentral/`** (below): the standard API cannot post item journals or transfers. |
 | (neither) | Goods receipts with batch and expiry | – | Lot numbers and expiry dates are not in the standard API. Use CSV import or push (`/integration/v1/goods-receipts`), or extend BC. |
 
 Changes are read incrementally by `lastModifiedDateTime` (with a skip count, so records sharing a timestamp across a page are neither lost nor repeated). Pulls run on the schedule set on the connection (5 minutes at the fastest).
@@ -29,7 +29,9 @@ Changes are read incrementally by `lastModifiedDateTime` (with a skip count, so 
 
 Settings (all optional except the client id): `Erp:BusinessCentral:ClientId`, `…:DefaultVendorNumber`, `…:CustomApi` (default `das/engage/v1.0`), `…:LoginHost` (default `login.microsoftonline.com`).
 
-## Custom API page for sample movements (to be built in BC)
+## Custom API page for sample movements
+
+The extension is in `src/businesscentral/` (see its README): API page `sampleMovements`, a message log, and a processor that turns messages into **unposted** item journal lines (transfers for issues and returns, negative adjustments for distributions and write-offs) for warehouse staff to review and post.
 
 `POST https://api.businesscentral.dynamics.com/v2.0/{tenant}/{env}/api/das/engage/v1.0/companies({id})/sampleMovements`
 
@@ -37,7 +39,7 @@ Settings (all optional except the client id): `Erp:BusinessCentral:ClientId`, `�
 { "messageId": "guid", "messageType": "sample.issue", "createdAt": "2026-10-01T09:00:00Z", "payload": "<the JSON payload as a string, shapes in erp-integration.md>" }
 ```
 
-The page must be **idempotent on `messageId`** (answer 409 or 200 for a repeat; DAS Engage treats both as delivered) and may return `{ "number": "document no." }` as the reference. A 400 or 404 is treated as permanent and parked for a person to fix; 401/403, 429 and 5xx are retried. Mapping (transfer order to the rep's location, negative item journal for distributions and write-offs) is for DAS's BC partner to decide. Until the page exists, turn off outbound delivery or leave sample messages to queue in the outbox.
+It is idempotent on `messageId` and returns `{ "number": "DAS-..." }`, the document number on the journal lines. A 400 or 404 is treated as permanent and parked for a person to fix; 401/403, 429 and 5xx are retried. Setup (locations, journal batches, rep-to-location mapping, job queue) is in the extension's README.
 
 ## What is not verified
 
@@ -45,4 +47,4 @@ The page must be **idempotent on `messageId`** (answer 409 or 200 for a repeat; 
 - Business Central rows are assumed ordered stably by `lastModifiedDateTime`; if rows with equal timestamps come back in varying order, a few could be skipped.
 - Only SaaS (`api.businesscentral.dynamics.com`); on-premises, sovereign clouds and other API versions are not supported. Custom fields, dimensions, price lists and multi-currency conversion are not handled.
 - Voided or cancelled invoices are mirrored only through BC's corrective credit memo.
-- The custom API page for sample movements does not exist yet.
+- **The AL extension has never been compiled** (no compiler or symbols were available), so expect compile fixes. Its lot/item-tracking assignment writes reservation entries directly and is the least certain part. It is not built or checked in CI.
