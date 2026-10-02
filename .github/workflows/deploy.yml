@@ -1,0 +1,158 @@
+name: Deploy
+
+# Runs after CI passes on main (staging), or by hand for any environment (production needs a reviewer approval
+# configured on the GitHub environment). Authenticates to Azure with OIDC: no stored cloud credentials.
+on:
+  workflow_run:
+    workflows: [CI]
+    types: [completed]
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: Environment to deploy
+        type: choice
+        options: [staging, production]
+        default: staging
+      ref:
+        description: Git ref (branch, tag or SHA) to deploy. Defaults to main.
+        default: main
+
+permissions:
+  id-token: write
+  contents: read
+
+jobs:
+  deploy:
+    name: Deploy ${{ inputs.environment || 'staging' }}
+    if: github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success'
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    environment: ${{ inputs.environment || 'staging' }}
+    # One deployment per environment at a time; a running deployment is never cancelled half-way.
+    concurrency:
+      group: deploy-${{ inputs.environment || 'staging' }}
+      cancel-in-progress: false
+    env:
+      TARGET: ${{ inputs.environment == 'production' && 'prod' || 'staging' }}
+      # Per-environment values are set on the GitHub environment (Settings > Environments).
+      RG: ${{ vars.AZURE_RESOURCE_GROUP }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.ref || github.event.workflow_run.head_sha }}
+
+      - uses: azure/login@v2
+        with:
+          client-id: ${{ vars.AZURE_CLIENT_ID }}
+          tenant-id: ${{ vars.AZURE_TENANT_ID }}
+          subscription-id: ${{ vars.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Platform (resource group, registry, database, network, Key Vault) without the app
+        id: platform
+        env:
+          POSTGRES_ADMIN_PASSWORD: ${{ secrets.POSTGRES_ADMIN_PASSWORD }}
+        run: |
+          az group create -n "$RG" -l "${{ vars.AZURE_LOCATION }}" --only-show-errors -o none
+          az deployment group create -g "$RG" -n "platform-${{ github.run_id }}" \
+            --parameters infra/main.$TARGET.bicepparam deployApp=false --only-show-errors -o none
+          echo "registry=$(az deployment group show -g "$RG" -n "platform-${{ github.run_id }}" --query properties.outputs.registryName.value -o tsv)" >> "$GITHUB_OUTPUT"
+
+      - name: Build and push the API image
+        id: image
+        run: |
+          REGISTRY="${{ steps.platform.outputs.registry }}"
+          TAG="${GITHUB_SHA::12}"
+          az acr build -r "$REGISTRY" -t "das-engage-api:$TAG" -f src/backend/Dockerfile . --only-show-errors
+          echo "ref=$REGISTRY.azurecr.io/das-engage-api:$TAG" >> "$GITHUB_OUTPUT"
+
+      - name: Remember the running image (rollback target)
+        id: previous
+        run: |
+          APP=$(az containerapp list -g "$RG" --query "[?contains(name,'api')].name | [0]" -o tsv || true)
+          if [ -n "$APP" ]; then
+            echo "app=$APP" >> "$GITHUB_OUTPUT"
+            echo "image=$(az containerapp show -g "$RG" -n "$APP" --query 'properties.template.containers[0].image' -o tsv)" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: What-if (the change set is in the log)
+        env:
+          POSTGRES_ADMIN_PASSWORD: ${{ secrets.POSTGRES_ADMIN_PASSWORD }}
+        run: |
+          az deployment group what-if -g "$RG" --parameters infra/main.$TARGET.bicepparam \
+            deployApp=true apiImage="${{ steps.image.outputs.ref }}" --no-pretty-print --only-show-errors | head -c 60000
+
+      - name: Deploy the app
+        id: app
+        env:
+          POSTGRES_ADMIN_PASSWORD: ${{ secrets.POSTGRES_ADMIN_PASSWORD }}
+        run: |
+          az deployment group create -g "$RG" -n "app-${{ github.run_id }}" \
+            --parameters infra/main.$TARGET.bicepparam deployApp=true apiImage="${{ steps.image.outputs.ref }}" \
+            --only-show-errors -o none
+          out() { az deployment group show -g "$RG" -n "app-${{ github.run_id }}" --query "properties.outputs.$1.value" -o tsv; }
+          {
+            echo "job=$(out migrationJobName)"; echo "api=$(out apiAppName)"; echo "api_url=$(out apiUrl)"
+            echo "web_name=$(out staticWebAppName)"; echo "web_url=$(out webUrl)"
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Run database migrations
+        run: |
+          EXEC=$(az containerapp job start -g "$RG" -n "${{ steps.app.outputs.job }}" --query name -o tsv)
+          for i in $(seq 1 60); do
+            S=$(az containerapp job execution show -g "$RG" -n "${{ steps.app.outputs.job }}" --job-execution-name "$EXEC" --query properties.status -o tsv)
+            echo "migration: $S"
+            case "$S" in
+              Succeeded) exit 0 ;;
+              Failed|Stopped|Degraded) echo "::error::Migration job $S"; exit 1 ;;
+            esac
+            sleep 10
+          done
+          echo "::error::Migration job timed out"; exit 1
+
+      - name: Smoke test
+        run: |
+          for i in $(seq 1 30); do
+            curl -fsS "${{ steps.app.outputs.api_url }}/health/ready" && exit 0
+            sleep 10
+          done
+          echo "::error::API did not become ready"; exit 1
+
+      - name: Roll the API back to the previous image
+        if: failure() && steps.previous.outputs.image != ''
+        run: |
+          az containerapp update -g "$RG" -n "${{ steps.previous.outputs.app }}" --image "${{ steps.previous.outputs.image }}" --only-show-errors -o none
+          echo "::warning::Rolled back to ${{ steps.previous.outputs.image }}. Database migrations are not rolled back: they are written to be compatible with the previous version."
+
+      # The web app is built for this environment's API address and tenant, then published.
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: src/web/package-lock.json
+      - name: Build the web app
+        working-directory: src/web
+        env:
+          VITE_API_BASE_URL: ${{ steps.app.outputs.api_url }}
+          VITE_ENTRA_CLIENT_ID: ${{ vars.ENTRA_WEB_CLIENT_ID }}
+          VITE_ENTRA_TENANT: ${{ vars.ENTRA_TENANT }}
+          VITE_API_SCOPE: ${{ vars.ENTRA_API_SCOPE }}
+        run: |
+          npm ci
+          npm run build
+          # Allow the browser to call this environment's API (Content-Security-Policy connect-src).
+          sed -i "s#__API_ORIGIN__#${{ steps.app.outputs.api_url }}#g" dist/staticwebapp.config.json
+      - name: Publish the web app
+        run: |
+          TOKEN=$(az staticwebapp secrets list -g "$RG" -n "${{ steps.app.outputs.web_name }}" --query properties.apiKey -o tsv)
+          echo "::add-mask::$TOKEN"
+          npx --yes @azure/static-web-apps-cli@2 deploy src/web/dist --deployment-token "$TOKEN" --env production
+
+      - name: Summary
+        run: |
+          {
+            echo "### Deployed $TARGET"
+            echo "- Web: ${{ steps.app.outputs.web_url }}"
+            echo "- API: ${{ steps.app.outputs.api_url }}"
+            echo "- Image: \`${{ steps.image.outputs.ref }}\`"
+          } >> "$GITHUB_STEP_SUMMARY"

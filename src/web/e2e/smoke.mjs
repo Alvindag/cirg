@@ -9,7 +9,7 @@ const shots = process.env.E2E_SHOTS ?? ''
 const chrome = process.env.CHROME_PATH ?? '/opt/pw-browsers/chromium-1194/chrome-linux/chrome'
 
 execSync('npx vite build --outDir dist-e2e --emptyOutDir', { stdio: 'inherit', env: { ...process.env, VITE_DEV_LOGIN: 'true', VITE_API_BASE_URL: '' } })
-const server = spawn('npx', ['vite', 'preview', '--outDir', 'dist-e2e', '--port', String(PORT), '--strictPort'], { stdio: 'ignore' })
+const server = spawn('npx', ['vite', 'preview', '--outDir', 'dist-e2e', '--port', String(PORT), '--strictPort'], { stdio: 'ignore', detached: true, env: { ...process.env, E2E_CSP: '1' } })
 const base = `http://localhost:${PORT}`
 for (let i = 0; i < 50; i++) {
   try { if ((await fetch(base)).ok) break } catch { /* not up yet */ }
@@ -72,6 +72,8 @@ try {
   const page = await ctx.newPage()
   page.on('pageerror', (e) => errors.push('page error: ' + e.message))
   page.on('console', (m) => { if (m.type() === 'error') errors.push('console: ' + m.text()) })
+  const headers = (await ctx.request.get(base)).headers()
+  if (!headers['content-security-policy']?.includes("default-src 'self'")) errors.push('the security headers were not applied to the build')
   if (shots) mkdirSync(shots, { recursive: true })
   const shot = async (name) => { if (shots) await page.screenshot({ path: `${shots}/${name}.png`, fullPage: true }) }
   const expectText = async (text) => page.getByText(text, { exact: false }).first().waitFor({ timeout: 8000 })
@@ -128,7 +130,7 @@ try {
   errors.push('test failed: ' + e.message)
 } finally {
   await browser.close()
-  server.kill()
+  try { process.kill(-server.pid) } catch { /* already stopped */ } // the whole group: npx and the server it started
 }
 if (errors.length) { console.error('E2E problems:\n - ' + errors.join('\n - ')); process.exit(1) }
 console.log('E2E smoke test passed')
