@@ -15,7 +15,7 @@ class LoginScreen extends ConsumerStatefulWidget {
 
 class _LoginScreenState extends ConsumerState<LoginScreen> {
   final _org = TextEditingController();
-  final _url = TextEditingController(text: AppConfig.apiBaseUrl.isEmpty ? 'https://' : AppConfig.apiBaseUrl);
+  final _url = TextEditingController(text: AppConfig.apiBaseUrl);
   final _token = TextEditingController();
   bool _busy = false;
   String? _error;
@@ -69,7 +69,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
             child: Padding(padding: const EdgeInsets.all(12), child: Text(message)),
           ),
         if (AppConfig.apiBaseUrl.isEmpty) ...[
-          TextField(controller: _url, keyboardType: TextInputType.url, decoration: const InputDecoration(labelText: 'Server address')),
+          TextField(controller: _url, keyboardType: TextInputType.url, decoration: const InputDecoration(labelText: 'Server address', hintText: 'http://192.168.1.20:5111', helperText: 'The address of your DAS Engage server')),
           const SizedBox(height: 12),
         ],
         if (AppConfig.entraConfigured) ...[

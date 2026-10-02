@@ -15,6 +15,9 @@ String explainSyncFailure(Object error, String serverAddress) {
     if (error.statusCode >= 500) return 'The server at $where had a problem (code ${error.statusCode}). Try again in a moment, and tell your administrator if it keeps happening.';
     return 'The server at $where refused the request (code ${error.statusCode}).';
   }
+  if (error is ArgumentError || text.contains('no host specified')) {
+    return 'The server address saved in the app is incomplete. Sign out, then sign in again with the full address, for example http://192.168.1.20:5111.';
+  }
   if (text.contains('cleartext')) return 'This build only allows secure (https) server addresses. Use an https address.';
   if (error is TimeoutException || text.contains('timed out')) {
     return 'The server at $where did not answer in time. Check the address, that this phone is on the same Wi-Fi as the server, and that the server\'s firewall allows the connection.';

@@ -4,6 +4,7 @@ import '../data/database.dart';
 import 'api_client.dart';
 import 'auth_provider.dart';
 import 'jwt.dart';
+import 'server_address.dart';
 
 abstract class SessionStorage {
   Future<Session?> load();
@@ -40,6 +41,7 @@ class SessionManager {
   Future<void> restore() async => _set(await store.load());
 
   Future<void> signInEntra({required String tenant, required String baseUrl}) async {
+    baseUrl = normalizeServerAddress(baseUrl); // before opening the browser, so a typing mistake is reported straight away
     final t = await auth.signIn(tenant: tenant);
     await _adopt(Session(
       baseUrl: baseUrl,
@@ -53,7 +55,7 @@ class SessionManager {
 
   /// Development only: paste a token minted for the API's dev signing key.
   Future<void> signInDev({required String baseUrl, required String token}) => _adopt(Session(
-        baseUrl: baseUrl,
+        baseUrl: normalizeServerAddress(baseUrl),
         accessToken: token,
         expiresAt: DateTime.fromMillisecondsSinceEpoch(((jwtClaims(token)['exp'] as num?)?.toInt() ?? 0) * 1000, isUtc: true),
         tenant: 'dev',
