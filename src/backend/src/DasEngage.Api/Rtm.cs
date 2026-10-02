@@ -78,6 +78,7 @@ public static class RtmEndpoints
 
         api.MapGet("/dashboards/rtm", async (AppDbContext db, TeamScope team, DateTime from, DateTime to) =>
         {
+            from = AsUtc(from); to = AsUtc(to); // a date without a time zone means UTC; PostgreSQL refuses anything else
             var start = DateOnly.FromDateTime(from); var end = DateOnly.FromDateTime(to);
             if (end < start || end.DayNumber - start.DayNumber > 800) return Results.BadRequest("Choose a period of at most 800 days.");
             var currency = (await db.ErpConnections.AsNoTracking().Select(c => c.Currency).FirstOrDefaultAsync()) ?? "GHS";
@@ -143,6 +144,8 @@ public static class RtmEndpoints
             });
         }).RequireAuthorization(p => p.RequireRole(Roles.Managers));
     }
+
+    private static DateTime AsUtc(DateTime d) => d.Kind == DateTimeKind.Unspecified ? DateTime.SpecifyKind(d, DateTimeKind.Utc) : d.ToUniversalTime();
 
     private static string Region(string? r) => (r ?? "").Trim().ToLowerInvariant();
 }
