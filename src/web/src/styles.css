@@ -153,3 +153,40 @@ ul { margin: .25rem 0; padding-left: 1.2rem; } li { margin: .3rem 0; }
 
 .recharts-cartesian-grid line { stroke: var(--border); }
 .recharts-text, .recharts-cartesian-axis-tick-value { fill: var(--muted); }
+
+/* ---- command palette ---- */
+.cmd-hint { display: inline-flex; align-items: center; gap: .5rem; font-size: .85rem; }
+kbd { font: inherit; font-size: .72rem; padding: .05rem .35rem; border: 1px solid var(--border); border-bottom-width: 2px; border-radius: 5px; background: color-mix(in srgb, var(--surface) 70%, transparent); color: var(--muted); }
+.topbar kbd { border-color: rgba(255, 255, 255, .25); color: #c9d0d6; background: rgba(255, 255, 255, .06); }
+.palette-backdrop { position: fixed; inset: 0; z-index: 50; display: grid; justify-items: center; align-items: start; padding-top: 14vh; background: rgba(8, 12, 18, .45); backdrop-filter: blur(3px); }
+.palette { width: min(640px, 92vw); border-radius: 14px; background: var(--glass); backdrop-filter: blur(22px) saturate(1.3); border: 1px solid var(--glass-border); box-shadow: 0 24px 70px rgba(0, 0, 0, .35); overflow: hidden; color: var(--text); }
+.palette input { width: 100%; border: 0; border-bottom: 1px solid var(--border); border-radius: 0; background: transparent; padding: 1rem 1.15rem; font-size: 1.05rem; }
+.palette input:focus-visible { outline: none; }
+.palette ul { list-style: none; margin: 0; padding: .35rem; max-height: min(52vh, 420px); overflow: auto; }
+.palette li { display: flex; align-items: baseline; gap: .75rem; padding: .55rem .75rem; border-radius: 9px; cursor: pointer; }
+.palette li.active { background: var(--accent-soft); }
+.palette-group { flex: none; width: 5.4rem; font-size: .7rem; text-transform: uppercase; letter-spacing: .05em; color: var(--muted); }
+.palette-title { font-weight: 550; } .palette-hint { margin-left: auto; color: var(--muted); font-size: .82rem; }
+.palette-empty { color: var(--muted); padding: .8rem .75rem; cursor: default !important; }
+.palette-foot { display: flex; gap: .4rem; align-items: center; padding: .55rem .9rem; border-top: 1px solid var(--border); color: var(--muted); font-size: .75rem; }
+@media (prefers-reduced-motion: no-preference) { .palette { animation: pop .16s ease-out; } .palette-backdrop { animation: fade .16s ease-out; } }
+@keyframes pop { from { opacity: 0; transform: translateY(-8px) scale(.98); } to { opacity: 1; transform: none; } }
+@keyframes fade { from { opacity: 0; } to { opacity: 1; } }
+@media (max-width: 640px) { .cmd-hint kbd { display: none; } .topbar { padding: .5rem .75rem; } .who { flex-wrap: wrap; gap: .4rem; min-width: 0; } }
+
+/* ---- small rewards ---- */
+.confetti-layer { position: fixed; left: 50%; top: 38%; width: 0; height: 0; z-index: 60; pointer-events: none; }
+.confetti-layer i { position: absolute; width: .5rem; height: .8rem; border-radius: 2px; opacity: 0; animation: confetti 1.2s cubic-bezier(.2, .7, .3, 1) forwards; }
+@keyframes confetti { 0% { opacity: 1; transform: translate(0, 0) rotate(0); } 70% { opacity: 1; } 100% { opacity: 0; transform: translate(var(--dx), calc(var(--dy) + 90px)) rotate(var(--rot)); } }
+.notice::before { content: '✓'; display: inline-block; margin-right: .5rem; font-weight: 700; }
+@media (prefers-reduced-motion: no-preference) {
+  .notice { animation: slide-in .28s cubic-bezier(.2, .8, .3, 1); }
+  .notice::before { animation: tick .45s ease-out; }
+  .error { animation: shake .3s ease-in-out; }
+  button:active:not(:disabled) { transform: scale(.97); }
+}
+@keyframes slide-in { from { opacity: 0; transform: translateY(-6px); } to { opacity: 1; transform: none; } }
+@keyframes tick { 0% { transform: scale(.2); opacity: 0; } 60% { transform: scale(1.35); opacity: 1; } 100% { transform: scale(1); } }
+@keyframes shake { 25% { transform: translateX(-4px); } 75% { transform: translateX(4px); } }
+@media (max-width: 1500px) { .cmd-label { display: none; } .cmd-hint kbd { font-size: .8rem; padding: .05rem .4rem; } }
+@media (max-width: 1400px) { .theme-label, .topbar .who .muted { display: none; } .topbar button { padding: .35rem .65rem; } .who { gap: .5rem; } }

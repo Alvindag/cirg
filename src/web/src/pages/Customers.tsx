@@ -1,4 +1,5 @@
 import { useState, type ChangeEvent, type FormEvent } from 'react'
+import { useSearchParams } from 'react-router-dom'
 import type { Customer, ImportResult, Page, Territory } from '../api/types'
 import { Badge, Empty, ErrorBox, Loading, Section } from '../components/ui'
 import { useApp } from '../context'
@@ -11,7 +12,8 @@ const MAX_CSV_BYTES = 5_000_000
 
 export function Customers() {
   const { api, me } = useApp()
-  const [q, setQ] = useState('')
+  const [params] = useSearchParams()
+  const [q, setQ] = useState(params.get('q') ?? '') // the command palette links here with a customer's name
   const [type, setType] = useState('')
   const [segment, setSegment] = useState('')
   const [page, setPage] = useState(1)

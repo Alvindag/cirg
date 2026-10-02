@@ -5,6 +5,7 @@ import { RangePicker } from '../components/RangePicker'
 import { useApp } from '../context'
 import { fmtDate, fmtDateTime, fmtInt, rangeLastDays, shortId } from '../lib/format'
 import { canApproveSamples, isAdmin, isManager } from '../lib/roles'
+import { celebrate } from '../lib/celebrate'
 import { liveStatus, useAsync } from '../lib/useAsync'
 import { LiveBadge } from '../components/LiveBadge'
 import { useUserNames } from '../lib/useNames'
@@ -72,7 +73,10 @@ function Requests() {
   const fulfil = (r: SampleRequest, allowPartial: boolean) =>
     act(
       () => api.post<{ allocations: { batchId: string; quantity: number }[] }>(`/samples/requests/${r.id}/fulfil`, { allowPartial }),
-      (res) => `Issued ${res.allocations.reduce((n, a) => n + a.quantity, 0)} units from ${res.allocations.length} batch(es), oldest expiry first.`,
+      (res) => {
+        celebrate() // stock reached a rep: a small reward
+        return `Issued ${res.allocations.reduce((n, a) => n + a.quantity, 0)} units from ${res.allocations.length} batch(es), oldest expiry first.`
+      },
     )
 
   return (

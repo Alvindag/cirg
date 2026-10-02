@@ -2,6 +2,8 @@ import { useEffect } from 'react'
 import { NavLink, Outlet, useLocation } from 'react-router-dom'
 import { useApp } from '../context'
 import { BrandMark } from './BrandMark'
+import { CommandPalette } from './CommandPalette'
+import { shortcutLabel } from '../lib/platform'
 import { Notifications } from './Notifications'
 import { ThemeSwitch } from './ThemeSwitch'
 import { canSeeErp, isManager } from '../lib/roles'
@@ -29,6 +31,7 @@ export function Layout() {
           {manager && <NavLink to="/audit">Audit</NavLink>}
         </nav>
         <div className="who">
+          <button className="cmd-hint" aria-label="Open the command palette" onClick={() => window.dispatchEvent(new Event('das:open-palette'))}><span className="cmd-label">Search </span><kbd>{shortcutLabel()}</kbd></button>
           <ThemeSwitch />
           <Notifications />
           <span>{me.fullName} <span className="muted small">({me.role})</span></span>
@@ -36,6 +39,7 @@ export function Layout() {
         </div>
       </header>
       <main><Outlet /></main>
+      <CommandPalette />
     </div>
   )
 }

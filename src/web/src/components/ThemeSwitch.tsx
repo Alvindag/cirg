@@ -15,7 +15,7 @@ export function ThemeSwitch() {
       title={`Theme: ${label[theme]}`}
       onClick={() => { setTheme(next); set(next) }}
     >
-      {theme === 'dark' ? '☾' : theme === 'light' ? '☀' : '◐'} {label[theme]}
+      {theme === 'dark' ? '☾' : theme === 'light' ? '☀' : '◐'}<span className="theme-label"> {label[theme]}</span>
     </button>
   )
 }

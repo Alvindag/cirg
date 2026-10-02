@@ -101,9 +101,17 @@ try {
   await page.waitForFunction(() => [...document.querySelectorAll('.kpi-value')].some((e) => e.textContent.trim() === '197'), null, { timeout: 8000 })
   if (await page.getByText('184', { exact: true }).count()) errors.push('the old number is still on screen after a refresh')
 
-  await page.getByRole('link', { name: 'Customers' }).click()
+  // command palette: keyboard-only navigation and customer search
+  await page.keyboard.press('Control+K')
+  await page.getByRole('dialog', { name: 'Command palette' }).waitFor({ timeout: 8000 })
+  await page.keyboard.type('dr am')
+  await page.getByRole('option', { name: /Dr Ama Boateng/ }).waitFor({ timeout: 8000 })
+  await shot('palette')
+  await page.keyboard.press('Enter')
   await expectText('Dr Ama Boateng')
+  if (!page.url().includes('/customers?q=')) errors.push('the palette did not open the customers list for the chosen customer: ' + page.url())
   await shot('customers')
+
 
   await page.getByRole('link', { name: 'Team' }).click()
   await expectText('Add a person')
