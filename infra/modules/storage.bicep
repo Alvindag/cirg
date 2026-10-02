@@ -1,4 +1,7 @@
 // Blob storage for photos, voice notes and signatures. Private, versioned, soft-deleted, no shared keys (managed identity only).
+@minLength(3)
+@maxLength(24)
+@description('Lowercase letters and digits only. main.bicep builds it as take(\'st\' + prefix + environment + unique suffix, 24).')
 param name string
 param location string
 param tags object
@@ -13,6 +16,7 @@ param coolAfterDays int
 
 resource account 'Microsoft.Storage/storageAccounts@2023-05-01' = {
   // checkov:skip=CKV_AZURE_35: default action is Deny with a private endpoint when isolated (staging, production); development is public with RBAC and no shared keys
+  // checkov:skip=CKV_AZURE_43: the name is computed in main.bicep from a lowercase prefix, the environment and uniqueString(), cut to 24 characters, so it always meets the rule; the scanner cannot evaluate that expression and its verdict varies between runs
   // checkov:skip=CKV_AZURE_206: redundancy is a parameter (ZRS/GZRS in staging and production, LRS in development)
   name: name
   location: location
