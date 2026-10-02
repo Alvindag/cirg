@@ -21,6 +21,14 @@ if (-not $Password) {
   $Password = [System.Net.NetworkCredential]::new("", $secure).Password
 }
 
+# An API left running from earlier locks its files and makes the build fail, so stop it first.
+$old = Get-Process -Name "DasEngage.Api" -ErrorAction SilentlyContinue
+if ($old) {
+  Write-Host ("Stopping the API that is already running (process {0})." -f ($old.Id -join ", ")) -ForegroundColor Yellow
+  $old | Stop-Process -Force
+  Start-Sleep -Seconds 1
+}
+
 # Firewall: one inbound rule for the port. Needs Administrator; if not, say what to run instead.
 $rule = "DAS API dev $Port"
 if (-not (Get-NetFirewallRule -DisplayName $rule -ErrorAction SilentlyContinue)) {
@@ -35,7 +43,7 @@ if (-not (Get-NetFirewallRule -DisplayName $rule -ErrorAction SilentlyContinue))
 }
 
 Write-Host ""
-Write-Host "Type ONE of these into the phone as the server address (with the port):" -ForegroundColor Cyan
+Write-Host "Type the Wi-Fi one into the phone as the server address (with the port). Ignore vEthernet / Default Switch / WSL entries, they are virtual:" -ForegroundColor Cyan
 Get-NetIPAddress -AddressFamily IPv4 |
   Where-Object { $_.IPAddress -notlike "127.*" -and $_.IPAddress -notlike "169.254.*" -and $_.PrefixOrigin -ne "WellKnown" } |
   ForEach-Object { Write-Host ("  http://{0}:{1}    ({2})" -f $_.IPAddress, $Port, $_.InterfaceAlias) }
