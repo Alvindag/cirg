@@ -8,7 +8,7 @@ const PORT = 4179
 const shots = process.env.E2E_SHOTS ?? ''
 const chrome = process.env.CHROME_PATH ?? '/opt/pw-browsers/chromium-1194/chrome-linux/chrome'
 
-execSync('npx vite build --outDir dist-e2e --emptyOutDir', { stdio: 'inherit', env: { ...process.env, VITE_DEV_LOGIN: 'true', VITE_API_BASE_URL: '' } })
+execSync('npx vite build --outDir dist-e2e --emptyOutDir', { stdio: 'inherit', env: { ...process.env, VITE_DEV_LOGIN: 'true', DAS_ALLOW_DEV_LOGIN_BUILD: 'true', VITE_API_BASE_URL: '' } })
 const server = spawn('npx', ['vite', 'preview', '--outDir', 'dist-e2e', '--port', String(PORT), '--strictPort'], { stdio: 'ignore', detached: true, env: { ...process.env, E2E_CSP: '1' } })
 const base = `http://localhost:${PORT}`
 for (let i = 0; i < 50; i++) {

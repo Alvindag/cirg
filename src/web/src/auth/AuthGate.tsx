@@ -4,7 +4,7 @@ import { ApiError } from '../api/client'
 import type { Me } from '../api/types'
 import { AppContext } from '../context'
 import { config } from '../config'
-import { createDevSource, createMsalSource, devToken, setDevToken, type TokenSource } from './tokenSource'
+import { checkPastedToken, createDevSource, createMsalSource, devToken, setDevToken, type TokenSource } from './tokenSource'
 
 type State =
   | { kind: 'loading' }
@@ -40,7 +40,8 @@ export function AuthGate({ children, sourceOverride }: Props) {
       try {
         const dev = config.devLogin ? devToken() : null
         if (dev) return !cancelled && setSource(createDevSource(dev))
-        if (!config.entraClientId) return !cancelled && setState({ kind: 'signedOut', message: 'Microsoft sign-in is not configured for this site (VITE_ENTRA_CLIENT_ID).' })
+        // On a live site a missing client id is a real misconfiguration. In development it is normal (the pasted-token sign-in is used instead), so it is not shown as an error.
+        if (!config.entraClientId) return !cancelled && setState(config.devLogin ? { kind: 'signedOut' } : { kind: 'signedOut', message: 'Microsoft sign-in is not configured for this site (VITE_ENTRA_CLIENT_ID).' })
         const { source: msal, account } = await createMsalSource()
         if (cancelled) return
         if (account) setSource(msal)
@@ -77,7 +78,13 @@ export function AuthGate({ children, sourceOverride }: Props) {
 
 function SignIn({ message, source, onDevToken }: { message?: string; source?: TokenSource; onDevToken: (t: string) => void }) {
   const [token, setToken] = useState('')
-  const submit = (e: FormEvent) => { e.preventDefault(); if (token.trim()) onDevToken(token.trim()) }
+  const [show, setShow] = useState(false)
+  const [problem, setProblem] = useState<string>()
+  const submit = (e: FormEvent) => {
+    e.preventDefault()
+    const check = checkPastedToken(token)
+    if (check.ok) { setProblem(undefined); onDevToken(check.token) } else setProblem(check.message)
+  }
   return (
     <main className="center">
       <h1>DAS Engage 360</h1>
@@ -87,7 +94,10 @@ function SignIn({ message, source, onDevToken }: { message?: string; source?: To
       {config.devLogin && (
         <form onSubmit={submit} className="form" aria-label="Development sign-in">
           <h3>Development sign-in</h3>
-          <input type="password" placeholder="Access token" aria-label="Access token" value={token} onChange={(e) => setToken(e.target.value)} />
+          {!source && <p className="muted small">Microsoft sign-in is not set up on this site; paste a development token.</p>}
+          {problem && <div className="error" role="alert">{problem}</div>}
+          <input type={show ? 'text' : 'password'} name="token" autoComplete="new-password" spellCheck={false} autoCapitalize="off" placeholder="Access token" aria-label="Access token" value={token} onChange={(e) => { setToken(e.target.value); setProblem(undefined) }} />
+          <label className="inline small"><input type="checkbox" checked={show} onChange={(e) => setShow(e.target.checked)} /> Show what I pasted</label>
           <button type="submit">Use token</button>
         </form>
       )}

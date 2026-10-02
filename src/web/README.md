@@ -17,7 +17,7 @@ npm run e2e          # real headless Chromium against a built copy, API mocked a
 | `VITE_ENTRA_CLIENT_ID` | client id of the **web** (single-page app) registration |
 | `VITE_ENTRA_TENANT` | directory id/domain, or `organizations` (default) for multi-tenant |
 | `VITE_API_SCOPE` | `api://das-engage-360/access_as_user` |
-| `VITE_DEV_LOGIN=true` | development only: paste a token instead of Microsoft sign-in |
+| `VITE_DEV_LOGIN=true` | development only: paste a token instead of Microsoft sign-in. A production build refuses to run with it on (the browser test opts in with `DAS_ALLOW_DEV_LOGIN_BUILD=true`), so it cannot reach a deployed site. |
 
 The API must list the site's origin under `Cors:AllowedOrigins`. See `docs/entra-setup.md` for the Entra registrations.
 
@@ -31,6 +31,9 @@ The API must list the site's origin under `Cors:AllowedOrigins`. See `docs/entra
 - **Insights:** customer scores with the factors behind them, product opportunities, territory balance with administrator-applied moves, and the AI governance register with the organisation opt-in switch (see `docs/ai.md`).
 - **ERP** (administrators; executives read-only): gateway connection and integration keys, CSV imports with accounts and items still to link, the outbox to the ERP (retry failed messages), stock reconciliation, procurement suggestions and requisitions. The Overview shows revenue once invoices exist. See `docs/erp-integration.md`.
 - **Audit:** the append-only audit log.
+
+## Development sign-in
+In development the sign-in page takes a pasted token (`python scripts\dev-token.py --role Admin | Set-Clipboard`). The pasted text is cleaned up (line breaks, spaces, quotes and a leading "Bearer" are removed) and checked before use: a wrong shape or an expired token is explained on the page instead of being ignored. A sales rep token opens the "dashboard is for managers" page, which has a Sign out button.
 
 ## Route to market
 The **RTM** page (managers) shows how outlets are served and how much of the market is mapped and reached, by kind of outlet, channel and region, and lets people tag outlets that have no channel or kind yet. National leaders enter the estimated market size there. It reports on channels and regions, never on individual sales people. See `docs/route-to-market.md`.
