@@ -65,7 +65,7 @@ public static class AiEndpoints
             var a = await db.Attachments.AsNoTracking().FirstOrDefaultAsync(x => x.Id == d.AttachmentId);
             if (a is null || a.RepId != u.UserId) return Results.NotFound(); // recordings are private to the rep who made them
             if (a.Kind != AttachmentKind.VoiceNote) return Results.BadRequest("Only voice notes can be transcribed.");
-            if (!string.IsNullOrWhiteSpace(d.Language) && !LanguageTag.IsValid(d.Language)) return Results.BadRequest("Language must be a code such as en, fr or pt-BR.");
+            if (!string.IsNullOrWhiteSpace(d.Language) && !LanguageTag.IsValid(d.Language)) return Results.BadRequest("That language is not supported for transcription. Use a code such as en, fr or sw, or leave it empty to detect it.");
             try { return Results.Ok(await ai.Transcribe(a, d.Language, d.Force)); }
             catch (AiUnavailableException e) { return Problem(e); }
         });

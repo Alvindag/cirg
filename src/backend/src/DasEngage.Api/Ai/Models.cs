@@ -111,8 +111,8 @@ public class AzureOpenAi : IChatModel, ITranscriber
         file.Headers.ContentType = new MediaTypeHeaderValue(contentType);
         form.Add(file, "file", fileName);
         form.Add(new StringContent("json"), "response_format");
-        // only a language code ever reaches the form: anything else is dropped here as well as refused at the endpoint
-        if (LanguageTag.IsValid(language)) form.Add(new StringContent(language!), "language");
+        // only one of the model's own language codes ever reaches the form; the caller's text is never copied into it
+        if (LanguageTag.Canonical(language) is { } code) form.Add(new StringContent(code), "language");
         using var req = new HttpRequestMessage(HttpMethod.Post, Url(_o.TranscriptionDeployment, "audio/transcriptions")) { Content = form };
         await Authorize(req, ct);
         HttpResponseMessage r;
@@ -127,9 +127,29 @@ public class AzureOpenAi : IChatModel, ITranscriber
     }
 }
 
-/// <summary>A short language code such as "en", "fr" or "pt-BR" (the speech model takes ISO 639 codes; free text is never passed on).</summary>
+/// <summary>
+/// The languages the speech model accepts (ISO 639-1 codes). What is sent to the model is always one of these constants, never the text
+/// the caller typed, so free text can never reach the request. A regional suffix ("pt-BR") is accepted and dropped.
+/// </summary>
 public static class LanguageTag
 {
-    private static readonly System.Text.RegularExpressions.Regex Pattern = new("^[a-zA-Z]{2,3}(-[a-zA-Z0-9]{2,8})?$", System.Text.RegularExpressions.RegexOptions.Compiled);
-    public static bool IsValid(string? tag) => !string.IsNullOrWhiteSpace(tag) && tag.Length <= 12 && Pattern.IsMatch(tag);
+    private static readonly string[] Supported =
+    {
+        "en", "zh", "de", "es", "ru", "ko", "fr", "ja", "pt", "tr", "pl", "ca", "nl", "ar", "sv", "it", "id", "hi", "fi", "vi", "he", "uk", "el", "ms", "cs", "ro",
+        "da", "hu", "ta", "no", "th", "ur", "hr", "bg", "lt", "la", "mi", "ml", "cy", "sk", "te", "fa", "lv", "bn", "sr", "az", "sl", "kn", "et", "mk", "br", "eu",
+        "is", "hy", "ne", "mn", "bs", "kk", "sq", "sw", "gl", "mr", "pa", "si", "km", "sn", "yo", "so", "af", "oc", "ka", "be", "tg", "sd", "gu", "am", "yi", "lo",
+        "uz", "fo", "ht", "ps", "tk", "nn", "mt", "sa", "lb", "my", "bo", "tl", "mg", "as", "tt", "haw", "ln", "ha", "ba", "jw", "su",
+    };
+
+    /// <summary>The model's own code for the language, or null when it is not one the model supports.</summary>
+    public static string? Canonical(string? tag)
+    {
+        if (string.IsNullOrWhiteSpace(tag) || tag.Length > 12) return null;
+        var main = tag.Trim().Split('-')[0];
+        foreach (var code in Supported)
+            if (string.Equals(code, main, StringComparison.OrdinalIgnoreCase)) return code;
+        return null;
+    }
+
+    public static bool IsValid(string? tag) => Canonical(tag) != null;
 }

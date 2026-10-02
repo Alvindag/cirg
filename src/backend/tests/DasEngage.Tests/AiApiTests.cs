@@ -203,9 +203,12 @@ public class AiApiTests : IClassFixture<AiFactory>
     }
 
     [Theory]
-    [InlineData("en", true)] [InlineData("fr", true)] [InlineData("pt-BR", true)] [InlineData("twi", true)]
-    [InlineData("", false)] [InlineData(null, false)] [InlineData("e", false)] [InlineData("en-", false)] [InlineData("en_GB", false)] [InlineData("english-language-long", false)]
+    [InlineData("en", true)] [InlineData("FR", true)] [InlineData("pt-BR", true)] [InlineData("sw", true)] [InlineData("ha", true)] [InlineData("yo", true)] [InlineData(" en ", true)]
+    [InlineData("twi", false)] [InlineData("xx", false)] [InlineData("", false)] [InlineData(null, false)] [InlineData("e", false)] [InlineData("en_GB", false)] [InlineData("english-language-long", false)]
     public void Language_codes_are_recognised(string? tag, bool valid) => Assert.Equal(valid, DasEngage.Api.Ai.LanguageTag.IsValid(tag));
+
+    [Fact]
+    public void The_model_is_sent_its_own_code_not_the_callers_text() => Assert.Equal("pt", DasEngage.Api.Ai.LanguageTag.Canonical("pt-BR"));
 
     // ---------- visit summaries ----------
 
