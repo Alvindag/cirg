@@ -22,7 +22,8 @@ builder.Services.AddScoped<SampleService>();
 // ERP integration: a gateway speaking the DAS Engage contract (docs/erp-integration.md), reached over https.
 builder.Services.AddSingleton<DasEngage.Api.Erp.ISecretProvider, DasEngage.Api.Erp.ConfigSecretProvider>();
 builder.Services.AddHttpClient<DasEngage.Api.Erp.RestErpConnector>(c => c.Timeout = TimeSpan.FromSeconds(30));
-builder.Services.AddScoped<DasEngage.Api.Erp.IErpConnector>(sp => sp.GetRequiredService<DasEngage.Api.Erp.RestErpConnector>());
+builder.Services.AddHttpClient<DasEngage.Api.Erp.BusinessCentralConnector>(c => c.Timeout = TimeSpan.FromSeconds(60));
+builder.Services.AddScoped<DasEngage.Api.Erp.IErpConnector, DasEngage.Api.Erp.ErpConnectorRouter>();
 builder.Services.AddScoped<DasEngage.Api.Erp.ErpImporter>();
 builder.Services.AddScoped<DasEngage.Api.Erp.ErpSync>();
 builder.Services.AddHostedService<DasEngage.Api.Erp.ErpWorker>();

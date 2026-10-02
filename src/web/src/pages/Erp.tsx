@@ -75,9 +75,9 @@ function Connection() {
         {f && (
           <form className="form" onSubmit={put} aria-label="ERP connection">
             <select aria-label="Provider" disabled={!admin} value={f.provider} onChange={(e) => set('provider', e.target.value as ErpConnection['provider'])}>
-              <option value="none">None (CSV and push only)</option><option value="rest">ERP gateway (REST)</option>
+              <option value="none">None (CSV and push only)</option><option value="rest">ERP gateway (REST)</option><option value="businesscentral">Dynamics 365 Business Central</option>
             </select>
-            <input aria-label="Gateway address" placeholder="https://erp-gateway.example.com" disabled={!admin || f.provider === 'none'} value={f.baseUrl ?? ''} onChange={(e) => set('baseUrl', e.target.value)} />
+            <input aria-label="Gateway address" placeholder={f.provider === 'businesscentral' ? 'https://api.businesscentral.dynamics.com/v2.0/{tenant}/{environment}/api/v2.0/companies({id})' : 'https://erp-gateway.example.com'} disabled={!admin || f.provider === 'none'} value={f.baseUrl ?? ''} onChange={(e) => set('baseUrl', e.target.value)} />
             <input aria-label="Secret name" placeholder="Name of the secret in Key Vault" disabled={!admin || f.provider === 'none'} value={f.secretName ?? ''} onChange={(e) => set('secretName', e.target.value)} />
             <input aria-label="Currency" maxLength={3} disabled={!admin} value={f.currency} onChange={(e) => set('currency', e.target.value.toUpperCase())} />
             <label className="inline"><input type="checkbox" disabled={!admin} checked={f.enabled} onChange={(e) => set('enabled', e.target.checked)} /> Enabled</label>
@@ -85,8 +85,8 @@ function Connection() {
             <label className="inline"><input type="checkbox" disabled={!admin} checked={f.pullEnabled} onChange={(e) => set('pullEnabled', e.target.checked)} /> Pull data on a schedule</label>
             <label className="inline">Every <input type="number" aria-label="Pull interval" style={{ width: '5rem' }} min={5} max={1440} disabled={!admin} value={f.pullIntervalMinutes} onChange={(e) => set('pullIntervalMinutes', Number(e.target.value))} /> min</label>
             {admin && <button className="primary" type="submit">Save</button>}
-            {admin && f.provider === 'rest' && !form && <button type="button" onClick={() => act(() => api.post<{ ok: boolean; error: string | null }>('/erp/connection/test'), (r) => (r.ok ? 'The gateway answered.' : `Test failed: ${r.error}`))}>Test connection</button>}
-            {admin && f.provider === 'rest' && !form && <button type="button" onClick={() => act(() => api.post<unknown[]>('/erp/pull'), (r) => `Pulled ${r.length} batch(es) of data.`)}>Pull now</button>}
+            {admin && f.provider !== 'none' && !form && <button type="button" onClick={() => act(() => api.post<{ ok: boolean; error: string | null }>('/erp/connection/test'), (r) => (r.ok ? 'The ERP answered.' : `Test failed: ${r.error}`))}>Test connection</button>}
+            {admin && f.provider !== 'none' && !form && <button type="button" onClick={() => act(() => api.post<unknown[]>('/erp/pull'), (r) => `Pulled ${r.length} batch(es) of data.`)}>Pull now</button>}
           </form>
         )}
         {f?.lastPullAt && <p className="muted small">Last pull {fmtDateTime(f.lastPullAt)}.</p>}

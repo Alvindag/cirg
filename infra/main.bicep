@@ -52,6 +52,12 @@ param apiMinReplicas int = 1
 param apiMaxReplicas int = 2
 param apiConcurrentRequests int = 40
 param enableErpWorker bool = true
+@description('Entra application (client) id the API uses to sign in to Dynamics 365 Business Central. Empty when Business Central is not used.')
+param businessCentralClientId string = ''
+@description('Business Central vendor number that purchase requisitions are created for.')
+param businessCentralVendor string = ''
+@description('Key Vault secret URI of the Business Central client secret (create the secret in the vault first). It is available to the connection under the secret name BC_CLIENT_SECRET.')
+param businessCentralSecretUri string = ''
 
 // --- AI (optional) ---
 param deployOpenAi bool = false
@@ -189,6 +195,8 @@ var appEnv = concat([
   { name: 'Storage__AccountUrl', value: storage.outputs.blobEndpoint }
   { name: 'Storage__Container', value: 'attachments' }
   { name: 'Erp__Worker__Enabled', value: string(enableErpWorker) }
+  { name: 'Erp__BusinessCentral__ClientId', value: businessCentralClientId }
+  { name: 'Erp__BusinessCentral__DefaultVendorNumber', value: businessCentralVendor }
   { name: 'Ai__Enabled', value: string(deployOpenAi) }
   { name: 'Ai__Provider', value: deployOpenAi ? 'azure' : 'none' }
   { name: 'Ai__ChatDeployment', value: chatDeployment }
@@ -211,6 +219,7 @@ module app 'modules/containerapps.bicep' = if (deployApp) {
     identityId: appIdentity.id
     identityClientId: appIdentity.properties.clientId
     keyVaultConnectionStringUri: vault.outputs.connectionStringSecretUri
+    erpSecretUri: businessCentralSecretUri
     appInsightsConnectionString: monitoring.outputs.appInsightsConnectionString
     cpu: apiCpu
     memory: apiMemory

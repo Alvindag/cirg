@@ -131,7 +131,7 @@ export interface RevenueResult {
 }
 
 export interface ErpConnection {
-  provider: 'none' | 'rest'
+  provider: 'none' | 'rest' | 'businesscentral'
   baseUrl: string | null
   secretName: string | null
   enabled: boolean

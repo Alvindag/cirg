@@ -42,22 +42,28 @@ public static class ErpEndpoints
         g.MapPut("/connection", async (ConnectionDto d, AppDbContext db, IConfiguration cfg, IWebHostEnvironment env) =>
         {
             var provider = d.Provider?.ToLowerInvariant();
-            if (provider is not ("none" or "rest")) return Results.BadRequest("Provider must be none or rest.");
+            if (provider is not ("none" or "rest" or BusinessCentralConnector.Provider)) return Results.BadRequest("Provider must be none, rest or businesscentral.");
             var currency = (d.Currency ?? "GHS").Trim().ToUpperInvariant();
             if (currency.Length != 3) return Results.BadRequest("Currency must be a 3-letter code.");
             if (d.PullIntervalMinutes is < 5 or > 1440) return Results.BadRequest("The pull interval must be between 5 and 1440 minutes.");
-            if (provider == "rest")
+            if (provider == BusinessCentralConnector.Provider)
+            {
+                var problem = BusinessCentralConnector.ValidateBaseUrl(d.BaseUrl);
+                if (problem != null) return Results.BadRequest(problem);
+                if (string.IsNullOrWhiteSpace(d.SecretName) || d.SecretName.Length > 100) return Results.BadRequest("Enter the name of the secret that holds the Entra client secret.");
+            }
+            else if (provider == "rest")
             {
                 var allowHttp = env.IsDevelopment() || cfg.GetValue<bool>("Erp:AllowInsecureHttp");
                 var problem = UrlGuard.Validate(d.BaseUrl, allowHttp, cfg.GetSection("Erp:AllowedHosts").Get<string[]>());
                 if (problem != null) return Results.BadRequest(problem);
                 if (d.SecretName is { Length: > 100 }) return Results.BadRequest("Secret name is too long.");
             }
-            else if (d.Enabled && (d.OutboundEnabled || d.PullEnabled)) return Results.BadRequest("Choose the rest provider to send to or pull from an ERP.");
+            else if (d.Enabled && (d.OutboundEnabled || d.PullEnabled)) return Results.BadRequest("Choose an ERP provider to send to or pull from an ERP.");
 
             var c = await db.ErpConnections.FirstOrDefaultAsync();
             if (c is null) { c = new ErpConnection(); db.ErpConnections.Add(c); }
-            c.Provider = provider; c.BaseUrl = provider == "rest" ? d.BaseUrl!.Trim() : null; c.SecretName = d.SecretName?.Trim();
+            c.Provider = provider; c.BaseUrl = provider == "none" ? null : d.BaseUrl!.Trim(); c.SecretName = d.SecretName?.Trim();
             c.Enabled = d.Enabled; c.OutboundEnabled = d.OutboundEnabled; c.PullEnabled = d.PullEnabled; c.PullIntervalMinutes = d.PullIntervalMinutes; c.Currency = currency;
             await db.SaveChangesAsync();
             return Results.Ok(new { saved = true });

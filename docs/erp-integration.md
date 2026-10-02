@@ -1,7 +1,7 @@
 # ERP integration
 
 DAS Engage 360 does not assume a particular ERP. It defines one **data contract** (below) and three ways to move that data, so a thin adapter or a CSV export is all an ERP needs.
-Which ERP DAS PLC runs, and how its data can be exposed, still has to be confirmed with DAS IT; the adapter is the only ERP-specific part.
+DAS PLC runs Dynamics 365 Business Central, which has its own adapter (`business-central.md`); any other ERP can use the REST gateway below. The adapter is the only ERP-specific part.
 
 | Direction | What | Transport |
 |---|---|---|
@@ -66,7 +66,7 @@ Dates `yyyy-MM-dd` or `dd/MM/yyyy`; thousands separators are accepted. Unreadabl
 5. Agree who owns each failure (ERP team: permanent 4xx from the ERP; DAS administrators: unmatched accounts and items).
 
 ## Not yet done
-- No ERP-specific adapter (SAP Business One, Dynamics 365 Business Central, Odoo, Sage, …) is included: it depends on DAS's ERP.
+- The ERP is Dynamics 365 Business Central: see `business-central.md` for its adapter (products, customers, sales, stock totals, purchase requisitions; sample movements need a custom API page; goods receipts with batches use CSV or push). Other ERPs use the REST gateway contract above.
 - Customer master is one-way (ERP → DAS Engage); credit limits, payment status and price lists are not used.
 - Sales orders and delivery notes (only invoiced lines), multi-currency conversion, and the ERP posting its own journals for sample cost are out of scope.
 - The background worker is one process; run a single instance or add a lease before scaling the API out.

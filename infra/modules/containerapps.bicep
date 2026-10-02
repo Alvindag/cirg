@@ -38,10 +38,15 @@ resource environment 'Microsoft.App/managedEnvironments@2024-03-01' = {
   }
 }
 
-var secrets = [
+@description('Key Vault secret URI holding the ERP client secret. Exposed to the API as configuration Secrets:BC_CLIENT_SECRET; empty when no ERP secret is used.')
+param erpSecretUri string = ''
+
+var secrets = concat([
   { name: 'db-connection', keyVaultUrl: keyVaultConnectionStringUri, identity: identityId }
   { name: 'appinsights', value: appInsightsConnectionString }
-]
+], empty(erpSecretUri) ? [] : [
+  { name: 'erp-client-secret', keyVaultUrl: erpSecretUri, identity: identityId }
+])
 
 var commonEnv = concat([
   { name: 'ASPNETCORE_ENVIRONMENT', value: 'Production' }
@@ -49,6 +54,8 @@ var commonEnv = concat([
   { name: 'AZURE_CLIENT_ID', value: identityClientId } // makes DefaultAzureCredential use the user-assigned identity
   { name: 'ConnectionStrings__Default', secretRef: 'db-connection' }
   { name: 'APPLICATIONINSIGHTS_CONNECTION_STRING', secretRef: 'appinsights' }
+], empty(erpSecretUri) ? [] : [
+  { name: 'Secrets__BC_CLIENT_SECRET', secretRef: 'erp-client-secret' }
 ], env)
 
 resource api 'Microsoft.App/containerApps@2024-03-01' = {

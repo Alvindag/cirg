@@ -400,6 +400,36 @@ public class ErpFlowTests : IClassFixture<ErpFactory>
     }
 
     [Fact]
+    public async Task A_snapshot_entity_starts_again_from_the_top_on_the_next_pull()
+    {
+        var c = await Setup();
+        await Connect(c, outbound: false, pull: true);
+        var fake = _f.Connector;
+        fake.PullCalls.Clear(); fake.Pages.Clear();
+        fake.Pages["stock-levels"] = cursor => (new List<ErpStockLevel>(), cursor is null ? "1000" : PullCursor.Reset, null);
+        fake.Pages["products"] = cursor => (new List<ErpProduct> { new("AMX500", "Amoxil", null, 1m, null) }, cursor is null ? PullCursor.Reset : "unexpected", null);
+
+        await c.Admin.PostAsync("/api/v1/erp/pull", null);
+        Assert.Equal(new string?[] { null }, fake.PullCalls.Where(x => x.Entity == "products").Select(x => x.Cursor));
+        fake.PullCalls.Clear();
+        await c.Admin.PostAsync("/api/v1/erp/pull", null);
+        Assert.Null(fake.PullCalls.First(x => x.Entity == "products").Cursor); // the reset cleared it
+    }
+
+    [Fact]
+    public async Task The_Business_Central_provider_needs_a_company_address_and_a_secret_name()
+    {
+        var c = await Setup();
+        var good = "https://api.businesscentral.dynamics.com/v2.0/t/Production/api/v2.0/companies(11111111-2222-3333-4444-555555555555)";
+        Assert.Equal(System.Net.HttpStatusCode.BadRequest, (await c.Admin.PutAsJsonAsync("/api/v1/erp/connection", new ConnectionDto("businesscentral", "https://erp-gateway.example.com", "BC", true, false, true, 60, "GHS"))).StatusCode);
+        Assert.Equal(System.Net.HttpStatusCode.BadRequest, (await c.Admin.PutAsJsonAsync("/api/v1/erp/connection", new ConnectionDto("businesscentral", good, "", true, false, true, 60, "GHS"))).StatusCode);
+        (await c.Admin.PutAsJsonAsync("/api/v1/erp/connection", new ConnectionDto("businesscentral", good, "BC_SECRET", true, true, true, 60, "GHS"))).EnsureSuccessStatusCode();
+        var saved = await c.Admin.GetFromJsonAsync<JsonElement>("/api/v1/erp/connection");
+        Assert.Equal("businesscentral", saved.GetProperty("provider").GetString());
+        Assert.Equal(good, saved.GetProperty("baseUrl").GetString());
+    }
+
+    [Fact]
     public async Task A_failed_pull_is_reported_and_does_not_move_the_cursor()
     {
         var c = await Setup();

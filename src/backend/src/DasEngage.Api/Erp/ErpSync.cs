@@ -70,6 +70,7 @@ public class ErpSync
                 }
                 if (err != null) { error = $"{entity}: {err}"; break; }
                 if (s != null) results.Add(s);
+                if (next == PullCursor.Reset) { cursors.Remove(entity); break; } // a full snapshot was read: start from the top next time
                 if (!string.IsNullOrEmpty(next)) cursors[entity] = next; // advance only after the page was applied
                 if (s is null || string.IsNullOrEmpty(next)) break;
             }

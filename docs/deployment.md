@@ -18,6 +18,7 @@
 3. **GitHub environments** `staging`, `production`, `mobile-release`. Add required reviewers on `production`. Set per environment:
    - Variables: `AZURE_CLIENT_ID`, `AZURE_TENANT_ID`, `AZURE_SUBSCRIPTION_ID`, `AZURE_RESOURCE_GROUP`, `AZURE_LOCATION`, `ENTRA_WEB_CLIENT_ID`, `ENTRA_TENANT`, `ENTRA_API_SCOPE`.
    - Secret: `POSTGRES_ADMIN_PASSWORD`.
+   - For Business Central, add `businessCentralClientId`, `businessCentralVendor` and `businessCentralSecretUri` to the `.bicepparam` file (see `business-central.md`).
    - `mobile-release`: variables `MOBILE_API_BASE_URL`, `ENTRA_MOBILE_CLIENT_ID`; secrets `ANDROID_KEYSTORE_BASE64`, `ANDROID_KEYSTORE_PASSWORD`, `ANDROID_KEY_ALIAS`, `ANDROID_KEY_PASSWORD`.
 4. Edit the `.bicepparam` files: audiences, alert e-mails, sizes. Entra app registrations are described in `docs/entra-setup.md`.
 5. Branch protection on `main`: require the `CI passed` check.
