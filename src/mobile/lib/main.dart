@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'providers.dart';
+import 'ui/theme.dart';
 import 'ui/home_screen.dart';
 import 'ui/lock_screen.dart';
 import 'ui/login_screen.dart';
@@ -27,7 +28,8 @@ class _EngageAppState extends ConsumerState<EngageApp> {
     });
     return MaterialApp(
       title: 'DAS Engage 360',
-      theme: ThemeData(colorSchemeSeed: const Color(0xFF0B6E4F), useMaterial3: true),
+      theme: dasTheme(Brightness.light),
+      darkTheme: dasTheme(Brightness.dark),
       home: FutureBuilder<void>(
         future: _restore,
         builder: (context, snap) {

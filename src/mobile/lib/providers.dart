@@ -82,10 +82,13 @@ final planServiceProvider = Provider((ref) => PlanService(ref.watch(databaseProv
 final visitServiceProvider = Provider((ref) => VisitService(ref.watch(databaseProvider), ref.watch(locationProvider)));
 
 class SyncStatus {
-  const SyncStatus({this.syncing = false, this.lastSync, this.lastError});
+  const SyncStatus({this.syncing = false, this.lastSync, this.lastError, this.lastReason});
   final bool syncing;
   final DateTime? lastSync;
   final String? lastError;
+
+  /// Why the last sync failed, in plain words.
+  final String? lastReason;
 }
 
 /// Runs sync on start, when connectivity returns, every few minutes, and on demand.
@@ -112,7 +115,7 @@ class SyncCoordinator extends Notifier<SyncStatus> {
 
   Future<void> syncNow() async {
     if (state.syncing || ref.read(sessionProvider) == null) return;
-    state = SyncStatus(syncing: true, lastSync: state.lastSync, lastError: state.lastError);
+    state = SyncStatus(syncing: true, lastSync: state.lastSync, lastError: state.lastError, lastReason: state.lastReason);
     final res = await ref.read(syncServiceProvider).sync();
     if (res.wiped) {
       // The administrator cleared this phone (lost or stolen). Nothing is left on it, so go back to sign-in and say why.
@@ -132,7 +135,7 @@ class SyncCoordinator extends Notifier<SyncStatus> {
       await ref.read(attachmentServiceProvider).purgeUploaded();
       await ref.read(aiServiceProvider).refreshActions(); // rule-based suggestions, cached for offline use
     }
-    state = SyncStatus(lastSync: res.ok ? DateTime.now() : state.lastSync, lastError: res.error);
+    state = SyncStatus(lastSync: res.ok ? DateTime.now() : state.lastSync, lastError: res.error, lastReason: res.reason);
   }
 }
 

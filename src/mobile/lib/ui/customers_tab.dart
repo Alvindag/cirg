@@ -5,6 +5,7 @@ import '../data/database.dart';
 import '../providers.dart';
 import 'customer_detail_screen.dart';
 import 'customer_form_screen.dart';
+import 'theme.dart';
 
 class CustomersTab extends ConsumerStatefulWidget {
   const CustomersTab({super.key});
@@ -28,7 +29,7 @@ class _CustomersTabState extends ConsumerState<CustomersTab> {
       Padding(
         padding: const EdgeInsets.all(12),
         child: TextField(
-          decoration: const InputDecoration(prefixIcon: Icon(Icons.search), hintText: 'Search name or city', border: OutlineInputBorder()),
+          decoration: const InputDecoration(prefixIcon: Icon(Icons.search), hintText: 'Search name or city'),
           onChanged: (v) => setState(() => _q = v),
         ),
       ),
@@ -37,17 +38,25 @@ class _CustomersTabState extends ConsumerState<CustomersTab> {
           stream: db.watchCustomers(_q),
           builder: (context, snap) {
             final items = snap.data ?? const [];
-            if (items.isEmpty) return const Center(child: Text('No customers on this device yet. Sync to download them.'));
-            return ListView.separated(
+            if (items.isEmpty) return const EmptyState(icon: Icons.people_outline, title: 'No customers on this phone yet', message: 'They download when the phone syncs.');
+            return ListView.builder(
+              padding: const EdgeInsets.only(bottom: 88),
               itemCount: items.length,
-              separatorBuilder: (_, _) => const Divider(height: 1),
               itemBuilder: (context, i) {
                 final c = items[i];
-                return ListTile(
-                  title: Text(c.name),
-                  subtitle: Text([c.type, if (c.specialty != null) c.specialty!, if (c.city != null) c.city!].join(' · ')),
-                  trailing: c.dirty ? const Icon(Icons.cloud_upload_outlined, size: 18) : Text(c.segment),
-                  onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => CustomerDetailScreen(customerId: c.id))),
+                final scheme = Theme.of(context).colorScheme;
+                return Card(
+                  child: ListTile(
+                    leading: CircleAvatar(
+                      backgroundColor: scheme.primaryContainer,
+                      foregroundColor: scheme.onPrimaryContainer,
+                      child: Text(c.name.isEmpty ? '?' : c.name.characters.first.toUpperCase(), style: const TextStyle(fontWeight: FontWeight.w700)),
+                    ),
+                    title: Text(c.name, style: const TextStyle(fontWeight: FontWeight.w600)),
+                    subtitle: Text([c.type, if (c.specialty != null) c.specialty!, if (c.city != null) c.city!].join(' · ')),
+                    trailing: c.dirty ? const Icon(Icons.cloud_upload_outlined, size: 18) : Chip(label: Text(c.segment), visualDensity: VisualDensity.compact),
+                    onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => CustomerDetailScreen(customerId: c.id))),
+                  ),
                 );
               },
             );

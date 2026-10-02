@@ -73,7 +73,7 @@ class ApiClient {
 
   /// Sends the request; a 401 triggers one forced token refresh and a retry. Does not throw on 4xx/5xx.
   Future<http.Response> _request(Future<http.Response> Function(Map<String, String> headers) call,
-      {Duration timeout = const Duration(seconds: 60)}) async {
+      {Duration timeout = const Duration(seconds: 30)}) async {
     Future<http.Response> attempt({bool force = false}) async {
       final token = await accessToken(force: force);
       if (token == null) throw ApiException(401, 'Not signed in.');

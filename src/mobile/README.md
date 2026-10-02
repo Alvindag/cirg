@@ -74,3 +74,10 @@ Sign in → Today (planned visits, check-in) · Customers (local search, unplann
 - E-detailing content download.
 - Stock controller and approver screens on the phone (the web dashboard has them).
 - Schema upgrades from v1, v2 and v3 are written but only v4 to v5 is covered by a test.
+
+## Sync status
+The pill under the title bar says whether the phone is up to date. When a sync fails it says why in plain words (wrong address, server not reachable, firewall, server error) and tapping it shows the details with a **Try again** button. Changes stay safe on the phone until they upload.
+
+## Look
+Colours come from the DAS logo (red for identity, charcoal for structure, blue for actions) and follow the phone's light or dark setting. The theme is in `lib/ui/theme.dart`.
+

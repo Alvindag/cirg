@@ -5,15 +5,19 @@ import 'package:drift/drift.dart';
 
 import '../data/database.dart';
 import 'api_client.dart';
+import 'sync_explain.dart';
 
 class SyncResult {
-  const SyncResult({this.pushed = 0, this.pulled = false, this.error, this.authFailed = false, this.forbidden = false, this.wiped = false});
+  const SyncResult({this.pushed = 0, this.pulled = false, this.error, this.reason, this.authFailed = false, this.forbidden = false, this.wiped = false});
   final int pushed;
   final bool pulled;
 
   /// An administrator asked for this device to be cleared (lost phone); the local data is gone and the person must sign in again.
   final bool wiped;
   final String? error;
+
+  /// The same failure in words a person can act on.
+  final String? reason;
   final bool authFailed;
 
   /// 403: signed in with Entra, but this account is not a user of the system (or was deactivated).
@@ -44,9 +48,9 @@ class SyncService {
       final wiped = await _pull();
       return SyncResult(pushed: pushed, pulled: !wiped, wiped: wiped);
     } on ApiException catch (e) {
-      return SyncResult(error: e.toString(), authFailed: e.isAuth, forbidden: e.statusCode == 403);
+      return SyncResult(error: e.toString(), reason: explainSyncFailure(e, _api.baseUrl()), authFailed: e.isAuth, forbidden: e.statusCode == 403);
     } catch (e) {
-      return SyncResult(error: e.toString()); // offline, timeout, bad payload: try again later
+      return SyncResult(error: e.toString(), reason: explainSyncFailure(e, _api.baseUrl())); // offline, timeout, bad payload: try again later
     } finally {
       _running = false;
     }
