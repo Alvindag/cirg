@@ -113,8 +113,8 @@ describe('Route to market', () => {
     const api = fakeApi({ 'GET /dashboards/rtm': () => dash(), 'GET /rtm/untagged': () => untagged, 'GET /rtm/universe': () => noUniverse, 'GET /dashboards/coverage': () => coverage })
     renderApp(<Rtm />, api, me('NationalSalesManager'))
     expect(await screen.findByText('Visit coverage, last 90 days')).toBeInTheDocument()
+    expect(await screen.findByText('66 visits against 120 expected')).toBeInTheDocument()
     expect(screen.getByText('55.0%')).toBeInTheDocument()
-    expect(screen.getByText('66 visits against 120 expected')).toBeInTheDocument()
     const row = screen.getAllByText('Tamale', { selector: 'td' })[0].closest('tr')!
     expect(within(row).getByText('12 of 40')).toBeInTheDocument()
     expect(within(row).getByText('30.0%')).toBeInTheDocument()
