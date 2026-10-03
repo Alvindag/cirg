@@ -13,11 +13,11 @@ const stages = [
   { label: "Won", value: 34 },
 ];
 
-export function PipelineOverview({ className }: { className?: string }) {
+export function PipelineOverview() {
   const max = Math.max(...stages.map((s) => s.value));
 
   return (
-    <GlassPanel className={`rounded-2xl p-5 ${className ?? ""}`}>
+    <GlassPanel className="h-full rounded-2xl p-5">
       <div className="mb-6 flex items-baseline justify-between">
         <h2 className="text-sm font-medium text-zinc-300">Pipeline Overview</h2>
         <span className="text-xs text-zinc-500">

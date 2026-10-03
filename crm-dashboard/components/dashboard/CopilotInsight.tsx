@@ -2,10 +2,10 @@ import { Sparkles } from "lucide-react";
 
 import { GlassPanel } from "@/components/ui/glass-panel";
 
-export function CopilotInsight({ className }: { className?: string }) {
+export function CopilotInsight() {
   return (
     <GlassPanel
-      className={`relative overflow-hidden rounded-2xl p-5 ${className ?? ""}`}
+      className="relative h-full overflow-hidden rounded-2xl p-5"
     >
       <div
         aria-hidden
