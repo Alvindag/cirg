@@ -1,0 +1,41 @@
+{% extends "base.html" %}
+{% block title %}Overview — IT Risk Register{% endblock %}
+{% block content %}
+<h1>Overview</h1>
+
+<div class="stat-grid">
+    <div class="stat-card">
+        <div class="stat-value">{{ total_assets }}</div>
+        <div class="stat-label">Total assets</div>
+    </div>
+    {% for band in band_order %}
+    <div class="stat-card band-{{ band }}">
+        <div class="stat-value">{{ band_counts[band] }}</div>
+        <div class="stat-label">{{ band|capitalize }} risk</div>
+    </div>
+    {% endfor %}
+    <div class="stat-card {{ 'warn' if open_recs > 0 }}">
+        <div class="stat-value">{{ open_recs }}</div>
+        <div class="stat-label">Open recommendations</div>
+    </div>
+</div>
+
+<h2>Highest-risk assets</h2>
+<table>
+    <thead><tr><th>Asset</th><th>Type</th><th>Category</th><th>Risk score</th><th>Band</th><th>Open vulns</th></tr></thead>
+    <tbody>
+        {% for a in top_risk %}
+        <tr>
+            <td><a href="/assets/{{ a.id }}">{{ a.name }}</a></td>
+            <td>{{ a.asset_type }}</td>
+            <td>{{ a.category }}</td>
+            <td>{{ a.risk_score }}</td>
+            <td><span class="badge band-{{ a.risk_band }}">{{ a.risk_band }}</span></td>
+            <td>{{ a.open_vuln_count }}</td>
+        </tr>
+        {% else %}
+        <tr><td colspan="6">No assets scored yet — <a href="/assets/new">add an asset</a> to get started.</td></tr>
+        {% endfor %}
+    </tbody>
+</table>
+{% endblock %}

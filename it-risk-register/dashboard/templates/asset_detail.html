@@ -1,0 +1,97 @@
+{% extends "base.html" %}
+{% block title %}{{ asset.name }} — IT Risk Register{% endblock %}
+{% block content %}
+<h1>{{ asset.name }} <a class="edit-link" href="/assets/{{ asset.id }}/edit">edit</a></h1>
+<p class="meta">
+    {{ asset.asset_type }} / {{ asset.category }}
+    {% if asset.owner %} · owner: {{ asset.owner }}{% endif %}
+    {% if asset.department %} · dept: {{ asset.department }}{% endif %}
+    {% if asset.internet_facing %} · <strong>internet-facing</strong>{% endif %}
+</p>
+
+{% if history %}
+<div class="stat-grid">
+    <div class="stat-card band-{{ history[0].risk_band }}">
+        <div class="stat-value">{{ history[0].risk_score }}</div>
+        <div class="stat-label">Current risk score ({{ history[0].risk_band }})</div>
+    </div>
+    <div class="stat-card">
+        <div class="stat-value">{{ history[0].likelihood }}</div>
+        <div class="stat-label">Likelihood</div>
+    </div>
+    <div class="stat-card">
+        <div class="stat-value">{{ history[0].impact }}</div>
+        <div class="stat-label">Impact (criticality)</div>
+    </div>
+    <div class="stat-card">
+        <div class="stat-value">{{ history[0].max_cvss or '—' }}</div>
+        <div class="stat-label">Max CVSS (open vulns)</div>
+    </div>
+</div>
+<p class="meta">{{ history[0].rationale }} — scored {{ history[0].ts }}</p>
+{% else %}
+<p>Not yet scored.</p>
+{% endif %}
+
+<h2>Recommendations</h2>
+<table>
+    <thead><tr><th>Priority</th><th>Category</th><th>Recommendation</th><th>Status</th></tr></thead>
+    <tbody>
+        {% for r in recs %}
+        <tr>
+            <td><span class="badge band-{{ 'critical' if r.priority == 'critical' else ('high' if r.priority == 'high' else ('medium' if r.priority == 'medium' else 'low')) }}">{{ r.priority }}</span></td>
+            <td>{{ r.category }}</td>
+            <td>{{ r.recommendation }}</td>
+            <td>
+                <form method="post" action="/recommendations" class="inline-form">
+                    <input type="hidden" name="rec_id" value="{{ r.id }}">
+                    <select name="status" onchange="this.form.submit()">
+                        {% for s in ['open', 'in_progress', 'done', 'dismissed'] %}
+                        <option value="{{ s }}" {{ 'selected' if r.status == s }}>{{ s }}</option>
+                        {% endfor %}
+                    </select>
+                </form>
+            </td>
+        </tr>
+        {% else %}
+        <tr><td colspan="4">No recommendations.</td></tr>
+        {% endfor %}
+    </tbody>
+</table>
+
+<h2>Open / linked vulnerabilities</h2>
+<table>
+    <thead><tr><th>CVE</th><th>Title</th><th>CVSS</th><th>Severity</th><th>Source</th><th>Status</th></tr></thead>
+    <tbody>
+        {% for v in vulns %}
+        <tr>
+            <td>{{ v.cve_id or '—' }}</td>
+            <td>{{ v.title }}</td>
+            <td>{{ v.cvss_score or '—' }}</td>
+            <td>{{ v.cvss_severity or '—' }}</td>
+            <td>{{ v.source }}</td>
+            <td>{{ v.status }}</td>
+        </tr>
+        {% else %}
+        <tr><td colspan="6">No vulnerabilities linked to this asset.</td></tr>
+        {% endfor %}
+    </tbody>
+</table>
+
+<h2>Risk history</h2>
+<table>
+    <thead><tr><th>Time</th><th>Score</th><th>Band</th><th>Likelihood</th><th>Impact</th><th>Open vulns</th></tr></thead>
+    <tbody>
+        {% for h in history %}
+        <tr>
+            <td>{{ h.ts }}</td>
+            <td>{{ h.risk_score }}</td>
+            <td><span class="badge band-{{ h.risk_band }}">{{ h.risk_band }}</span></td>
+            <td>{{ h.likelihood }}</td>
+            <td>{{ h.impact }}</td>
+            <td>{{ h.open_vuln_count }}</td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
+{% endblock %}

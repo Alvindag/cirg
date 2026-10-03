@@ -1,0 +1,55 @@
+version: "3.8"
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${DB_NAME:-itriskregister}
+      POSTGRES_USER: ${DB_USER:-itriskregister}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:?set DB_PASSWORD in .env}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+      - ./database/schema.sql:/docker-entrypoint-initdb.d/01-schema.sql:ro
+    ports:
+      - "127.0.0.1:5433:5432"
+
+  collector:
+    build: ./collector
+    restart: unless-stopped
+    depends_on:
+      - postgres
+    environment:
+      DB_HOST: postgres
+      DB_NAME: ${DB_NAME:-itriskregister}
+      DB_USER: ${DB_USER:-itriskregister}
+      DB_PASSWORD: ${DB_PASSWORD:?set DB_PASSWORD in .env}
+      NVD_API_KEY: ${NVD_API_KEY:-}
+      RISK_RECOMPUTE_INTERVAL_SECONDS: ${RISK_RECOMPUTE_INTERVAL_SECONDS:-3600}
+      NVD_SYNC_INTERVAL_SECONDS: ${NVD_SYNC_INTERVAL_SECONDS:-86400}
+    volumes:
+      - scanner_imports:/app/imports
+
+  dashboard:
+    build:
+      context: .
+      dockerfile: dashboard/Dockerfile
+    restart: unless-stopped
+    depends_on:
+      - postgres
+    environment:
+      DB_HOST: postgres
+      DB_NAME: ${DB_NAME:-itriskregister}
+      DB_USER: ${DB_USER:-itriskregister}
+      DB_PASSWORD: ${DB_PASSWORD:?set DB_PASSWORD in .env}
+      DASHBOARD_SECRET_KEY: ${DASHBOARD_SECRET_KEY:?set DASHBOARD_SECRET_KEY in .env}
+      ADMIN_USERNAME: ${ADMIN_USERNAME:-admin}
+      ADMIN_PASSWORD: ${ADMIN_PASSWORD:?set ADMIN_PASSWORD in .env}
+    volumes:
+      - scanner_imports:/app/imports
+    ports:
+      - "8081:8081"
+
+volumes:
+  pgdata:
+  scanner_imports:
