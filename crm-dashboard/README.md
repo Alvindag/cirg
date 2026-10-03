@@ -33,6 +33,17 @@ Then open **Connect DAS Engage** in the header, paste an access token and press 
 | AI Copilot Insight | `GET /admin/products`, then `GET /ai/opportunities` |
 | Command palette, Recent Contacts | `GET /customers` |
 
+Pages (live data only; they ask you to connect first):
+
+| Page | What it does |
+| --- | --- |
+| Customers | Search and filter, edit or remove a customer, CSV import with a check-first step |
+| Samples | Requests (approve, reject, issue stock), stock (adjust, write off, return), batches (create, receive, quarantine, recall), per-customer limits, compliance report and CSV download |
+| Team | People and reporting lines (add, deactivate with reassignment, reactivate) and territories (add, edit, delete) |
+| Audit | The append-only audit log, newest first, with "Load older" |
+
+Pages for managers show a short message to other roles. Edits that need a number or a reason use the browser's built-in prompt boxes, as the original DAS web app did; a nicer dialog is a possible follow-up.
+
 Each widget shows a **Live** or **Sample data** badge, so it is always clear which one you are looking at. Signed out, offline or on an API error, widgets fall back to sample data.
 
 How it works:
@@ -40,7 +51,7 @@ How it works:
 - `lib/das/` holds the typed client (`client.ts`), the sign-in state (`context.tsx`), the `useDasQuery` hook and the sample data (`demo.ts`).
 - `node scripts/mock-das-api.mjs` runs a tiny fake API on port 5050 so you can try live mode without the .NET backend: `DAS_API_BASE_URL=http://localhost:5050 npm run dev`.
 
-Not done yet: Microsoft Entra sign-in (only pasted development tokens), and the Customers, Samples, Team and Audit pages from the DAS web app.
+Not done yet: Microsoft Entra sign-in (only pasted development tokens), and the DAS web app's Insights, ERP, Route-to-market and Notices pages.
 
 ## Stack
 
@@ -63,10 +74,12 @@ app/
     layout.tsx            App shell: sidebar, header, command menu, main glass panel
     page.tsx              Dashboard home: the bento grid
     loading.tsx           Skeleton version of the bento grid
+    customers/ samples/ team/ audit/ connect/   DAS Engage 360 pages
 components/
-  ui/                     Primitives: GlassPanel, SkeletonLoader
+  ui/                     Primitives: GlassPanel, SkeletonLoader, tables, buttons, fields, badges
   layout/                 Shell pieces: Sidebar, Header, CommandMenu,
                           MeshGradientBackground, Providers, nav-items
+  das/                    Page bodies for Customers, Samples, Team, Audit
   dashboard/              Page widgets: Widget (shared frame), KpiRow, ProductEngagement,
                           QuickActions, ActivityTimeline, CopilotInsight, BentoGrid
 lib/utils.ts              cn() and the shared focusRing class
@@ -101,7 +114,6 @@ Only `transform` and `opacity` are animated, so the browser can composite them w
 
 ## Known gaps
 
-- `/contacts`, `/pipeline`, `/analytics` and `/settings` are linked but not built yet.
 - The sidebar is hidden below the `md` breakpoint and there is no mobile nav yet; the command palette is the fallback.
 - Quick Actions and the palette's Actions group are placeholders.
 - `shadcn init` could not reach the shadcn registry from the build environment, so `components.json` and the theme were written by hand. `npx shadcn add <component>` should work wherever the registry is reachable.

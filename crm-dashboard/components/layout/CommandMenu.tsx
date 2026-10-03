@@ -117,7 +117,11 @@ export function CommandMenu() {
             <Command.Item
               key={c.id}
               value={`${c.name} ${c.detail}`}
-              onSelect={() => run(() => router.push("/contacts"))}
+              onSelect={() =>
+                run(() =>
+                  router.push(`/customers?q=${encodeURIComponent(c.name)}`),
+                )
+              }
               className={itemClass}
             >
               <span className="flex h-6 w-6 items-center justify-center rounded-full bg-gradient-to-br from-indigo-600 to-purple-600 text-[10px] font-semibold text-white">
