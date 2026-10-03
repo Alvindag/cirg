@@ -1,7 +1,7 @@
 import { screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { describe, expect, it, vi } from 'vitest'
-import type { CoverageDashboard, RtmDashboard, TargetsDashboard, UniverseRow, UntaggedList } from '../api/types'
+import type { CoverageDashboard, DistributorDashboard, RtmDashboard, SellOutResult, TargetsDashboard, UniverseRow, UntaggedList } from '../api/types'
 import { fakeApi, me, renderApp } from '../test/helpers'
 import { Rtm } from './Rtm'
 
@@ -19,6 +19,12 @@ const dash = (over: Partial<RtmDashboard> = {}): RtmDashboard => ({
 })
 const untagged: UntaggedList = { total: 3, items: [{ id: 'c1', name: 'Quiet Pharmacy', type: 'Pharmacy', city: 'Accra', channel: 'Unassigned', outletClass: 'Unclassified' }] }
 const noUniverse: UniverseRow[] = []
+const distributors: DistributorDashboard = {
+  scoped: false, value: 52000, lines: 120, outletsMatched: 30, outletsUnmatched: 2, outletsOnlyViaDistributors: 18,
+  distributors: [{ distributorId: 'd1', name: 'Medipharm Wholesale', value: 52000, quantity: 900, outlets: 32, matchedOutlets: 30, lastSale: '2026-10-01' }],
+  unmatched: [{ outlet: 'Unknown Chemist', distributor: 'Medipharm Wholesale', value: 400 }],
+}
+const empty = { ...distributors, value: 0, lines: 0, outletsMatched: 0, outletsUnmatched: 0, outletsOnlyViaDistributors: 0, distributors: [], unmatched: [] }
 const targets: TargetsDashboard = {
   month: '2026-10', currency: 'GHS', scoped: false, daysInMonth: 31, daysElapsed: 10, paceNote: '10 of 31 days of the month have passed.', companyActual: 30000,
   rows: [{ region: null, channel: null, target: 100000, actual: 30000, attainmentPct: 30, projected: 93000, projectedPct: 93 },
@@ -32,7 +38,7 @@ const coverage: CoverageDashboard = {
 
 describe('Route to market', () => {
   it('shows the market, what is mapped and reached, channels, regions and what is left to tag', async () => {
-    const api = fakeApi({ 'GET /dashboards/rtm': () => dash(), 'GET /rtm/untagged': () => untagged, 'GET /rtm/universe': () => noUniverse, 'GET /dashboards/coverage': () => coverage, 'GET /dashboards/targets': () => targets })
+    const api = fakeApi({ 'GET /dashboards/rtm': () => dash(), 'GET /rtm/untagged': () => untagged, 'GET /rtm/universe': () => noUniverse, 'GET /dashboards/coverage': () => coverage, 'GET /dashboards/distributors': () => distributors, 'GET /dashboards/targets': () => targets })
     renderApp(<Rtm />, api, me('NationalSalesManager'))
     expect(await screen.findByText('Coverage by kind of outlet')).toBeInTheDocument()
     expect(screen.getByText('12.0% of the market')).toBeInTheDocument()
@@ -52,7 +58,7 @@ describe('Route to market', () => {
   })
 
   it('says so when no market size is set instead of showing misleading percentages', async () => {
-    const api = fakeApi({ 'GET /dashboards/rtm': () => dash({ hasUniverse: false, universeTotal: null, mappedPct: null, reachedPct: null, top20Share: null }), 'GET /rtm/untagged': () => untagged, 'GET /rtm/universe': () => noUniverse, 'GET /dashboards/coverage': () => coverage, 'GET /dashboards/targets': () => targets })
+    const api = fakeApi({ 'GET /dashboards/rtm': () => dash({ hasUniverse: false, universeTotal: null, mappedPct: null, reachedPct: null, top20Share: null }), 'GET /rtm/untagged': () => untagged, 'GET /rtm/universe': () => noUniverse, 'GET /dashboards/coverage': () => coverage, 'GET /dashboards/distributors': () => distributors, 'GET /dashboards/targets': () => targets })
     renderApp(<Rtm />, api, me('Admin'))
     expect(await screen.findByText('Not set')).toBeInTheDocument()
     expect(screen.getByText('set it below to see coverage')).toBeInTheDocument()
@@ -103,7 +109,7 @@ describe('Route to market', () => {
 
   it('shows the server\'s reason when the market size is refused', async () => {
     const api = fakeApi({
-      'GET /dashboards/rtm': () => dash(), 'GET /rtm/untagged': () => ({ total: 0, items: [] }), 'GET /rtm/universe': () => noUniverse, 'GET /dashboards/coverage': () => coverage, 'GET /dashboards/targets': () => targets,
+      'GET /dashboards/rtm': () => dash(), 'GET /rtm/untagged': () => ({ total: 0, items: [] }), 'GET /rtm/universe': () => noUniverse, 'GET /dashboards/coverage': () => coverage, 'GET /dashboards/targets': () => targets, 'GET /dashboards/distributors': () => distributors,
       'PUT /rtm/universe': () => { throw new Error('Each region and kind of outlet may appear once.') },
     })
     const user = userEvent.setup()
@@ -115,7 +121,7 @@ describe('Route to market', () => {
   })
 
   it('shows whether the planned visits are being made, by territory, and the most overdue customers', async () => {
-    const api = fakeApi({ 'GET /dashboards/rtm': () => dash(), 'GET /rtm/untagged': () => untagged, 'GET /rtm/universe': () => noUniverse, 'GET /dashboards/coverage': () => coverage, 'GET /dashboards/targets': () => targets })
+    const api = fakeApi({ 'GET /dashboards/rtm': () => dash(), 'GET /rtm/untagged': () => untagged, 'GET /rtm/universe': () => noUniverse, 'GET /dashboards/coverage': () => coverage, 'GET /dashboards/distributors': () => distributors, 'GET /dashboards/targets': () => targets })
     renderApp(<Rtm />, api, me('NationalSalesManager'))
     expect(await screen.findByText('Visit coverage, last 90 days')).toBeInTheDocument()
     expect(await screen.findByText('66 visits against 120 expected')).toBeInTheDocument()
@@ -134,7 +140,7 @@ describe('Route to market', () => {
   })
 
   it('shows invoiced sales against each target, with where the month is heading', async () => {
-    const api = fakeApi({ 'GET /dashboards/rtm': () => dash(), 'GET /rtm/untagged': () => untagged, 'GET /rtm/universe': () => noUniverse, 'GET /dashboards/coverage': () => coverage, 'GET /dashboards/targets': () => targets })
+    const api = fakeApi({ 'GET /dashboards/rtm': () => dash(), 'GET /rtm/untagged': () => untagged, 'GET /rtm/universe': () => noUniverse, 'GET /dashboards/coverage': () => coverage, 'GET /dashboards/distributors': () => distributors, 'GET /dashboards/targets': () => targets })
     renderApp(<Rtm />, api, me('AreaManager'))
     const row = (await screen.findByText('Northern · Van sales')).closest('tr')!
     expect(within(row).getByText('GHS 20,000')).toBeInTheDocument()
@@ -147,7 +153,7 @@ describe('Route to market', () => {
 
   it('lets a national role set the month targets', async () => {
     const put = vi.fn(async () => undefined)
-    const api = fakeApi({ 'GET /dashboards/rtm': () => dash(), 'GET /rtm/untagged': () => untagged, 'GET /rtm/universe': () => noUniverse, 'GET /dashboards/coverage': () => coverage,
+    const api = fakeApi({ 'GET /dashboards/rtm': () => dash(), 'GET /rtm/untagged': () => untagged, 'GET /rtm/universe': () => noUniverse, 'GET /dashboards/coverage': () => coverage, 'GET /dashboards/distributors': () => distributors,
       'GET /dashboards/targets': () => targets, 'GET /rtm/targets': () => [{ region: null, channel: null, amount: 100000 }], 'PUT /rtm/targets': put })
     const user = userEvent.setup()
     renderApp(<Rtm />, api, me('NationalSalesManager'))
@@ -159,5 +165,33 @@ describe('Route to market', () => {
     await user.click(screen.getByRole('button', { name: 'Save targets' }))
     await waitFor(() => expect(put).toHaveBeenCalled())
     expect(put.mock.calls[0][1]).toEqual([{ region: null, channel: null, amount: 100000 }, { region: 'Upper East', channel: 'VanSales', amount: 15000 }])
+  })
+
+  it('shows what distributors sell to outlets and which outlets still need to be added', async () => {
+    const api = fakeApi({ 'GET /dashboards/rtm': () => dash(), 'GET /rtm/untagged': () => untagged, 'GET /rtm/universe': () => noUniverse, 'GET /dashboards/coverage': () => coverage, 'GET /dashboards/targets': () => targets, 'GET /dashboards/distributors': () => distributors })
+    renderApp(<Rtm />, api, me('AreaManager'))
+    expect(await screen.findByText('Reached only through a distributor')).toBeInTheDocument()
+    const row = screen.getAllByText('Medipharm Wholesale', { selector: 'td' })[0].closest('tr')!
+    expect(within(row).getByText('GHS 52,000')).toBeInTheDocument()
+    expect(within(row).getByText('32')).toBeInTheDocument()
+    expect(screen.getByText('Unknown Chemist')).toBeInTheDocument()
+  })
+
+  it('checks a distributor file first and loads it only when confirmed', async () => {
+    const check: SellOutResult = { dryRun: true, total: 3, created: 2, updated: 0, unchanged: 0, errors: 1, unmatchedOutlets: 1, rows: [
+      { row: 2, status: 'created', message: "Outlet 'X Chemist' is not matched to a DAS customer yet." }, { row: 4, status: 'error', message: "Unknown distributor 'Nobody'." }] }
+    const post = vi.fn(async (query?: unknown) => ({ ...check, dryRun: (query as { dryRun: boolean }).dryRun }))
+    const api = fakeApi({ 'GET /dashboards/rtm': () => dash(), 'GET /rtm/untagged': () => untagged, 'GET /rtm/universe': () => noUniverse, 'GET /dashboards/coverage': () => coverage, 'GET /dashboards/targets': () => targets, 'GET /dashboards/distributors': () => empty, 'POST /distributors/sell-out/import': post })
+    const user = userEvent.setup()
+    renderApp(<Rtm />, api, me('NationalSalesManager'))
+    expect(await screen.findByText(/No distributor sell-out has been loaded/)).toBeInTheDocument()
+    await user.upload(screen.getByLabelText('Distributor sales file'), new File(['distributor,outlet,date,quantity,net_amount\nA,B,2026-10-01,1,1\n'], 'sales.csv', { type: 'text/csv' }))
+    await user.click(screen.getByRole('button', { name: 'Check file' }))
+    expect(await screen.findByText(/2 new, 0 corrected, 0 already there, 1 with errors/)).toBeInTheDocument()
+    expect(screen.getByText("Unknown distributor 'Nobody'.")).toBeInTheDocument()
+    expect(post.mock.calls[0][0]).toEqual({ dryRun: true })
+    await user.click(screen.getByRole('button', { name: 'Load 2 lines' }))
+    await waitFor(() => expect(post).toHaveBeenCalledTimes(2))
+    expect(post.mock.calls[1][0]).toEqual({ dryRun: false })
   })
 })

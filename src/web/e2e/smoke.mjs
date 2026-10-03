@@ -44,6 +44,9 @@ const routes = {
   'GET /orders/summary': () => ({ days: 30, orders: 12, value: 4200, placed: 3, confirmed: 2, delivered: 6, cancelled: 1, avgHoursToDeliver: 30, topProducts: [{ productId: 'p1', name: 'Amoxil 500', quantity: 400, value: 1000 }] }),
   'GET /orders': () => [{ id: 'o1', number: 'ORD-20261003-AB12CD', repId: 'rep-2', customerId: 'c1', customerName: 'Korle Pharmacy', status: 'Placed', total: 37.5, currency: 'GHS', notes: null,
     placedAt: '2026-10-03T09:00:00Z', confirmedAt: null, deliveredAt: null, cancelledAt: null, cancelReason: null, lines: [{ id: 'l1', productId: 'p1', productName: 'Amoxil 500', quantity: 15, unitPrice: 2.5, lineTotal: 37.5 }] }],
+  'GET /dashboards/distributors': () => ({ scoped: false, value: 52000, lines: 120, outletsMatched: 30, outletsUnmatched: 2, outletsOnlyViaDistributors: 18,
+    distributors: [{ distributorId: 'd1', name: 'Medipharm Wholesale', value: 52000, quantity: 900, outlets: 32, matchedOutlets: 30, lastSale: '2026-10-01' }],
+    unmatched: [{ outlet: 'Unknown Chemist', distributor: 'Medipharm Wholesale', value: 400 }] }),
   'GET /dashboards/targets': () => ({ month: '2026-10', currency: 'GHS', scoped: false, daysInMonth: 31, daysElapsed: 10, paceNote: '10 of 31 days of the month have passed.', companyActual: 30000,
     rows: [{ region: null, channel: null, target: 100000, actual: 30000, attainmentPct: 30, projected: 93000, projectedPct: 93 }] }),
   'GET /dashboards/coverage': () => ({ days: 90, customers: 3000, expectedVisits: 9000, completedVisits: 4950, attainmentPct: 55, overdue: 410, neverVisited: 120,
@@ -178,6 +181,7 @@ try {
   await expectText('7.0% of the market')
   await expectText('Savelugu Pharmacy')
   await expectText('All regions · all channels')
+  await expectText('Medipharm Wholesale')
   await shot('rtm')
 
   await page.getByRole('link', { name: 'Orders' }).click()

@@ -20,3 +20,17 @@ Discounts and promotions, stock checks at order time, customer-facing ordering, 
 
 ## API
 `POST /orders`, `GET /orders`, `GET /orders/summary`, `POST /orders/{id}/confirm|deliver|cancel`, `PUT /orders/prices`; orders also travel in `/sync/push` (`orders`) and `/sync/pull` (`orders`, last 90 days).
+
+## Delivery service (on time, in full)
+- **Promise.** Confirming an order sets a promised delivery time: two days later by default, or the date the office chooses (`POST /orders/{id}/confirm` with `promisedDate`).
+- **In full.** *Mark delivered* asks whether the whole order was delivered. If not, what was short must be written (kept with the order).
+- **Measures.** `GET /orders/summary` reports, for delivered orders that carry a promise: **on time** (delivered by the promised time), **in full**, and **OTIF** (both), overall and by region, plus the number of confirmed orders already past their promised date. Orders delivered before this was in place carry no promise and are left out of the percentages.
+
+## Distributor sales (sell-out)
+Most outlets are reached through distributors, who invoice them, not DAS. To see them:
+1. Ask each distributor for what they sold to which outlet (template: `docs/templates/distributor-sell-out-template.csv`; columns `distributor, outlet, date, quantity, net_amount`, optionally `outlet_code, item_code, reference`). The distributor must exist as a customer of type *Distributor* (matched by ERP account code or name).
+2. Route to market page → **Distributors** → choose the file → **Check file**, review, then **Load**. Roles that may import customers can load it. Loading the same file again changes nothing; a `reference` (for example the invoice number) lets a later file correct a line.
+3. Outlets are matched to DAS customers by `outlet_code` (ERP account code) or by name (capitals, punctuation and titles ignored; two customers with the same name are never guessed between). Unmatched outlets are listed so they can be added as customers.
+4. The page then shows what each distributor sold, the outlets matched, and the outlets **reached only through a distributor** (sold to in the period, but not visited or invoiced by DAS). The Route to market summary shows that number beside "reached"; it is **not** added to "reached", so the two stay comparable with earlier periods.
+
+Credit balances can be loaded the same way with the template `docs/templates/erp-balances-template.csv` (`POST /api/v1/erp/import/balances`).

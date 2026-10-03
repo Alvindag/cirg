@@ -3,7 +3,7 @@ import type { CreditOverview, OrderSummary, Product, SalesOrder } from '../api/t
 import { Badge, Empty, ErrorBox, Kpi, Loading, Section } from '../components/ui'
 import { LiveBadge } from '../components/LiveBadge'
 import { useApp } from '../context'
-import { fmtDateTime, fmtInt } from '../lib/format'
+import { fmtDate, fmtDateTime, fmtInt, fmtPct } from '../lib/format'
 import { canManageOrders, canReleaseCredit, canSetPrices, isManager } from '../lib/roles'
 import { liveStatus, useAsync } from '../lib/useAsync'
 import { useUserNames } from '../lib/useNames'
@@ -37,6 +37,7 @@ function OrderList() {
   const { api, me } = useApp()
   const [status, setStatus] = useState('Placed')
   const [open, setOpen] = useState<string>()
+  const [now] = useState(() => Date.now()) // fixed for this view, so late/promised labels do not change while rendering
   const { name: userName } = useUserNames()
   const summary = useAsync(() => api.get<OrderSummary>('/orders/summary', { days: 30 }), [], { refreshMs: 60_000 })
   const list = useAsync(() => api.get<SalesOrder[]>('/orders', { status: status === 'All' ? undefined : status }), [status], { refreshMs: 60_000 })
@@ -53,6 +54,12 @@ function OrderList() {
     if (!note?.trim()) return
     void act(() => api.post(`/orders/${o.id}/confirm`, { note }), `Order ${o.number} released and confirmed.`)
   }
+  const deliver = (o: SalesOrder) => {
+    if (window.confirm(`Was the whole of order ${o.number} delivered?`)) { void act(() => api.post(`/orders/${o.id}/deliver`, { inFull: true }), `Order ${o.number} marked delivered.`); return }
+    const note = window.prompt('What was short? (this is kept with the order)')
+    if (!note?.trim()) return
+    void act(() => api.post(`/orders/${o.id}/deliver`, { inFull: false, note }), `Order ${o.number} marked delivered, not in full.`)
+  }
   const cancel = (o: SalesOrder) => {
     const note = window.prompt('Reason for cancelling (the rep will see it):')
     if (!note?.trim()) return
@@ -68,7 +75,21 @@ function OrderList() {
           <Kpi label="Waiting to be confirmed" value={fmtInt(s.placed)} tone={s.placed > 0 ? 'warn' : undefined} />
           <Kpi label="Confirmed, not yet delivered" value={fmtInt(s.confirmed)} />
           <Kpi label="Delivered" value={fmtInt(s.delivered)} hint={s.avgHoursToDeliver != null ? `${hours(s.avgHoursToDeliver)} from order to delivery` : 'none yet'} />
+          {s.service && (
+            <Kpi label="On time, in full" value={s.service.otifPct != null ? fmtPct(s.service.otifPct) : '—'}
+              hint={s.service.otifPct != null ? `${fmtPct(s.service.onTimePct ?? 0)} on time · ${fmtPct(s.service.inFullPct ?? 0)} in full (${fmtInt(s.service.judged)} orders)` : 'needs delivered orders that carry a promise'}
+              tone={s.service.otifPct == null ? undefined : s.service.otifPct < 80 ? 'bad' : s.service.otifPct < 95 ? 'warn' : 'good'} />
+          )}
+          {s.lateOpen != null && s.lateOpen > 0 && <Kpi label="Running late" value={fmtInt(s.lateOpen)} hint="confirmed, promised date has passed" tone="bad" />}
         </div>
+      )}
+      {s?.regions && s.regions.length > 0 && (
+        <Section title="Delivery service by region">
+          <table>
+            <thead><tr><th>Region</th><th className="num">Delivered</th><th className="num">On time</th><th className="num">In full</th><th className="num">OTIF</th></tr></thead>
+            <tbody>{s.regions.map((r) => <tr key={r.region}><td>{r.region}</td><td className="num">{fmtInt(r.delivered)}</td><td className="num">{fmtPct(r.onTimePct)}</td><td className="num">{fmtPct(r.inFullPct)}</td><td className="num">{fmtPct(r.otifPct)}</td></tr>)}</tbody>
+          </table>
+        </Section>
       )}
       <Section title="Orders" actions={
         <span className="filters">
@@ -94,11 +115,11 @@ function OrderList() {
                     <td>{o.customerName}</td>
                     <td>{userName(o.repId)}</td>
                     <td className="num">{money(o.total)}</td>
-                    <td><Badge tone={tone(o.status)}>{o.status}</Badge>{o.creditHold && o.status === 'Placed' && <> <Badge tone="bad">Credit hold</Badge></>}</td>
+                    <td><Badge tone={tone(o.status)}>{o.status}</Badge>{o.status === 'Confirmed' && o.promisedAt && <> <span className={Date.parse(o.promisedAt) < now ? 'muted small late' : 'muted small'}>{Date.parse(o.promisedAt) < now ? 'late, promised ' : 'promised '}{fmtDate(o.promisedAt)}</span></>}{o.status === 'Delivered' && o.deliveredInFull === false && <> <Badge tone="warn">Short</Badge></>}{o.creditHold && o.status === 'Placed' && <> <Badge tone="bad">Credit hold</Badge></>}</td>
                     <td className="actions">
                       {canManageOrders(me.role) && o.status === 'Placed' && (!o.creditHold || canReleaseCredit(me.role)) && <button className="primary" onClick={() => confirm(o)}>{o.creditHold ? 'Release and confirm' : 'Confirm'}</button>}
                       {canManageOrders(me.role) && o.status === 'Placed' && o.creditHold && !canReleaseCredit(me.role) && <span className="muted small">Needs a credit release</span>}
-                      {canManageOrders(me.role) && o.status === 'Confirmed' && <button className="primary" onClick={() => act(() => api.post(`/orders/${o.id}/deliver`, {}), `Order ${o.number} marked delivered.`)}>Mark delivered</button>}
+                      {canManageOrders(me.role) && o.status === 'Confirmed' && <button className="primary" onClick={() => deliver(o)}>Mark delivered</button>}
                       {canManageOrders(me.role) && (o.status === 'Placed' || o.status === 'Confirmed') && <button onClick={() => cancel(o)}>Cancel</button>}
                     </td>
                   </tr>
@@ -110,6 +131,7 @@ function OrderList() {
                           <tbody>{o.lines.map((l) => <tr key={l.id}><td>{l.productName}</td><td className="num">{fmtInt(l.quantity)}</td><td className="num">{money(l.unitPrice)}</td><td className="num">{money(l.lineTotal)}</td></tr>)}</tbody>
                         </table>
                         {o.notes && <p>Note: {o.notes}</p>}
+                        {o.shortfallNote && <p>Short delivery: {o.shortfallNote}</p>}
                         {o.creditHold && <p>Credit hold: {o.creditHoldReason}{o.creditReleaseNote ? ` Released: ${o.creditReleaseNote}` : ''}</p>}
                         {o.cancelReason && <p>Cancelled: {o.cancelReason}</p>}
                       </td>

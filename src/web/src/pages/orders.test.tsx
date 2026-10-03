@@ -106,4 +106,27 @@ describe('Orders', () => {
     await waitFor(() => expect(put).toHaveBeenCalled())
     expect(put.mock.calls[0][1]).toEqual({ creditLimit: 800 })
   })
+
+  it('shows delivery service (on time, in full), orders running late and the service by region', async () => {
+    const sum: OrderSummary = { ...summary, service: { judged: 8, onTimePct: 75, inFullPct: 87.5, otifPct: 62.5 }, lateOpen: 2, regions: [{ region: 'Northern', delivered: 3, onTimePct: 33.3, inFullPct: 66.7, otifPct: 33.3 }] }
+    const api = fakeApi({ 'GET /orders/summary': () => sum, 'GET /orders': () => [], 'GET /users': () => [] })
+    renderApp(<Orders />, api, me('Admin'))
+    expect(await screen.findByText('62.5%')).toBeInTheDocument()
+    expect(screen.getByText('75.0% on time · 87.5% in full (8 orders)')).toBeInTheDocument()
+    expect(screen.getByText('Running late')).toBeInTheDocument()
+    const row = screen.getByText('Northern').closest('tr')!
+    expect(within(row).getAllByText('33.3%')).toHaveLength(2)      // on time and OTIF; in full is 66.7%
+  })
+
+  it('asks whether the whole order was delivered, and for what was short when it was not', async () => {
+    const post = vi.fn(async () => order({ status: 'Delivered' }))
+    vi.spyOn(window, 'confirm').mockReturnValue(false)
+    vi.spyOn(window, 'prompt').mockReturnValue('Only 1 carton')
+    const api = fakeApi({ 'GET /orders/summary': () => summary, 'GET /orders': () => [order({ status: 'Confirmed', promisedAt: '2099-01-01T00:00:00Z' })], 'GET /users': () => [], 'POST /orders/o1/deliver': post })
+    renderApp(<Orders />, api, me('Admin'))
+    await userEvent.click(await screen.findByRole('button', { name: 'Mark delivered' }))
+    await waitFor(() => expect(post).toHaveBeenCalled())
+    expect(post.mock.calls[0][1]).toEqual({ inFull: false, note: 'Only 1 carton' })
+    expect(await screen.findByText('Order ORD-20261003-AB12CD marked delivered, not in full.')).toBeInTheDocument()
+  })
 })
