@@ -12,7 +12,7 @@ npm run start   # serve the production build
 npm run lint
 ```
 
-Requires Node 18.17 or newer. Press **⌘K** or **Ctrl+K** anywhere to open the command palette.
+Requires Node 18.17 or newer. In production, set up Microsoft sign-in first (see Signing in) or set `ALLOW_DEMO_AUTH=true` for a demo. Press **⌘K** or **Ctrl+K** anywhere to open the command palette.
 
 ## What it is
 
@@ -40,19 +40,44 @@ Then open **Connect DAS Engage** in the header and paste an access token (`pytho
 
 `node scripts/mock-das-api.mjs` runs a small fake of the original API on port 5050 for trying external mode.
 
+## Signing in
+
+| Mode | When | How people sign in |
+| --- | --- | --- |
+| Microsoft Entra | All `ENTRA_*` settings and `AUTH_SESSION_SECRET` are set | "Sign in with Microsoft" on the Connect page |
+| Demo picker | No Entra settings, in development, or in production with `ALLOW_DEMO_AUTH=true` | The "Signed in as" menu; anyone can pick any role |
+| Refused | Production with neither, or Entra settings only partly filled in | Every API call answers 503 and the Connect page says why |
+
+Set up Microsoft sign-in:
+
+1. In the Azure portal, **Microsoft Entra ID > App registrations > New registration**. Single tenant. Add a **Web** redirect URI: `https://<your-host>/auth/callback` (and `http://localhost:3000/auth/callback` for development).
+2. **Certificates & secrets > New client secret.** Copy the value.
+3. Set the variables from `.env.example` (`ENTRA_TENANT_ID`, `ENTRA_CLIENT_ID`, `ENTRA_CLIENT_SECRET`, `AUTH_SESSION_SECRET`, `APP_BASE_URL`, and `ENTRA_BOOTSTRAP_ADMIN_EMAIL` for the first administrator). Make the session secret long and random, for example `openssl rand -base64 48`.
+4. Restart and sign in as the bootstrap admin. Then add everyone else on the **Team** page using their work email. Nobody is created just by signing in with Microsoft.
+
+How it behaves:
+- The server does the whole sign-in (authorization code with PKCE). It checks the token's signature, issuer, audience, tenant, expiry and nonce. The browser holds only an HttpOnly, SameSite=Lax session cookie (8 hours), never a Microsoft token.
+- The first sign-in links a person to their Microsoft account id. After that the id is what counts, so reusing an email address does not give access.
+- Writes also need an `Authorization: Bearer session` header, which blocks cross-site request forgery on top of the cookie.
+- Sign-ins and refused sign-ins are written to the audit trail.
+- A deactivated person is refused at once, even with a valid cookie.
+- `scripts/mock-entra.mjs` is a fake Microsoft for trying the flow locally (see the comment at the top of that file). Never use it in production.
+
+Not done: Entra group or app-role mapping (roles are managed in the Team page), single sign-out, and distributor-partner accounts from the screen (the API accepts `role: "Distributor"` with a `distributorId`).
+
 ## Built-in backend
 
 - `lib/server/seed.ts` makes deterministic sample data: Ghana regions, about 220 customers (with duplicates and gaps on purpose), 1,250 visits, 1,000+ orders, deals, sample stock.
 - `lib/server/store.ts` keeps it in `.data/crm-db.json` (override with `CRM_DATA_FILE`). Delete the file to start over; an Admin can also reset it from the API (`POST /das-api/api/v1/demo/reset`).
 - `lib/server/routes/` holds the endpoints, with role checks. `lib/das/rbac.ts` is the single table of who may open what, used by the menu, the pages and the server.
 - Visits and the audit trail are hash-chained (`lib/rtm/hashchain.ts`). Changing a record breaks the chain and the Access page says so.
-- Sign-in is a demo role picker (`Bearer builtin:<userId>`). **Do not put real data or real partners on it.** Use Microsoft Entra or your identity provider first.
+- Sign-in is Microsoft Entra ID when configured (see Signing in), otherwise a demo role picker. **Do not put real data or real partners on the demo picker.**
 - One JSON file on one server. Serverless hosts with a read-only or per-request disk will lose changes.
 
 ## Tests
 
 ```bash
-npm test        # unit tests: RTM maths, offline queue, API roles and rules
+npm test        # unit tests: RTM maths, offline queue, API roles and rules, sign-in checks
 npm run lint
 npx tsc --noEmit
 ```
@@ -122,7 +147,7 @@ Only `transform` and `opacity` are animated, so the browser can composite them w
 
 ## Known gaps
 
-- No deployment is set up. Microsoft Entra sign-in is not built.
+- No deployment is set up, and the real DAS API has not been connected or tested.
 - Edits that need a number or a reason still use the browser's prompt boxes.
 - No photo proof, face check or push notifications for field staff.
 - `shadcn init` could not reach the shadcn registry from the build environment, so `components.json` and the theme were written by hand. `npx shadcn add <component>` should work wherever the registry is reachable.

@@ -10,48 +10,91 @@ import {
 } from "react";
 
 import { dasGet, DasApiError } from "./client";
-import { BUILTIN_DEFAULT_USER, builtinToken, dasBuiltIn, dasEnabled } from "./config";
+import {
+  BUILTIN_DEFAULT_USER,
+  builtinToken,
+  dasBuiltIn,
+  DAS_API_PREFIX,
+} from "./config";
 import { loadToken, saveToken } from "./token";
 import type { Me } from "./types";
 
 /**
- * demo:        sign-in is switched off (not used by the app any more)
- * signed-out:  API configured, no valid token yet (sample data shown)
- * connecting:  token present, checking it with GET /me
- * live:        signed in, widgets read from the API
+ * connecting:  working out how to sign in, or checking the session with GET /me
+ * signed-out:  no valid session or token yet
+ * live:        signed in, pages read from the API
+ * (demo is kept for old callers and is no longer produced)
  */
 export type DasStatus = "demo" | "signed-out" | "connecting" | "live";
 
+/** How people sign in. Only the built-in backend reports this; an external API always uses pasted tokens. */
+export type AuthMode = "entra" | "demo" | "unconfigured" | "token";
+
+/** In Microsoft mode the session lives in an HttpOnly cookie; this placeholder only marks the header on writes. */
+export const SESSION_TOKEN = "session";
+
 type DasContextValue = {
   status: DasStatus;
+  authMode: AuthMode | null;
   token: string | null;
   me: Me | null;
   error: string | null;
   signIn: (token: string) => void;
   signOut: () => void;
-  /** Built-in backend only: switch to another demo user. */
+  /** Demo mode only: switch to another demo user. */
   switchUser: (userId: string) => void;
 };
 
 const DasContext = createContext<DasContextValue | null>(null);
 
 export function DasProvider({ children }: { children: React.ReactNode }) {
+  const [authMode, setAuthMode] = useState<AuthMode | null>(
+    dasBuiltIn ? null : "token",
+  );
   const [token, setToken] = useState<string | null>(null);
   const [me, setMe] = useState<Me | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [ready, setReady] = useState(false);
 
+  // Find out how this server wants people to sign in, then pick a starting token.
   useEffect(() => {
-    // The built-in backend signs in as a default demo user so every page works at once.
-    if (dasEnabled) {
-      setToken(loadToken() ?? (dasBuiltIn ? builtinToken(BUILTIN_DEFAULT_USER) : null));
+    let cancelled = false;
+    async function start() {
+      let mode: AuthMode = "token";
+      if (dasBuiltIn) {
+        try {
+          const r = await fetch(`${DAS_API_PREFIX}/auth/config`);
+          const c = (await r.json()) as { mode: AuthMode; reason?: string | null };
+          mode = c.mode;
+          if (c.mode === "unconfigured") setError(c.reason ?? "Sign-in is not configured.");
+        } catch {
+          setError("Could not reach the server.");
+          mode = "unconfigured";
+        }
+      }
+      if (cancelled) return;
+      setAuthMode(mode);
+      if (mode === "entra") setToken(SESSION_TOKEN);
+      else if (mode === "demo") setToken(loadToken() ?? builtinToken(BUILTIN_DEFAULT_USER));
+      else if (mode === "token") setToken(loadToken());
+      setReady(true);
     }
-    setReady(true);
+    void start();
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   const signOut = useCallback(() => {
-    if (dasBuiltIn) {
-      // There is no signed-out state with the built-in backend: fall back to the default user.
+    if (authMode === "entra") {
+      // Clear the cookie on the server, then reload as a signed-out visitor.
+      void fetch("/auth/logout", { method: "POST" }).finally(() => {
+        window.location.assign("/connect");
+      });
+      return;
+    }
+    if (authMode === "demo") {
+      // No signed-out state in demo mode: fall back to the default user.
       const t = builtinToken(BUILTIN_DEFAULT_USER);
       saveToken(t);
       setMe(null);
@@ -61,7 +104,7 @@ export function DasProvider({ children }: { children: React.ReactNode }) {
     saveToken(null);
     setToken(null);
     setMe(null);
-  }, []);
+  }, [authMode]);
 
   const signIn = useCallback((t: string) => {
     saveToken(t);
@@ -85,8 +128,15 @@ export function DasProvider({ children }: { children: React.ReactNode }) {
       .catch((e: unknown) => {
         if (ctrl.signal.aborted) return;
         const unauthorized = e instanceof DasApiError && e.status === 401;
-        // A built-in token for a user that no longer exists (data was reset): start over as the default user.
-        if (dasBuiltIn && unauthorized && token !== builtinToken(BUILTIN_DEFAULT_USER)) {
+        if (authMode === "entra") {
+          // Not signed in (or the session ended). Show the sign-in page; do not loop.
+          setToken(null);
+          setMe(null);
+          if (!unauthorized) setError(e instanceof Error ? e.message : "Could not reach the server.");
+          return;
+        }
+        // A demo token for a user that no longer exists (data was reset): start over as the default user.
+        if (authMode === "demo" && unauthorized && token !== builtinToken(BUILTIN_DEFAULT_USER)) {
           signIn(builtinToken(BUILTIN_DEFAULT_USER));
           return;
         }
@@ -100,21 +150,19 @@ export function DasProvider({ children }: { children: React.ReactNode }) {
         signOut();
       });
     return () => ctrl.abort();
-  }, [token, signOut, signIn]);
+  }, [token, authMode, signOut, signIn]);
 
-  const status: DasStatus = !dasEnabled
-    ? "demo"
-    : !ready
-      ? "signed-out"
-      : me && token
-        ? "live"
-        : token
-          ? "connecting"
-          : "signed-out";
+  const status: DasStatus = !ready
+    ? "connecting"
+    : me && token
+      ? "live"
+      : token
+        ? "connecting"
+        : "signed-out";
 
   const value = useMemo(
-    () => ({ status, token, me, error, signIn, signOut, switchUser }),
-    [status, token, me, error, signIn, signOut, switchUser],
+    () => ({ status, authMode, token, me, error, signIn, signOut, switchUser }),
+    [status, authMode, token, me, error, signIn, signOut, switchUser],
   );
   return <DasContext.Provider value={value}>{children}</DasContext.Provider>;
 }

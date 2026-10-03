@@ -25,6 +25,8 @@ export interface User {
   isActive: boolean;
   /** Set for Distributor users: the partner they belong to. */
   distributorId: string | null;
+  /** Microsoft account id, bound on first sign-in so a reassigned email cannot take the account over. */
+  entraOid?: string | null;
 }
 
 export interface Territory {

@@ -1,5 +1,6 @@
 import { HttpError } from "./access";
 import type { DB, User } from "./model";
+import { authConfig, cookieValue, readSession, SESSION_COOKIE } from "./auth";
 import { getDb } from "./store";
 
 export interface Ctx {
@@ -54,12 +55,27 @@ export const notFound = (what: string): never => {
   throw new HttpError(404, `${what} not found.`);
 };
 
-/** Token format of the built-in backend: "builtin:<userId>". This is demo-grade sign-in, see the README. */
+/** Demo mode only: "builtin:<userId>" tokens, anyone can pick any role. See README. */
 export function userFromAuth(auth: string | null | undefined): User | null {
   const m = /^Bearer\s+builtin:(\S+)$/i.exec(auth ?? "");
   if (!m) return null;
   const u = getDb().users.find((x) => x.id === m[1] && x.isActive);
   return u ?? null;
+}
+
+/**
+ * Who is calling. In Microsoft mode that is the signed session cookie, and
+ * every write must also carry the `Authorization: Bearer session` header: a
+ * browser will not add a custom header to a cross-site form post, which blocks
+ * cross-site request forgery on top of the SameSite cookie.
+ */
+async function authenticate(method: string, auth: string | null, cookie: string | null): Promise<User | null> {
+  const cfg = authConfig();
+  if (cfg.mode === "demo") return userFromAuth(auth);
+  if (cfg.mode !== "entra") return null;
+  if (method !== "GET" && !/^Bearer\s+session$/i.test(auth ?? "")) return null;
+  const id = await readSession(cookieValue(cookie, SESSION_COOKIE), cfg.sessionSecret!);
+  return getDb().users.find((x) => x.id === id && x.isActive) ?? null;
 }
 
 export async function dispatch(
@@ -68,13 +84,15 @@ export async function dispatch(
   q: URLSearchParams,
   text: string,
   auth: string | null,
+  cookie: string | null = null,
 ): Promise<Reply> {
   try {
     for (const r of routes) {
       if (r.method !== method) continue;
       const m = r.re.exec(path);
       if (!m) continue;
-      const user = userFromAuth(auth);
+      if (!r.open && authConfig().mode === "unconfigured") throw new HttpError(503, authConfig().reason ?? "Sign-in is not configured.");
+      const user = r.open ? null : await authenticate(method, auth, cookie);
       if (!user && !r.open) throw new HttpError(401, "Not signed in.");
       let body: any = {};
       if (text && text.trim().startsWith("{")) {

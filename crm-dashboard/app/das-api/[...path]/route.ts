@@ -9,7 +9,7 @@ async function handle(req: Request, { params }: { params: { path: string[] } }) 
   const url = new URL(req.url);
   const path = "/" + params.path.join("/").replace(/^api\/v1\/?/, "");
   const text = req.method === "GET" || req.method === "DELETE" ? "" : await req.text();
-  const r = await dispatch(req.method, path.replace(/\/$/, "") || "/", url.searchParams, text, req.headers.get("authorization"));
+  const r = await dispatch(req.method, path.replace(/\/$/, "") || "/", url.searchParams, text, req.headers.get("authorization"), req.headers.get("cookie"));
   if (r.status === 204 || r.body === undefined) return new Response(null, { status: r.status });
   const isText = r.contentType && typeof r.body === "string";
   return new Response(isText ? (r.body as string) : JSON.stringify(r.body), {

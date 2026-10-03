@@ -2,7 +2,6 @@
 
 import Link from "next/link";
 
-import { dasEnabled } from "@/lib/das/config";
 import { useDas } from "@/lib/das/context";
 import { cn, focusRing } from "@/lib/utils";
 
@@ -36,7 +35,6 @@ export function DasStatus() {
     </span>
   );
 
-  if (!dasEnabled) return pill;
   return (
     <Link
       href="/connect"

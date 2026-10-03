@@ -4,16 +4,16 @@ import { Search } from "lucide-react";
 
 import { GlassPanel } from "@/components/ui/glass-panel";
 import { cn, focusRing } from "@/lib/utils";
-import { dasBuiltIn } from "@/lib/das/config";
 import { useDas } from "@/lib/das/context";
 import { MobileNav } from "./MobileNav";
 import { NotificationsMenu } from "./NotificationsMenu";
 import { RoleSwitcher } from "./RoleSwitcher";
+import { SignOutButton } from "./SignOutButton";
 import { DasStatus } from "./DasStatus";
 import { OPEN_COMMAND_MENU_EVENT } from "./CommandMenu";
 
 export function Header() {
-  const { me } = useDas();
+  const { me, authMode } = useDas();
   const initials = me
     ? me.fullName
         .split(/\s+/)
@@ -46,7 +46,7 @@ export function Header() {
       </button>
 
       <div className="flex min-w-0 shrink-0 items-center gap-2 sm:gap-3">
-        {dasBuiltIn ? <RoleSwitcher /> : <DasStatus />}
+        {authMode === "demo" ? <RoleSwitcher /> : authMode === "entra" ? <SignOutButton /> : <DasStatus />}
         <NotificationsMenu />
         <div
           role="img"

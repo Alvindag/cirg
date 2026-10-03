@@ -1,5 +1,6 @@
 import { isWide, forbid, HttpError, isActiveCustomer, requireFeature, resolveCustomerId, visibleCustomers, visibleUserIds } from "../access";
 import { del, get, num, open, notFound, bad, post, put, reply } from "../router";
+import { authConfig } from "../auth";
 import { logAudit, resetDb, save } from "../store";
 import { isManager, canEditCustomers, canImportCustomers, isAdmin } from "@/lib/das/roles";
 import { findDuplicates, normaliseName, normalisePhone } from "@/lib/rtm/dq";
@@ -34,12 +35,17 @@ export const inRange = (iso: string, r: { from: number; to: number }) => {
 /* ---------------- sign-in ---------------- */
 
 // Used by the demo role picker, before anyone is signed in.
-open("/demo/users", ({ db }) =>
-  db.users.filter((u) => u.isActive).map((u) => ({ ...publicUser(u), territory: db.territories.find((t) => t.id === u.territoryId)?.name ?? null, distributor: db.distributors.find((d) => d.id === u.distributorId)?.name ?? null })),
-);
+open("/auth/config", () => {
+  const c = authConfig();
+  return { mode: c.mode, reason: c.reason ?? null };
+});
+open("/demo/users", ({ db }) => {
+  if (authConfig().mode !== "demo") throw new HttpError(404, "Not available.");
+  return db.users.filter((u) => u.isActive).map((u) => ({ ...publicUser(u), territory: db.territories.find((t) => t.id === u.territoryId)?.name ?? null, distributor: db.distributors.find((d) => d.id === u.distributorId)?.name ?? null }));
+});
 get("/me", ({ user }) => publicUser(user));
 post("/demo/reset", ({ user }) => {
-  if (user.role !== "Admin") forbid("Only an Admin can reset the sample data.");
+  if (user.role !== "Admin" || authConfig().mode !== "demo") forbid("Only an Admin can reset the sample data, and only in demo mode.");
   resetDb();
 });
 
@@ -371,8 +377,9 @@ post("/admin/users", ({ db, user, body }) => {
   if (!body.fullName?.trim() || !body.email?.trim()) bad("Name and email are required.");
   if (db.users.some((u) => u.email.toLowerCase() === body.email.toLowerCase())) throw new HttpError(409, "Someone with that email already exists.");
   const role = body.role ?? "Rep";
-  if (role === "Distributor") bad("Distributor users are created from the partner record.");
-  const u: User = { id: uuid("user"), tenantId: user.tenantId, fullName: body.fullName.trim(), email: body.email.trim(), role, territoryId: body.territoryId ?? null, externalId: body.externalId || uuid("ext"), managerId: body.managerId ?? null, isActive: true, distributorId: null };
+  const distributorId = role === "Distributor" ? (body.distributorId as string | undefined) : undefined;
+  if (role === "Distributor" && !db.distributors.some((d) => d.id === distributorId)) bad("A distributor user needs a valid distributorId.");
+  const u: User = { id: uuid("user"), tenantId: user.tenantId, fullName: body.fullName.trim(), email: body.email.trim(), role, territoryId: body.territoryId ?? null, externalId: body.externalId || uuid("ext"), managerId: body.managerId ?? null, isActive: true, distributorId: distributorId ?? null };
   db.users.push(u);
   logAudit(user.id, "Create", "User", u.id, { role });
   save();
