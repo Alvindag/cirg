@@ -84,6 +84,18 @@ public static class CsvMapper
         return new(items, errors);
     }
 
+    public static Parsed<ErpBalance> Balances(string csv)
+    {
+        var items = new List<ErpBalance>(); var errors = new List<ItemOutcome>();
+        foreach (var r in Rows(csv, "account_code"))
+        {
+            var limit = Dec(r, "credit_limit", errors, out var b1); var owed = Dec(r, "outstanding", errors, out var b2); var late = Dec(r, "overdue", errors, out var b3);
+            if (b1 || b2 || b3) continue;
+            items.Add(new ErpBalance(r.Get("account_code"), limit, owed, late, null));
+        }
+        return new(items, errors);
+    }
+
     public static Parsed<ErpStockLevel> StockLevels(string csv)
     {
         var items = new List<ErpStockLevel>(); var errors = new List<ItemOutcome>();

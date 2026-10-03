@@ -1,14 +1,14 @@
 import { Fragment, useState } from 'react'
-import type { OrderSummary, Product, SalesOrder } from '../api/types'
+import type { CreditOverview, OrderSummary, Product, SalesOrder } from '../api/types'
 import { Badge, Empty, ErrorBox, Kpi, Loading, Section } from '../components/ui'
 import { LiveBadge } from '../components/LiveBadge'
 import { useApp } from '../context'
 import { fmtDateTime, fmtInt } from '../lib/format'
-import { canManageOrders, canSetPrices, isManager } from '../lib/roles'
+import { canManageOrders, canReleaseCredit, canSetPrices, isManager } from '../lib/roles'
 import { liveStatus, useAsync } from '../lib/useAsync'
 import { useUserNames } from '../lib/useNames'
 
-type Tab = 'orders' | 'prices'
+type Tab = 'orders' | 'credit' | 'prices'
 
 const money = (n: number) => `GHS ${new Intl.NumberFormat('en-GB', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(n)}`
 const tone = (s: string) => (s === 'Delivered' ? 'good' : s === 'Confirmed' ? 'warn' : s === 'Cancelled' ? 'bad' : 'muted')
@@ -21,14 +21,14 @@ export function Orders() {
   return (
     <>
       <div className="page-head"><h1>Orders</h1></div>
-      {canSetPrices(me.role) && (
-        <div className="tabs" role="tablist">
-          {([['orders', 'Orders'], ['prices', 'Price list']] as [Tab, string][]).map(([id, label]) => (
-            <button key={id} role="tab" aria-selected={tab === id} className={tab === id ? 'active' : ''} onClick={() => setTab(id)}>{label}</button>
-          ))}
-        </div>
-      )}
-      {tab === 'orders' ? <OrderList /> : <PriceList />}
+      <div className="tabs" role="tablist">
+        {([['orders', 'Orders'], ['credit', 'Credit'], ...(canSetPrices(me.role) ? [['prices', 'Price list']] : [])] as [Tab, string][]).map(([id, label]) => (
+          <button key={id} role="tab" aria-selected={tab === id} className={tab === id ? 'active' : ''} onClick={() => setTab(id)}>{label}</button>
+        ))}
+      </div>
+      {tab === 'orders' && <OrderList />}
+      {tab === 'credit' && <Credit />}
+      {tab === 'prices' && <PriceList />}
     </>
   )
 }
@@ -46,6 +46,12 @@ function OrderList() {
   async function act(fn: () => Promise<unknown>, ok: string) {
     setError(undefined); setMessage(undefined)
     try { await fn(); setMessage(ok); list.reload(); summary.reload() } catch (e) { setError(e instanceof Error ? e.message : String(e)) }
+  }
+  const confirm = (o: SalesOrder) => {
+    if (!o.creditHold) { void act(() => api.post(`/orders/${o.id}/confirm`, {}), `Order ${o.number} confirmed.`); return }
+    const note = window.prompt(`This order is on credit hold:\n${o.creditHoldReason ?? ''}\n\nWhy is it being released?`)
+    if (!note?.trim()) return
+    void act(() => api.post(`/orders/${o.id}/confirm`, { note }), `Order ${o.number} released and confirmed.`)
   }
   const cancel = (o: SalesOrder) => {
     const note = window.prompt('Reason for cancelling (the rep will see it):')
@@ -88,9 +94,10 @@ function OrderList() {
                     <td>{o.customerName}</td>
                     <td>{userName(o.repId)}</td>
                     <td className="num">{money(o.total)}</td>
-                    <td><Badge tone={tone(o.status)}>{o.status}</Badge></td>
+                    <td><Badge tone={tone(o.status)}>{o.status}</Badge>{o.creditHold && o.status === 'Placed' && <> <Badge tone="bad">Credit hold</Badge></>}</td>
                     <td className="actions">
-                      {canManageOrders(me.role) && o.status === 'Placed' && <button className="primary" onClick={() => act(() => api.post(`/orders/${o.id}/confirm`, {}), `Order ${o.number} confirmed.`)}>Confirm</button>}
+                      {canManageOrders(me.role) && o.status === 'Placed' && (!o.creditHold || canReleaseCredit(me.role)) && <button className="primary" onClick={() => confirm(o)}>{o.creditHold ? 'Release and confirm' : 'Confirm'}</button>}
+                      {canManageOrders(me.role) && o.status === 'Placed' && o.creditHold && !canReleaseCredit(me.role) && <span className="muted small">Needs a credit release</span>}
                       {canManageOrders(me.role) && o.status === 'Confirmed' && <button className="primary" onClick={() => act(() => api.post(`/orders/${o.id}/deliver`, {}), `Order ${o.number} marked delivered.`)}>Mark delivered</button>}
                       {canManageOrders(me.role) && (o.status === 'Placed' || o.status === 'Confirmed') && <button onClick={() => cancel(o)}>Cancel</button>}
                     </td>
@@ -103,6 +110,7 @@ function OrderList() {
                           <tbody>{o.lines.map((l) => <tr key={l.id}><td>{l.productName}</td><td className="num">{fmtInt(l.quantity)}</td><td className="num">{money(l.unitPrice)}</td><td className="num">{money(l.lineTotal)}</td></tr>)}</tbody>
                         </table>
                         {o.notes && <p>Note: {o.notes}</p>}
+                        {o.creditHold && <p>Credit hold: {o.creditHoldReason}{o.creditReleaseNote ? ` Released: ${o.creditReleaseNote}` : ''}</p>}
                         {o.cancelReason && <p>Cancelled: {o.cancelReason}</p>}
                       </td>
                     </tr>
@@ -122,6 +130,66 @@ function OrderList() {
         </Section>
       )}
     </>
+  )
+}
+
+function Credit() {
+  const { api, me } = useApp()
+  const c = useAsync(() => api.get<CreditOverview>('/credit/overview'), [], { refreshMs: 120_000 })
+  const [edits, setEdits] = useState<Record<string, string>>({})
+  const [message, setMessage] = useState<string>()
+  const [error, setError] = useState<string>()
+  const d = c.data
+  async function save(id: string, name: string) {
+    setError(undefined); setMessage(undefined)
+    const v = (edits[id] ?? '').trim()
+    const limit = v === '' ? null : Number(v)
+    if (limit !== null && (!Number.isFinite(limit) || limit < 0)) { setError('A limit must be a number of 0 or more.'); return }
+    try {
+      await api.put(`/credit/${id}`, { creditLimit: limit })
+      setEdits(({ [id]: _drop, ...rest }) => rest); setMessage(`Limit for ${name} saved.`); c.reload()
+    } catch (e) { setError(e instanceof Error ? e.message : String(e)) }
+  }
+  return (
+    <Section title="Credit">
+      <p className="muted">Balances and limits arrive from Business Central (the <code>balances</code> import: account code, credit limit, outstanding, overdue). An order for a customer who is over their limit or has overdue invoices is taken but held until a National Sales Manager or Admin releases it. Customers with no limit and no overdue are never held.</p>
+      {message && <div className="notice" role="status">{message}</div>}
+      {error && <ErrorBox message={error} />}
+      {c.error && <ErrorBox message={c.error} onRetry={c.reload} />}
+      {c.loading && !d && <Loading />}
+      {d && (d.customers === 0 ? <Empty>No balances yet. Send them with the ERP “balances” import.</Empty> : (
+        <>
+          <div className="kpis">
+            <Kpi label="Overdue in total" value={money(d.overdueTotal)} hint={`${fmtInt(d.withOverdue)} customer(s) overdue`} tone={d.withOverdue > 0 ? 'warn' : 'good'} />
+            <Kpi label="Over their limit" value={fmtInt(d.overLimit)} hint={`of ${fmtInt(d.withLimit)} with a limit`} tone={d.overLimit > 0 ? 'warn' : 'good'} />
+            <Kpi label="Orders on credit hold" value={fmtInt(d.heldOrders)} tone={d.heldOrders > 0 ? 'bad' : 'good'} />
+            <Kpi label="Owed in total" value={money(d.outstandingTotal)} />
+          </div>
+          {d.watch.length === 0 ? <Empty>Nobody is over their limit or overdue.</Empty> : (
+            <table>
+              <thead><tr><th>Customer</th><th>Territory</th><th className="num">Limit</th><th className="num">Owes</th><th className="num">Overdue</th><th className="num">On open orders</th><th /></tr></thead>
+              <tbody>
+                {d.watch.map((r) => (
+                  <tr key={r.customerId}>
+                    <td>{r.name} {r.overLimit && <Badge tone="bad">Over limit</Badge>}</td>
+                    <td>{r.territory ?? '—'}</td>
+                    <td className="num">
+                      {canSetPrices(me.role)
+                        ? <input aria-label={`Limit for ${r.name}`} inputMode="decimal" size={10} value={edits[r.customerId] ?? (r.creditLimit != null ? String(r.creditLimit) : '')} placeholder="no limit" onChange={(e) => setEdits({ ...edits, [r.customerId]: e.target.value })} />
+                        : r.creditLimit != null ? money(r.creditLimit) : '—'}
+                    </td>
+                    <td className="num">{money(r.outstanding)}</td>
+                    <td className="num">{r.overdue > 0 ? money(r.overdue) : '—'}</td>
+                    <td className="num">{r.openOrders > 0 ? money(r.openOrders) : '—'}</td>
+                    <td>{canSetPrices(me.role) && r.customerId in edits && <button onClick={() => save(r.customerId, r.name)}>Save limit</button>}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )}
+        </>
+      ))}
+    </Section>
   )
 }
 

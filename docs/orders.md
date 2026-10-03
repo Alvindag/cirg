@@ -9,8 +9,14 @@ Reps take orders on the phone (offline if needed); managers confirm, deliver or 
 4. **In the office.** *Orders* on the web: **Confirm** → **Mark delivered**; **Cancel** needs a reason. A rep may cancel their own order only before it is confirmed (ask the office afterwards). Every change is in the audit log.
 5. **Measures.** The summary shows orders and value for the last 30 days, orders waiting, confirmed, delivered, and the average hours from taking an order to delivering it.
 
+## Credit
+- **Balances.** Business Central (or any ERP) sends what each customer owes with `POST /api/v1/erp/import/balances` (CSV `account_code,credit_limit,outstanding,overdue`, or the same as JSON; also at `/integration/v1/balances` with an API key). A column left out keeps the stored value; an account code that matches no customer is refused (link it first). A limit can also be set by hand: web **Orders → Credit**, or `PUT /credit/{customerId}` (National Sales Manager, Executive, Admin; 0 or empty removes the limit).
+- **The rule.** When an order is taken, the customer is checked. If they have **overdue invoices**, or what they owe **plus orders not yet delivered plus this order** is **over their limit**, the order is still taken (the rep may be offline, in front of the customer) but put **on credit hold**, with the reason. Customers with no balance record, or no limit and nothing overdue, are never held.
+- **Releasing.** Only a National Sales Manager or Admin can confirm a held order, and must give a reason (kept on the order and in the audit log). Area and regional managers see "Needs a credit release". The rep sees "Held for credit review".
+- **Overview.** `GET /credit/overview`: overdue and owed totals, customers over their limit, orders on hold, and the customers to watch.
+
 ## Not built yet
-Credit limits and overdue balances, discounts and promotions, stock checks at order time, customer-facing ordering, delivery in-full tracking, sending confirmed orders to Business Central.
+Discounts and promotions, stock checks at order time, customer-facing ordering, sending confirmed orders to Business Central.
 
 ## API
 `POST /orders`, `GET /orders`, `GET /orders/summary`, `POST /orders/{id}/confirm|deliver|cancel`, `PUT /orders/prices`; orders also travel in `/sync/push` (`orders`) and `/sync/pull` (`orders`, last 90 days).

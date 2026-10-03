@@ -187,6 +187,7 @@ export interface SalesOrder {
   id: string; number: string; repId: string; customerId: string; customerName: string; status: OrderStatus
   total: number; currency: string; notes: string | null; placedAt: string
   confirmedAt: string | null; deliveredAt: string | null; cancelledAt: string | null; cancelReason: string | null
+  creditHold: boolean; creditHoldReason: string | null; creditReleaseNote: string | null
   lines: OrderLine[]
 }
 export interface OrderSummary {
@@ -204,3 +205,6 @@ export interface CoverageDashboard {
 export interface TargetRowDto { region: string | null; channel: SalesChannel | null; amount: number }
 export interface TargetProgressRow { region: string | null; channel: SalesChannel | null; target: number | null; actual: number; attainmentPct: number | null; projected: number | null; projectedPct: number | null }
 export interface TargetsDashboard { month: string; currency: string; scoped: boolean; daysInMonth: number; daysElapsed: number; paceNote: string | null; companyActual: number; rows: TargetProgressRow[] }
+
+export interface CreditRow { customerId: string; name: string; territory: string | null; creditLimit: number | null; outstanding: number; overdue: number; openOrders: number; asOf: string | null; overLimit: boolean }
+export interface CreditOverview { customers: number; withLimit: number; overdueTotal: number; outstandingTotal: number; overLimit: number; withOverdue: number; heldOrders: number; watch: CreditRow[] }

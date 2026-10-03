@@ -25,6 +25,7 @@ public static class Endpoints
         OrderEndpoints.Map(api);
         CoverageEndpoints.Map(api);
         TargetEndpoints.Map(api);
+        CreditEndpoints.Map(api);
     }
 
     // ---------- Customers ----------

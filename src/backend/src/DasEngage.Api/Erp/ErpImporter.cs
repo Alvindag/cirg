@@ -283,4 +283,45 @@ public class ErpImporter
         }
         return await Log("stock-levels", source, items, started);
     }
+
+    // ---------- customer balances and credit limits ----------
+
+    /// <summary>
+    /// What each customer owes (and may owe), by ERP account code. A value that is left out keeps what is stored; an account that matches no customer is refused,
+    /// so nothing is created from a balance list.
+    /// </summary>
+    public async Task<ImportSummary> Balances(IReadOnlyList<ErpBalance> list, string source)
+    {
+        var started = DateTime.UtcNow;
+        if (Check(list.Count > MaxBatch) is { } big) throw new ArgumentException(big);
+        var items = new List<ItemOutcome>();
+        var customers = (await _db.Customers.Where(c => c.ErpAccountCode != null).Select(c => new { c.Id, c.ErpAccountCode }).ToListAsync())
+            .GroupBy(c => c.ErpAccountCode!.ToLowerInvariant()).ToDictionary(g => g.Key, g => g.First().Id);
+        var credits = (await _db.CustomerCredits.ToListAsync()).ToDictionary(c => c.CustomerId);
+        var seen = new HashSet<string>();
+        foreach (var b in list)
+        {
+            var code = b.AccountCode?.Trim() ?? "";
+            if (code.Length is 0 or > 50) { items.Add(new(code, "error", "AccountCode is required.")); continue; }
+            if (!seen.Add(code.ToLowerInvariant())) { items.Add(new(code, "duplicate", "Repeated within this batch; the first occurrence was used.")); continue; }
+            if (b.CreditLimit < 0 || b.Outstanding < 0 || b.Overdue < 0) { items.Add(new(code, "error", "Amounts cannot be negative.")); continue; }
+            if (Math.Max(Math.Max(b.CreditLimit ?? 0, b.Outstanding ?? 0), b.Overdue ?? 0) > 1_000_000_000_000m) { items.Add(new(code, "error", "An amount is out of range.")); continue; }
+            if (b.Overdue > b.Outstanding) { items.Add(new(code, "error", "Overdue cannot be more than outstanding.")); continue; }
+            if (!customers.TryGetValue(code.ToLowerInvariant(), out var cid)) { items.Add(new(code, "error", "No customer has this account code. Link it first (ERP → Unmatched).")); continue; }
+            var asOf = (b.AsOf ?? DateTime.UtcNow).ToUniversalTime();
+            if (!credits.TryGetValue(cid, out var row))
+            {
+                row = new CustomerCredit { CustomerId = cid };
+                _db.CustomerCredits.Add(row); credits[cid] = row;
+                items.Add(new(code, "created", null));
+            }
+            else if (row.AsOf > asOf) { items.Add(new(code, "unchanged", "Newer balances are already stored.")); continue; }
+            else items.Add(new(code, row.CreditLimit == (b.CreditLimit ?? row.CreditLimit) && row.Outstanding == (b.Outstanding ?? row.Outstanding) && row.Overdue == (b.Overdue ?? row.Overdue) ? "unchanged" : "updated", null));
+            row.CreditLimit = b.CreditLimit ?? row.CreditLimit;
+            row.Outstanding = b.Outstanding ?? row.Outstanding;
+            row.Overdue = b.Overdue ?? row.Overdue;
+            row.AsOf = asOf;
+        }
+        return await Log("balances", source, items, started);
+    }
 }

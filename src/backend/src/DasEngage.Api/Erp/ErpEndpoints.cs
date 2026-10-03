@@ -124,6 +124,7 @@ public static class ErpEndpoints
                     case "customers": { var p = CsvMapper.Customers(csv); s = await importer.Customers(p.Items, source, createMissing); break; }
                     case "sales": { var p = CsvMapper.Sales(csv); parseErrors = p.Errors; s = await importer.Sales(p.Items, source, defaultCurrency); break; }
                     case "goods-receipts": { var p = CsvMapper.GoodsReceipts(csv); parseErrors = p.Errors; s = await importer.GoodsReceipts(p.Items, source); break; }
+                    case "balances": { var p = CsvMapper.Balances(csv); parseErrors = p.Errors; s = await importer.Balances(p.Items, source); break; }
                     default: { var p = CsvMapper.StockLevels(csv); parseErrors = p.Errors; s = await importer.StockLevels(p.Items, source); break; }
                 }
             }
@@ -136,6 +137,7 @@ public static class ErpEndpoints
                     case "customers": s = await importer.Customers(await Read<ErpCustomer>(req, opts), source, createMissing); break;
                     case "sales": s = await importer.Sales(await Read<ErpSale>(req, opts), source, defaultCurrency); break;
                     case "goods-receipts": s = await importer.GoodsReceipts(await Read<ErpGoodsReceipt>(req, opts), source); break;
+                    case "balances": s = await importer.Balances(await Read<ErpBalance>(req, opts), source); break;
                     default: s = await importer.StockLevels(await Read<ErpStockLevel>(req, opts), source); break;
                 }
             }
@@ -150,7 +152,7 @@ public static class ErpEndpoints
     private static async Task<List<T>> Read<T>(HttpRequest req, JsonSerializerOptions opts) =>
         await JsonSerializer.DeserializeAsync<List<T>>(req.Body, opts) ?? throw new FormatException("Send a JSON array of records.");
 
-    private static readonly string[] Entities = { "products", "customers", "sales", "goods-receipts", "stock-levels" };
+    private static readonly string[] Entities = { "products", "customers", "sales", "goods-receipts", "stock-levels", "balances" };
 
     private static void MapImport(RouteGroupBuilder g)
     {

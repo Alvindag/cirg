@@ -193,6 +193,9 @@ class Orders extends Table {
   TextColumn get placedAt => text()();
   TextColumn get cancelReason => text().nullable()();
   TextColumn get rejectReason => text().nullable()();
+  /// The server held the order because of the customer's credit; the office releases it.
+  BoolColumn get creditHold => boolean().withDefault(const Constant(false))();
+  TextColumn get holdReason => text().nullable()();
   BoolColumn get dirty => boolean().withDefault(const Constant(true))();
 
   @override
@@ -292,7 +295,7 @@ class AppDatabase extends _$AppDatabase {
   AppDatabase(super.e);
 
   @override
-  int get schemaVersion => 6;
+  int get schemaVersion => 7;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -314,6 +317,10 @@ class AppDatabase extends _$AppDatabase {
             await m.addColumn(products, products.listPrice);
             await m.createTable(orders);
             await m.createTable(orderLines);
+          }
+          if (from == 6) {
+            await m.addColumn(orders, orders.creditHold);
+            await m.addColumn(orders, orders.holdReason);
           }
         },
       );
@@ -645,6 +652,8 @@ class AppDatabase extends _$AppDatabase {
             notes: Value(s(m, 'notes')),
             placedAt: (m['placedAt'] as String?) ?? DateTime.now().toUtc().toIso8601String(),
             cancelReason: Value(s(m, 'cancelReason')),
+            creditHold: Value(m['creditHold'] == true),
+            holdReason: Value(s(m, 'creditHoldReason')),
             dirty: const Value(false),
           ));
           await (delete(orderLines)..where((l) => l.orderId.equals(id))).go();

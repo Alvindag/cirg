@@ -463,6 +463,11 @@ public class SalesOrder : TenantEntity
     public DateTime? CancelledAt { get; set; }
     public Guid? CancelledBy { get; set; }
     public string? CancelReason { get; set; }
+    /// <summary>Set when the order was taken: the customer would be over their credit limit, or has overdue invoices.</summary>
+    public bool CreditHold { get; set; }
+    public string? CreditHoldReason { get; set; }
+    public Guid? CreditReleasedBy { get; set; }
+    public string? CreditReleaseNote { get; set; }
     public List<SalesOrderLine> Lines { get; set; } = new();
 }
 
@@ -486,4 +491,16 @@ public class SalesTarget : TenantEntity
     /// <summary>Null = all channels.</summary>
     public SalesChannel? Channel { get; set; }
     public decimal Amount { get; set; }
+}
+
+/// <summary>What a customer may owe and what they owe now. Kept apart from the customer record because it is not sent to phones.</summary>
+public class CustomerCredit : TenantEntity
+{
+    public Guid CustomerId { get; set; }
+    /// <summary>Null = no limit set (orders are never held for the limit).</summary>
+    public decimal? CreditLimit { get; set; }
+    public decimal Outstanding { get; set; }
+    public decimal Overdue { get; set; }
+    /// <summary>When the ERP last reported the balances.</summary>
+    public DateTime? AsOf { get; set; }
 }

@@ -11,6 +11,8 @@ public record ErpSale(string ExternalId, string DocumentNumber, DateOnly Date, s
 public record ErpGoodsReceipt(string ExternalId, string ItemCode, string BatchNumber, DateOnly ExpiryDate, int Quantity, string? RequisitionRef, DateTime? ReceivedAt);
 public record ErpStockLevel(string ItemCode, string? BatchNumber, decimal Quantity, DateTime? AsOf);
 
+public record ErpBalance(string AccountCode, decimal? CreditLimit, decimal? Outstanding, decimal? Overdue, DateTime? AsOf);
+
 public record ItemOutcome(string Key, string Status, string? Message);
 
 public record ImportSummary(string Entity, string Source, int Created, int Updated, int Skipped, int Errors, List<ItemOutcome> Items)

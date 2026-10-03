@@ -209,6 +209,22 @@ void main() {
       });
     });
 
+    testWidgets('an order the server put on credit hold says so, with the reason', (tester) async {
+      await db.applyPull({
+        'cursor': 1,
+        'orders': [
+          {
+            'id': 'o9', 'customerId': 'c1', 'customerName': 'Korle Pharmacy', 'number': 'ORD-9', 'status': 'Placed', 'total': 100, 'placedAt': '2026-10-03T09:00:00Z',
+            'creditHold': true, 'creditHoldReason': 'The customer has GHS 120.00 overdue.', 'lines': [],
+          },
+        ],
+      });
+      await run(tester, const OrdersTab(), () async {
+        expect(find.text('Held for credit review'), findsOneWidget);
+        expect(find.textContaining('GHS 120.00 overdue'), findsOneWidget);
+      });
+    });
+
     testWidgets('the Orders tab shows what is waiting to be sent, what was refused and why', (tester) async {
       await db.into(db.orders).insert(OrdersCompanion.insert(id: 'o1', customerId: 'c1', customerName: 'Korle Pharmacy', placedAt: '2026-10-03T09:00:00Z', total: const Value(25)));
       await db.into(db.orders).insert(OrdersCompanion.insert(
@@ -223,5 +239,17 @@ void main() {
         expect(find.text('Delivered'), findsOneWidget);
       });
     });
+  });
+  test('a v6 database gets the credit hold columns and keeps its orders', () async {
+    final old = NativeDatabase.memory(setup: (raw) {
+      raw.execute('CREATE TABLE orders (id TEXT NOT NULL PRIMARY KEY, customer_id TEXT NOT NULL, customer_name TEXT NOT NULL, number TEXT, status TEXT NOT NULL DEFAULT \'Placed\', '
+          'total REAL NOT NULL DEFAULT 0, notes TEXT, placed_at TEXT NOT NULL, cancel_reason TEXT, reject_reason TEXT, dirty INTEGER NOT NULL DEFAULT 1)');
+      raw.execute("INSERT INTO orders (id, customer_id, customer_name, placed_at) VALUES ('o1', 'c1', 'Old Pharmacy', '2026-10-01T09:00:00Z')");
+      raw.execute('PRAGMA user_version = 6');
+    });
+    final upgraded = AppDatabase(old);
+    addTearDown(upgraded.close);
+    final o = await upgraded.select(upgraded.orders).getSingle();
+    expect((o.customerName, o.creditHold, o.holdReason), ('Old Pharmacy', false, null));
   });
 }

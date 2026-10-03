@@ -6386,6 +6386,32 @@ class $OrdersTable extends Orders with TableInfo<$OrdersTable, Order> {
     type: DriftSqlType.string,
     requiredDuringInsert: false,
   );
+  static const VerificationMeta _creditHoldMeta = const VerificationMeta(
+    'creditHold',
+  );
+  @override
+  late final GeneratedColumn<bool> creditHold = GeneratedColumn<bool>(
+    'credit_hold',
+    aliasedName,
+    false,
+    type: DriftSqlType.bool,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'CHECK ("credit_hold" IN (0, 1))',
+    ),
+    defaultValue: const Constant(false),
+  );
+  static const VerificationMeta _holdReasonMeta = const VerificationMeta(
+    'holdReason',
+  );
+  @override
+  late final GeneratedColumn<String> holdReason = GeneratedColumn<String>(
+    'hold_reason',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
   static const VerificationMeta _dirtyMeta = const VerificationMeta('dirty');
   @override
   late final GeneratedColumn<bool> dirty = GeneratedColumn<bool>(
@@ -6411,6 +6437,8 @@ class $OrdersTable extends Orders with TableInfo<$OrdersTable, Order> {
     placedAt,
     cancelReason,
     rejectReason,
+    creditHold,
+    holdReason,
     dirty,
   ];
   @override
@@ -6499,6 +6527,18 @@ class $OrdersTable extends Orders with TableInfo<$OrdersTable, Order> {
         ),
       );
     }
+    if (data.containsKey('credit_hold')) {
+      context.handle(
+        _creditHoldMeta,
+        creditHold.isAcceptableOrUnknown(data['credit_hold']!, _creditHoldMeta),
+      );
+    }
+    if (data.containsKey('hold_reason')) {
+      context.handle(
+        _holdReasonMeta,
+        holdReason.isAcceptableOrUnknown(data['hold_reason']!, _holdReasonMeta),
+      );
+    }
     if (data.containsKey('dirty')) {
       context.handle(
         _dirtyMeta,
@@ -6554,6 +6594,14 @@ class $OrdersTable extends Orders with TableInfo<$OrdersTable, Order> {
         DriftSqlType.string,
         data['${effectivePrefix}reject_reason'],
       ),
+      creditHold: attachedDatabase.typeMapping.read(
+        DriftSqlType.bool,
+        data['${effectivePrefix}credit_hold'],
+      )!,
+      holdReason: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}hold_reason'],
+      ),
       dirty: attachedDatabase.typeMapping.read(
         DriftSqlType.bool,
         data['${effectivePrefix}dirty'],
@@ -6578,6 +6626,10 @@ class Order extends DataClass implements Insertable<Order> {
   final String placedAt;
   final String? cancelReason;
   final String? rejectReason;
+
+  /// The server held the order because of the customer's credit; the office releases it.
+  final bool creditHold;
+  final String? holdReason;
   final bool dirty;
   const Order({
     required this.id,
@@ -6590,6 +6642,8 @@ class Order extends DataClass implements Insertable<Order> {
     required this.placedAt,
     this.cancelReason,
     this.rejectReason,
+    required this.creditHold,
+    this.holdReason,
     required this.dirty,
   });
   @override
@@ -6612,6 +6666,10 @@ class Order extends DataClass implements Insertable<Order> {
     }
     if (!nullToAbsent || rejectReason != null) {
       map['reject_reason'] = Variable<String>(rejectReason);
+    }
+    map['credit_hold'] = Variable<bool>(creditHold);
+    if (!nullToAbsent || holdReason != null) {
+      map['hold_reason'] = Variable<String>(holdReason);
     }
     map['dirty'] = Variable<bool>(dirty);
     return map;
@@ -6637,6 +6695,10 @@ class Order extends DataClass implements Insertable<Order> {
       rejectReason: rejectReason == null && nullToAbsent
           ? const Value.absent()
           : Value(rejectReason),
+      creditHold: Value(creditHold),
+      holdReason: holdReason == null && nullToAbsent
+          ? const Value.absent()
+          : Value(holdReason),
       dirty: Value(dirty),
     );
   }
@@ -6657,6 +6719,8 @@ class Order extends DataClass implements Insertable<Order> {
       placedAt: serializer.fromJson<String>(json['placedAt']),
       cancelReason: serializer.fromJson<String?>(json['cancelReason']),
       rejectReason: serializer.fromJson<String?>(json['rejectReason']),
+      creditHold: serializer.fromJson<bool>(json['creditHold']),
+      holdReason: serializer.fromJson<String?>(json['holdReason']),
       dirty: serializer.fromJson<bool>(json['dirty']),
     );
   }
@@ -6674,6 +6738,8 @@ class Order extends DataClass implements Insertable<Order> {
       'placedAt': serializer.toJson<String>(placedAt),
       'cancelReason': serializer.toJson<String?>(cancelReason),
       'rejectReason': serializer.toJson<String?>(rejectReason),
+      'creditHold': serializer.toJson<bool>(creditHold),
+      'holdReason': serializer.toJson<String?>(holdReason),
       'dirty': serializer.toJson<bool>(dirty),
     };
   }
@@ -6689,6 +6755,8 @@ class Order extends DataClass implements Insertable<Order> {
     String? placedAt,
     Value<String?> cancelReason = const Value.absent(),
     Value<String?> rejectReason = const Value.absent(),
+    bool? creditHold,
+    Value<String?> holdReason = const Value.absent(),
     bool? dirty,
   }) => Order(
     id: id ?? this.id,
@@ -6701,6 +6769,8 @@ class Order extends DataClass implements Insertable<Order> {
     placedAt: placedAt ?? this.placedAt,
     cancelReason: cancelReason.present ? cancelReason.value : this.cancelReason,
     rejectReason: rejectReason.present ? rejectReason.value : this.rejectReason,
+    creditHold: creditHold ?? this.creditHold,
+    holdReason: holdReason.present ? holdReason.value : this.holdReason,
     dirty: dirty ?? this.dirty,
   );
   Order copyWithCompanion(OrdersCompanion data) {
@@ -6723,6 +6793,12 @@ class Order extends DataClass implements Insertable<Order> {
       rejectReason: data.rejectReason.present
           ? data.rejectReason.value
           : this.rejectReason,
+      creditHold: data.creditHold.present
+          ? data.creditHold.value
+          : this.creditHold,
+      holdReason: data.holdReason.present
+          ? data.holdReason.value
+          : this.holdReason,
       dirty: data.dirty.present ? data.dirty.value : this.dirty,
     );
   }
@@ -6740,6 +6816,8 @@ class Order extends DataClass implements Insertable<Order> {
           ..write('placedAt: $placedAt, ')
           ..write('cancelReason: $cancelReason, ')
           ..write('rejectReason: $rejectReason, ')
+          ..write('creditHold: $creditHold, ')
+          ..write('holdReason: $holdReason, ')
           ..write('dirty: $dirty')
           ..write(')'))
         .toString();
@@ -6757,6 +6835,8 @@ class Order extends DataClass implements Insertable<Order> {
     placedAt,
     cancelReason,
     rejectReason,
+    creditHold,
+    holdReason,
     dirty,
   );
   @override
@@ -6773,6 +6853,8 @@ class Order extends DataClass implements Insertable<Order> {
           other.placedAt == this.placedAt &&
           other.cancelReason == this.cancelReason &&
           other.rejectReason == this.rejectReason &&
+          other.creditHold == this.creditHold &&
+          other.holdReason == this.holdReason &&
           other.dirty == this.dirty);
 }
 
@@ -6787,6 +6869,8 @@ class OrdersCompanion extends UpdateCompanion<Order> {
   final Value<String> placedAt;
   final Value<String?> cancelReason;
   final Value<String?> rejectReason;
+  final Value<bool> creditHold;
+  final Value<String?> holdReason;
   final Value<bool> dirty;
   final Value<int> rowid;
   const OrdersCompanion({
@@ -6800,6 +6884,8 @@ class OrdersCompanion extends UpdateCompanion<Order> {
     this.placedAt = const Value.absent(),
     this.cancelReason = const Value.absent(),
     this.rejectReason = const Value.absent(),
+    this.creditHold = const Value.absent(),
+    this.holdReason = const Value.absent(),
     this.dirty = const Value.absent(),
     this.rowid = const Value.absent(),
   });
@@ -6814,6 +6900,8 @@ class OrdersCompanion extends UpdateCompanion<Order> {
     required String placedAt,
     this.cancelReason = const Value.absent(),
     this.rejectReason = const Value.absent(),
+    this.creditHold = const Value.absent(),
+    this.holdReason = const Value.absent(),
     this.dirty = const Value.absent(),
     this.rowid = const Value.absent(),
   }) : id = Value(id),
@@ -6831,6 +6919,8 @@ class OrdersCompanion extends UpdateCompanion<Order> {
     Expression<String>? placedAt,
     Expression<String>? cancelReason,
     Expression<String>? rejectReason,
+    Expression<bool>? creditHold,
+    Expression<String>? holdReason,
     Expression<bool>? dirty,
     Expression<int>? rowid,
   }) {
@@ -6845,6 +6935,8 @@ class OrdersCompanion extends UpdateCompanion<Order> {
       if (placedAt != null) 'placed_at': placedAt,
       if (cancelReason != null) 'cancel_reason': cancelReason,
       if (rejectReason != null) 'reject_reason': rejectReason,
+      if (creditHold != null) 'credit_hold': creditHold,
+      if (holdReason != null) 'hold_reason': holdReason,
       if (dirty != null) 'dirty': dirty,
       if (rowid != null) 'rowid': rowid,
     });
@@ -6861,6 +6953,8 @@ class OrdersCompanion extends UpdateCompanion<Order> {
     Value<String>? placedAt,
     Value<String?>? cancelReason,
     Value<String?>? rejectReason,
+    Value<bool>? creditHold,
+    Value<String?>? holdReason,
     Value<bool>? dirty,
     Value<int>? rowid,
   }) {
@@ -6875,6 +6969,8 @@ class OrdersCompanion extends UpdateCompanion<Order> {
       placedAt: placedAt ?? this.placedAt,
       cancelReason: cancelReason ?? this.cancelReason,
       rejectReason: rejectReason ?? this.rejectReason,
+      creditHold: creditHold ?? this.creditHold,
+      holdReason: holdReason ?? this.holdReason,
       dirty: dirty ?? this.dirty,
       rowid: rowid ?? this.rowid,
     );
@@ -6913,6 +7009,12 @@ class OrdersCompanion extends UpdateCompanion<Order> {
     if (rejectReason.present) {
       map['reject_reason'] = Variable<String>(rejectReason.value);
     }
+    if (creditHold.present) {
+      map['credit_hold'] = Variable<bool>(creditHold.value);
+    }
+    if (holdReason.present) {
+      map['hold_reason'] = Variable<String>(holdReason.value);
+    }
     if (dirty.present) {
       map['dirty'] = Variable<bool>(dirty.value);
     }
@@ -6935,6 +7037,8 @@ class OrdersCompanion extends UpdateCompanion<Order> {
           ..write('placedAt: $placedAt, ')
           ..write('cancelReason: $cancelReason, ')
           ..write('rejectReason: $rejectReason, ')
+          ..write('creditHold: $creditHold, ')
+          ..write('holdReason: $holdReason, ')
           ..write('dirty: $dirty, ')
           ..write('rowid: $rowid')
           ..write(')'))
@@ -12070,6 +12174,8 @@ typedef $$OrdersTableCreateCompanionBuilder = OrdersCompanion Function({
   required String placedAt,
   Value<String?> cancelReason,
   Value<String?> rejectReason,
+  Value<bool> creditHold,
+  Value<String?> holdReason,
   Value<bool> dirty,
   Value<int> rowid,
 });
@@ -12084,6 +12190,8 @@ typedef $$OrdersTableUpdateCompanionBuilder = OrdersCompanion Function({
   Value<String> placedAt,
   Value<String?> cancelReason,
   Value<String?> rejectReason,
+  Value<bool> creditHold,
+  Value<String?> holdReason,
   Value<bool> dirty,
   Value<int> rowid,
 });
@@ -12144,6 +12252,16 @@ class $$OrdersTableFilterComposer
 
   ColumnFilters<String> get rejectReason => $composableBuilder(
     column: $table.rejectReason,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<bool> get creditHold => $composableBuilder(
+    column: $table.creditHold,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get holdReason => $composableBuilder(
+    column: $table.holdReason,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -12212,6 +12330,16 @@ class $$OrdersTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<bool> get creditHold => $composableBuilder(
+    column: $table.creditHold,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get holdReason => $composableBuilder(
+    column: $table.holdReason,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   ColumnOrderings<bool> get dirty => $composableBuilder(
     column: $table.dirty,
     builder: (column) => ColumnOrderings(column),
@@ -12265,6 +12393,16 @@ class $$OrdersTableAnnotationComposer
     builder: (column) => column,
   );
 
+  GeneratedColumn<bool> get creditHold => $composableBuilder(
+    column: $table.creditHold,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get holdReason => $composableBuilder(
+    column: $table.holdReason,
+    builder: (column) => column,
+  );
+
   GeneratedColumn<bool> get dirty =>
       $composableBuilder(column: $table.dirty, builder: (column) => column);
 }
@@ -12307,6 +12445,8 @@ class $$OrdersTableTableManager
                 Value<String> placedAt = const Value.absent(),
                 Value<String?> cancelReason = const Value.absent(),
                 Value<String?> rejectReason = const Value.absent(),
+                Value<bool> creditHold = const Value.absent(),
+                Value<String?> holdReason = const Value.absent(),
                 Value<bool> dirty = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
               }) => OrdersCompanion(
@@ -12320,6 +12460,8 @@ class $$OrdersTableTableManager
                 placedAt: placedAt,
                 cancelReason: cancelReason,
                 rejectReason: rejectReason,
+                creditHold: creditHold,
+                holdReason: holdReason,
                 dirty: dirty,
                 rowid: rowid,
               ),
@@ -12335,6 +12477,8 @@ class $$OrdersTableTableManager
                 required String placedAt,
                 Value<String?> cancelReason = const Value.absent(),
                 Value<String?> rejectReason = const Value.absent(),
+                Value<bool> creditHold = const Value.absent(),
+                Value<String?> holdReason = const Value.absent(),
                 Value<bool> dirty = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
               }) => OrdersCompanion.insert(
@@ -12348,6 +12492,8 @@ class $$OrdersTableTableManager
                 placedAt: placedAt,
                 cancelReason: cancelReason,
                 rejectReason: rejectReason,
+                creditHold: creditHold,
+                holdReason: holdReason,
                 dirty: dirty,
                 rowid: rowid,
               ),
