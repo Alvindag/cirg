@@ -6,6 +6,7 @@ import '../data/database.dart';
 import '../providers.dart';
 import '../services/customer_service.dart' show ValidationException;
 import 'customer_form_screen.dart';
+import 'order_screen.dart';
 import 'today_tab.dart';
 
 /// A customer: details, recent visits, upcoming plans, and what you can do (check in, plan a visit, edit).
@@ -52,6 +53,11 @@ class _CustomerDetailScreenState extends ConsumerState<CustomerDetailScreen> {
               child: Wrap(spacing: 8, children: [
                 FilledButton.icon(onPressed: () => startVisit(context, ref, customerId: c.id), icon: const Icon(Icons.login), label: const Text('Check in')),
                 OutlinedButton.icon(onPressed: () => _plan(context, c), icon: const Icon(Icons.event_available), label: const Text('Plan a visit')),
+                OutlinedButton.icon(
+                  onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => OrderScreen(customerId: c.id, customerName: c.name))),
+                  icon: const Icon(Icons.receipt_long_outlined),
+                  label: const Text('New order'),
+                ),
               ]),
             ),
             _Upcoming(customerId: c.id),

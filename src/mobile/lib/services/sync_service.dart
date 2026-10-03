@@ -64,10 +64,12 @@ class SyncService {
     final pings = await _db.select(_db.gpsPings).get();
     final distributions = await (_db.select(_db.sampleDistributions)..where((d) => d.status.equals('pending'))).get();
     final requests = await (_db.select(_db.sampleRequests)..where((r) => r.dirty.equals(true))).get();
+    final orders = await (_db.select(_db.orders)..where((o) => o.dirty.equals(true) & o.status.isNotValue('Rejected'))).get();
+    final orderLines = <String, List<OrderLine>>{for (final o in orders) o.id: await _db.linesOf(o.id)};
     final customers = await (_db.select(_db.customers)..where((c) => c.dirty.equals(true))).get();
     final plans = await (_db.select(_db.plannedVisits)..where((p) => p.dirty.equals(true))).get();
     final readNotices = await (_db.select(_db.appNotifications)..where((n) => n.readLocally.equals(true))).get();
-    final count = visits.length + reports.length + tasks.length + pings.length + distributions.length + requests.length + customers.length + plans.length;
+    final count = visits.length + reports.length + tasks.length + pings.length + distributions.length + requests.length + orders.length + customers.length + plans.length;
     if (count == 0 && readNotices.isEmpty) return 0;
 
     final payload = <String, dynamic>{
@@ -129,6 +131,16 @@ class SyncService {
       ],
       'sampleRequests': [
         for (final r in requests) {'id': r.id, 'productId': r.productId, 'quantity': r.quantity, 'notes': r.notes},
+      ],
+      'orders': [
+        for (final o in orders)
+          {
+            'id': o.id,
+            'customerId': o.customerId,
+            'placedAt': o.placedAt,
+            'notes': o.notes,
+            'lines': [for (final l in orderLines[o.id] ?? const <OrderLine>[]) {'productId': l.productId, 'quantity': l.quantity}],
+          },
       ],
       'sampleDistributions': [
         for (final d in distributions)
@@ -233,6 +245,17 @@ class SyncService {
           await (_db.update(_db.sampleDistributions)..where((x) => x.id.equals(d.id)))
               .write(SampleDistributionsCompanion(status: const Value('rejected'), rejectReason: Value(r['reason'] as String?)));
         }
+      }
+      final orderResults = results('orders');
+      for (final o in orders) {
+        final r = orderResults[o.id];
+        if (r == null) continue;
+        final rejected = r['status'] == 'rejected';
+        await (_db.update(_db.orders)..where((x) => x.id.equals(o.id))).write(OrdersCompanion(
+          dirty: const Value(false),
+          status: rejected ? const Value('Rejected') : const Value.absent(),
+          rejectReason: rejected ? Value(r['reason'] as String?) : const Value.absent(),
+        ));
       }
       final reqResults = results('sampleRequests');
       for (final q in requests) {

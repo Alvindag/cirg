@@ -14,6 +14,7 @@ import 'services/customer_service.dart';
 import 'services/plan_service.dart';
 import 'services/auth_provider.dart';
 import 'services/location_service.dart';
+import 'services/order_service.dart';
 import 'services/sample_service.dart';
 import 'services/session_manager.dart';
 import 'services/session_store.dart';
@@ -76,6 +77,7 @@ final aiStatusProvider = FutureProvider.autoDispose<AiStatus>((ref) async {
 });
 
 final sampleServiceProvider = Provider((ref) => SampleService(ref.watch(databaseProvider)));
+final orderServiceProvider = Provider((ref) => OrderService(ref.watch(databaseProvider)));
 final attachmentServiceProvider = Provider((ref) => AttachmentService(ref.watch(databaseProvider)));
 final customerServiceProvider = Provider((ref) => CustomerService(ref.watch(databaseProvider), ref.watch(locationProvider)));
 final planServiceProvider = Provider((ref) => PlanService(ref.watch(databaseProvider)));

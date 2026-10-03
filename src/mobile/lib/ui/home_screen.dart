@@ -7,6 +7,7 @@ import 'customers_tab.dart';
 import 'notifications_screen.dart';
 import 'problems_screen.dart';
 import 'security_screen.dart';
+import 'orders_tab.dart';
 import 'samples_tab.dart';
 import 'tasks_tab.dart';
 import 'theme.dart';
@@ -83,13 +84,14 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
           ),
         ),
       ),
-      body: [const TodayTab(), const CustomersTab(), const SamplesTab(), const TasksTab()][_tab],
+      body: [const TodayTab(), const CustomersTab(), const OrdersTab(), const SamplesTab(), const TasksTab()][_tab],
       bottomNavigationBar: NavigationBar(
         selectedIndex: _tab,
         onDestinationSelected: (i) => setState(() => _tab = i),
         destinations: const [
           NavigationDestination(icon: Icon(Icons.today_outlined), selectedIcon: Icon(Icons.today), label: 'Today'),
           NavigationDestination(icon: Icon(Icons.people_outline), selectedIcon: Icon(Icons.people), label: 'Customers'),
+          NavigationDestination(icon: Icon(Icons.receipt_long_outlined), selectedIcon: Icon(Icons.receipt_long), label: 'Orders'),
           NavigationDestination(icon: Icon(Icons.medication_outlined), selectedIcon: Icon(Icons.medication), label: 'Samples'),
           NavigationDestination(icon: Icon(Icons.checklist_outlined), selectedIcon: Icon(Icons.checklist), label: 'Tasks'),
         ],

@@ -35,6 +35,8 @@ class Products extends Table {
   TextColumn get id => text()();
   TextColumn get name => text()();
   TextColumn get code => text().nullable()();
+  /// Selling price in GHS; null = not for sale yet. Used for the estimate only: the server prices the order.
+  RealColumn get listPrice => real().nullable()();
 
   @override
   Set<Column> get primaryKey => {id};
@@ -179,6 +181,37 @@ class SampleRequests extends Table {
   Set<Column> get primaryKey => {id};
 }
 
+/// An order taken on the phone. `dirty` = not yet accepted by the server; `Rejected` orders stay (with the reason) until the rep deletes them.
+class Orders extends Table {
+  TextColumn get id => text()();
+  TextColumn get customerId => text()();
+  TextColumn get customerName => text()();
+  TextColumn get number => text().nullable()(); // given by the server
+  TextColumn get status => text().withDefault(const Constant('Placed'))(); // Placed | Confirmed | Delivered | Cancelled | Rejected
+  RealColumn get total => real().withDefault(const Constant(0))(); // an estimate until the server has priced it
+  TextColumn get notes => text().nullable()();
+  TextColumn get placedAt => text()();
+  TextColumn get cancelReason => text().nullable()();
+  TextColumn get rejectReason => text().nullable()();
+  BoolColumn get dirty => boolean().withDefault(const Constant(true))();
+
+  @override
+  Set<Column> get primaryKey => {id};
+}
+
+class OrderLines extends Table {
+  TextColumn get id => text()();
+  TextColumn get orderId => text()();
+  TextColumn get productId => text()();
+  TextColumn get productName => text()();
+  IntColumn get quantity => integer()();
+  RealColumn get unitPrice => real().withDefault(const Constant(0))();
+  RealColumn get lineTotal => real().withDefault(const Constant(0))();
+
+  @override
+  Set<Column> get primaryKey => {id};
+}
+
 /// Rule-based suggestions for the rep, cached so they are there offline. Replaced wholesale on every refresh.
 class NextActions extends Table {
   IntColumn get position => integer()();
@@ -254,12 +287,12 @@ class PlanItem {
   bool get done => visit?.checkOutAt != null;
 }
 
-@DriftDatabase(tables: [Customers, Products, PlannedVisits, Visits, CallReports, FollowUpTasks, GpsPings, Attachments, SampleStock, SampleDistributions, SampleRequests, NextActions, SyncProblems, AppNotifications, SyncState])
+@DriftDatabase(tables: [Customers, Products, PlannedVisits, Visits, CallReports, FollowUpTasks, GpsPings, Attachments, SampleStock, SampleDistributions, SampleRequests, Orders, OrderLines, NextActions, SyncProblems, AppNotifications, SyncState])
 class AppDatabase extends _$AppDatabase {
   AppDatabase(super.e);
 
   @override
-  int get schemaVersion => 5;
+  int get schemaVersion => 6;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -276,6 +309,11 @@ class AppDatabase extends _$AppDatabase {
             await m.addColumn(plannedVisits, plannedVisits.dirty);
             await m.createTable(syncProblems);
             await m.createTable(appNotifications);
+          }
+          if (from < 6) {
+            await m.addColumn(products, products.listPrice);
+            await m.createTable(orders);
+            await m.createTable(orderLines);
           }
         },
       );
@@ -323,8 +361,9 @@ class AppDatabase extends _$AppDatabase {
         '+ (SELECT COUNT(*) FROM follow_up_tasks WHERE dirty = 1) + (SELECT COUNT(*) FROM gps_pings) '
         "+ (SELECT COUNT(*) FROM attachments WHERE upload_status = 'pending') "
         "+ (SELECT COUNT(*) FROM sample_distributions WHERE status = 'pending') + (SELECT COUNT(*) FROM sample_requests WHERE dirty = 1) "
-        '+ (SELECT COUNT(*) FROM customers WHERE dirty = 1) + (SELECT COUNT(*) FROM planned_visits WHERE dirty = 1) AS n',
-        readsFrom: {visits, callReports, followUpTasks, gpsPings, attachments, sampleDistributions, sampleRequests, customers, plannedVisits},
+        '+ (SELECT COUNT(*) FROM customers WHERE dirty = 1) + (SELECT COUNT(*) FROM planned_visits WHERE dirty = 1) '
+        "+ (SELECT COUNT(*) FROM orders WHERE dirty = 1 AND status != 'Rejected') AS n",
+        readsFrom: {visits, callReports, followUpTasks, gpsPings, attachments, sampleDistributions, sampleRequests, customers, plannedVisits, orders},
       ).watchSingle().map((r) => r.read<int>('n'));
 
   Future<int> pendingCount() => watchPendingCount().first;
@@ -397,6 +436,10 @@ class AppDatabase extends _$AppDatabase {
 
   Stream<List<SampleRequest>> watchRequests() =>
       (select(sampleRequests)..orderBy([(r) => OrderingTerm.desc(r.createdAt)])..limit(50)).watch();
+
+  Stream<List<Order>> watchOrders() => (select(orders)..orderBy([(o) => OrderingTerm.desc(o.placedAt)])..limit(100)).watch();
+
+  Future<List<OrderLine>> linesOf(String orderId) => (select(orderLines)..where((l) => l.orderId.equals(orderId))).get();
 
   // ---- problems and notices ----
 
@@ -521,7 +564,7 @@ class AppDatabase extends _$AppDatabase {
             continue;
           }
           await into(products).insertOnConflictUpdate(
-              ProductsCompanion.insert(id: id, name: m['name'] as String, code: Value(s(m, 'code'))));
+              ProductsCompanion.insert(id: id, name: m['name'] as String, code: Value(s(m, 'code')), listPrice: Value(d(m, 'listPrice'))));
         }
         for (final m in list('plannedVisits').cast<Map>()) {
           final id = m['id'] as String;
@@ -586,6 +629,36 @@ class AppDatabase extends _$AppDatabase {
             createdAt: (m['createdAt'] as String?) ?? DateTime.now().toUtc().toIso8601String(),
             dirty: const Value(false),
           ));
+        }
+        // The server's picture of this rep's orders (last 90 days). An order not yet accepted keeps the phone's version.
+        for (final m in list('orders').cast<Map>()) {
+          final id = m['id'] as String;
+          final local = await (select(orders)..where((o) => o.id.equals(id))).getSingleOrNull();
+          if (local != null && local.dirty && local.status != 'Rejected') continue;
+          await into(orders).insertOnConflictUpdate(OrdersCompanion.insert(
+            id: id,
+            customerId: m['customerId'] as String,
+            customerName: (m['customerName'] as String?) ?? '',
+            number: Value(s(m, 'number')),
+            status: Value(m['status']?.toString() ?? 'Placed'),
+            total: Value(d(m, 'total') ?? 0),
+            notes: Value(s(m, 'notes')),
+            placedAt: (m['placedAt'] as String?) ?? DateTime.now().toUtc().toIso8601String(),
+            cancelReason: Value(s(m, 'cancelReason')),
+            dirty: const Value(false),
+          ));
+          await (delete(orderLines)..where((l) => l.orderId.equals(id))).go();
+          for (final l in (m['lines'] as List? ?? const []).cast<Map>()) {
+            await into(orderLines).insertOnConflictUpdate(OrderLinesCompanion.insert(
+              id: l['id'] as String,
+              orderId: id,
+              productId: l['productId'] as String,
+              productName: (l['productName'] as String?) ?? '',
+              quantity: (l['quantity'] as num).toInt(),
+              unitPrice: Value(d(l, 'unitPrice') ?? 0),
+              lineTotal: Value(d(l, 'lineTotal') ?? 0),
+            ));
+          }
         }
         for (final m in list('tasks').cast<Map>()) {
           final id = m['id'] as String;
