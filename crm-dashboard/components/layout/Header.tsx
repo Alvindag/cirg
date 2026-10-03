@@ -1,6 +1,9 @@
+"use client";
+
 import { Bell, Search } from "lucide-react";
 
 import { GlassPanel } from "@/components/ui/glass-panel";
+import { OPEN_COMMAND_MENU_EVENT } from "./CommandMenu";
 
 export function Header() {
   return (
@@ -8,9 +11,9 @@ export function Header() {
       as="header"
       className="flex h-14 shrink-0 items-center justify-between rounded-2xl px-4"
     >
-      {/* Placeholder: wired to the command palette in a later phase. */}
       <button
         type="button"
+        onClick={() => window.dispatchEvent(new Event(OPEN_COMMAND_MENU_EVENT))}
         className="flex w-full max-w-xs items-center gap-2 rounded-lg border border-white/10 bg-white/5 px-3 py-1.5 text-sm text-zinc-400 transition-colors hover:bg-white/10 hover:text-zinc-200"
       >
         <Search className="h-4 w-4" />
