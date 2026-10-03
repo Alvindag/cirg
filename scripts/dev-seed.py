@@ -82,6 +82,11 @@ def main() -> None:
     for code, name, area, cost in [("AMX500", "Amoxil 500 mg", "Anti-infectives", 2.5), ("CRD10", "Cardiostat 10 mg", "Cardiology", 4.0), ("PCM500", "Paracetamol 500 mg", "Pain", 0.8)]:
         if code not in products:
             products[code] = admin.post("/admin/products", {"name": name, "code": code, "therapeuticArea": area, "standardCost": cost, "reorderLevel": 50}); print(f"created: product {name}")
+    # selling prices, so the phone can take orders (only for products that have none yet)
+    prices = {"AMX500": 4.0, "CRD10": 7.5, "PCM500": 1.5}
+    todo = [{"productId": products[c]["id"], "price": pr} for c, pr in prices.items() if c in products and not products[c].get("listPrice")]
+    if todo:
+        admin.put("/orders/prices", todo); print(f"set: {len(todo)} test price(s)")
     expiry = time.strftime("%Y-%m-%d", time.gmtime(time.time() + 400 * 86400))
     batches = admin.get("/samples/batches")
     batch_for = {}

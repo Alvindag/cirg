@@ -303,6 +303,8 @@ void main() {
           'territory_id TEXT, parent_customer_id TEXT, phone TEXT, email TEXT, address TEXT, city TEXT, latitude REAL, longitude REAL, target_visits_per_month INTEGER NOT NULL DEFAULT 0)');
       raw.execute('CREATE TABLE planned_visits (id TEXT NOT NULL PRIMARY KEY, customer_id TEXT NOT NULL, planned_date TEXT NOT NULL, sequence INTEGER NOT NULL DEFAULT 0, '
           'status TEXT NOT NULL DEFAULT \'Planned\', objective TEXT)');
+      raw.execute('CREATE TABLE products (id TEXT NOT NULL PRIMARY KEY, name TEXT NOT NULL, code TEXT)'); // every real v4 database has it
+      raw.execute("INSERT INTO products (id, name) VALUES ('p9', 'Old Product')");
       raw.execute("INSERT INTO customers (id, type, name) VALUES ('c1', 'Doctor', 'Dr Old')");
       raw.execute("INSERT INTO planned_visits (id, customer_id, planned_date) VALUES ('p1', 'c1', '2026-10-01')");
       raw.execute('PRAGMA user_version = 4');
@@ -315,6 +317,9 @@ void main() {
     expect((await upgraded.select(upgraded.plannedVisits).getSingle()).dirty, isFalse);
     expect(await upgraded.select(upgraded.syncProblems).get(), isEmpty);
     expect(await upgraded.select(upgraded.appNotifications).get(), isEmpty);
+    expect(await upgraded.select(upgraded.orders).get(), isEmpty);
+    expect(await upgraded.select(upgraded.orderLines).get(), isEmpty);
+    expect((await upgraded.select(upgraded.products).getSingle()).listPrice, isNull); // the new price column is added to existing products
     await upgraded.into(upgraded.syncProblems).insert(SyncProblemsCompanion.insert(id: 'x', kind: 'task', summary: 's', reason: 'r', createdAt: 'now'));
     expect(await upgraded.select(upgraded.syncProblems).get(), hasLength(1));
   });
