@@ -44,6 +44,8 @@ const routes = {
   'GET /orders/summary': () => ({ days: 30, orders: 12, value: 4200, placed: 3, confirmed: 2, delivered: 6, cancelled: 1, avgHoursToDeliver: 30, topProducts: [{ productId: 'p1', name: 'Amoxil 500', quantity: 400, value: 1000 }] }),
   'GET /orders': () => [{ id: 'o1', number: 'ORD-20261003-AB12CD', repId: 'rep-2', customerId: 'c1', customerName: 'Korle Pharmacy', status: 'Placed', total: 37.5, currency: 'GHS', notes: null,
     placedAt: '2026-10-03T09:00:00Z', confirmedAt: null, deliveredAt: null, cancelledAt: null, cancelReason: null, lines: [{ id: 'l1', productId: 'p1', productName: 'Amoxil 500', quantity: 15, unitPrice: 2.5, lineTotal: 37.5 }] }],
+  'GET /dashboards/targets': () => ({ month: '2026-10', currency: 'GHS', scoped: false, daysInMonth: 31, daysElapsed: 10, paceNote: '10 of 31 days of the month have passed.', companyActual: 30000,
+    rows: [{ region: null, channel: null, target: 100000, actual: 30000, attainmentPct: 30, projected: 93000, projectedPct: 93 }] }),
   'GET /dashboards/coverage': () => ({ days: 90, customers: 3000, expectedVisits: 9000, completedVisits: 4950, attainmentPct: 55, overdue: 410, neverVisited: 120,
     territories: [{ territoryId: 't1', territory: 'Accra Central', region: 'Greater Accra', customers: 800, expected: 2400, completed: 1500, attainmentPct: 62.5, overdue: 90, neverVisited: 10 }],
     worst: [{ customerId: 'c1', name: 'Savelugu Pharmacy', type: 'Pharmacy', segment: 'A', territory: 'Tamale', targetPerMonth: 4, lastVisitAt: null, daysSince: null }] }),
@@ -175,6 +177,7 @@ try {
   await expectText('Independent pharmacy')
   await expectText('7.0% of the market')
   await expectText('Savelugu Pharmacy')
+  await expectText('All regions · all channels')
   await shot('rtm')
 
   await page.getByRole('link', { name: 'Orders' }).click()

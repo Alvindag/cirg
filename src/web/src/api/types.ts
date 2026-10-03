@@ -200,3 +200,7 @@ export interface CoverageDashboard {
   days: number; customers: number; expectedVisits: number; completedVisits: number; attainmentPct: number | null; overdue: number; neverVisited: number
   territories: CoverageTerritory[]; worst: CoverageCustomer[]
 }
+
+export interface TargetRowDto { region: string | null; channel: SalesChannel | null; amount: number }
+export interface TargetProgressRow { region: string | null; channel: SalesChannel | null; target: number | null; actual: number; attainmentPct: number | null; projected: number | null; projectedPct: number | null }
+export interface TargetsDashboard { month: string; currency: string; scoped: boolean; daysInMonth: number; daysElapsed: number; paceNote: string | null; companyActual: number; rows: TargetProgressRow[] }

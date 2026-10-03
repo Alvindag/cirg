@@ -45,6 +45,7 @@ public class AppDbContext : DbContext
     public DbSet<StockMovement> StockMovements => Set<StockMovement>();
     public DbSet<SampleRequest> SampleRequests => Set<SampleRequest>();
     public DbSet<SalesOrder> Orders => Set<SalesOrder>();
+    public DbSet<SalesTarget> SalesTargets => Set<SalesTarget>();
     public DbSet<SalesOrderLine> OrderLines => Set<SalesOrderLine>();
     public DbSet<SampleDistribution> SampleDistributions => Set<SampleDistribution>();
     public DbSet<AuditLog> AuditLogs => Set<AuditLog>();
@@ -68,6 +69,8 @@ public class AppDbContext : DbContext
         b.Entity<SalesOrder>().Property(x => x.Total).HasPrecision(18, 2);
         b.Entity<SalesOrderLine>().Property(x => x.UnitPrice).HasPrecision(18, 2);
         b.Entity<SalesOrderLine>().Property(x => x.LineTotal).HasPrecision(18, 2);
+        b.Entity<SalesTarget>().Property(x => x.Amount).HasPrecision(18, 2);
+        b.Entity<SalesTarget>().HasIndex(x => new { x.TenantId, x.Month });
         b.Entity<SalesOrder>().HasIndex(x => new { x.TenantId, x.Number }).IsUnique();
         b.Entity<SalesOrder>().HasIndex(x => new { x.TenantId, x.RepId, x.PlacedAt });
         b.Entity<SalesOrder>().HasIndex(x => new { x.TenantId, x.CustomerId, x.PlacedAt });
@@ -121,6 +124,7 @@ public class AppDbContext : DbContext
         b.Entity<AiOutput>().HasQueryFilter(e => e.TenantId == CurrentTenantId && e.DeletedAt == null);
         b.Entity<SampleBatch>().HasQueryFilter(e => e.TenantId == CurrentTenantId && e.DeletedAt == null);
         b.Entity<StockMovement>().HasQueryFilter(e => e.TenantId == CurrentTenantId && e.DeletedAt == null);
+        b.Entity<SalesTarget>().HasQueryFilter(e => e.TenantId == CurrentTenantId && e.DeletedAt == null);
         b.Entity<SalesOrder>().HasQueryFilter(e => e.TenantId == CurrentTenantId && e.DeletedAt == null);
         b.Entity<SalesOrderLine>().HasQueryFilter(e => e.TenantId == CurrentTenantId && e.DeletedAt == null);
         b.Entity<SampleRequest>().HasQueryFilter(e => e.TenantId == CurrentTenantId && e.DeletedAt == null);

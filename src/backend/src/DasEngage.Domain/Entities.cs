@@ -475,3 +475,15 @@ public class SalesOrderLine : TenantEntity
     public decimal UnitPrice { get; set; }
     public decimal LineTotal { get; set; }
 }
+
+/// <summary>A sales target for one month, for a region and/or channel (empty region and no channel = the whole company).</summary>
+public class SalesTarget : TenantEntity
+{
+    /// <summary>The first day of the month.</summary>
+    public DateOnly Month { get; set; }
+    /// <summary>Empty = all regions.</summary>
+    public string Region { get; set; } = "";
+    /// <summary>Null = all channels.</summary>
+    public SalesChannel? Channel { get; set; }
+    public decimal Amount { get; set; }
+}

@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import type { CoverageDashboard, OutletClass, RtmDashboard, SalesChannel, UniverseRow, UntaggedList } from '../api/types'
+import type { CoverageDashboard, OutletClass, RtmDashboard, SalesChannel, TargetRowDto, TargetsDashboard, UniverseRow, UntaggedList } from '../api/types'
 import { Empty, ErrorBox, Kpi, Loading, Section } from '../components/ui'
 import { RangePicker } from '../components/RangePicker'
 import { useApp } from '../context'
@@ -121,6 +121,8 @@ export function Rtm() {
             </Section>
           </div>
 
+          <SalesTargets />
+
           <VisitCoverage days={Math.min(90, Math.max(7, days))} />
 
           <Section title="Complete the picture">
@@ -135,6 +137,94 @@ export function Rtm() {
         </>
       )}
     </>
+  )
+}
+
+const thisMonth = () => new Date().toISOString().slice(0, 7)
+
+/** Invoiced sales against the monthly target, by region and channel. Targets are set nationally by senior roles. */
+function SalesTargets() {
+  const { api, me } = useApp()
+  const [month, setMonth] = useState(thisMonth())
+  const t = useAsync(() => api.get<TargetsDashboard>('/dashboards/targets', { month }), [month])
+  const [editing, setEditing] = useState(false)
+  const d = t.data
+  const label = (region: string | null, channel: SalesChannel | null) =>
+    [region ?? 'All regions', channel ? channelLabel[channel] : 'all channels'].join(' · ')
+  return (
+    <Section title="Sales against target" actions={
+      <span className="filters">
+        <input type="month" aria-label="Month" value={month} onChange={(e) => e.target.value && setMonth(e.target.value)} />
+        {canSetMarket(me.role) && <button onClick={() => setEditing(!editing)}>{editing ? 'Close' : 'Set targets'}</button>}
+      </span>
+    }>
+      {t.error && <ErrorBox message={t.error} onRetry={t.reload} />}
+      {t.loading && !d && <Loading />}
+      {editing && <TargetEditor month={month} onSaved={() => { setEditing(false); t.reload() }} />}
+      {d && (d.scoped ? (
+        <p>Invoiced in your area this month: <strong>{money(d.companyActual, d.currency)}</strong>. Company targets are national, so they are compared only for national roles.</p>
+      ) : d.rows.length === 0 ? <Empty>No targets set for this month{canSetMarket(me.role) ? ': use “Set targets”' : ''}. Invoiced so far: {money(d.companyActual, d.currency)}.</Empty> : (
+        <>
+          {d.paceNote && <p className="muted small">{d.paceNote} “On pace for” assumes the rest of the month sells at the same daily rate.</p>}
+          <table>
+            <thead><tr><th>Target for</th><th className="num">Target</th><th className="num">Invoiced</th><th className="num">Of target</th><th className="num">On pace for</th></tr></thead>
+            <tbody>
+              {d.rows.map((r) => (
+                <tr key={`${r.region}|${r.channel}`}>
+                  <td>{label(r.region, r.channel)}</td>
+                  <td className="num">{r.target != null ? money(r.target, d.currency) : '—'}</td>
+                  <td className="num">{money(r.actual, d.currency)}</td>
+                  <td className="num">{r.attainmentPct != null ? fmtPct(r.attainmentPct) : '—'}</td>
+                  <td className="num">{r.projectedPct != null ? fmtPct(r.projectedPct) : '—'}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+          <p className="muted small">Only invoiced sales that arrived from Business Central count. Sales without a customer record count toward the company total but not toward a region or channel.</p>
+        </>
+      ))}
+    </Section>
+  )
+}
+
+function TargetEditor({ month, onSaved }: { month: string; onSaved: () => void }) {
+  const { api } = useApp()
+  const saved = useAsync(() => api.get<TargetRowDto[]>('/rtm/targets', { month }), [month])
+  const [rows, setRows] = useState<{ region: string; channel: string; amount: string }[]>()
+  const [error, setError] = useState<string>()
+  const current = rows ?? (saved.data ?? []).map((r) => ({ region: r.region ?? '', channel: r.channel ?? '', amount: String(r.amount) }))
+  const update = (i: number, patch: Partial<{ region: string; channel: string; amount: string }>) => setRows(current.map((r, j) => (j === i ? { ...r, ...patch } : r)))
+  async function save() {
+    setError(undefined)
+    const body = current.map((r) => ({ region: r.region.trim() || null, channel: r.channel || null, amount: Number(r.amount) }))
+    if (body.some((r) => !Number.isFinite(r.amount) || r.amount < 0)) { setError('Every target needs an amount of 0 or more.'); return }
+    try { await api.put('/rtm/targets', body, { month }); onSaved() } catch (e) { setError(e instanceof Error ? e.message : String(e)) }
+  }
+  if (!saved.data && !rows) return <Loading />
+  return (
+    <div className="card">
+      <p className="muted small">One row per target. Leave the region empty for all regions and the channel empty for all channels. Saving replaces this month’s targets.</p>
+      {error && <ErrorBox message={error} />}
+      <table>
+        <thead><tr><th>Region</th><th>Channel</th><th className="num">Target</th><th /></tr></thead>
+        <tbody>
+          {current.map((r, i) => (
+            <tr key={i}>
+              <td><input aria-label={`Region ${i + 1}`} value={r.region} placeholder="All regions" onChange={(e) => update(i, { region: e.target.value })} /></td>
+              <td>
+                <select aria-label={`Channel ${i + 1}`} value={r.channel} onChange={(e) => update(i, { channel: e.target.value })}>
+                  <option value="">All channels</option>
+                  {channels.filter((c) => c !== 'Unassigned').map((c) => <option key={c} value={c}>{channelLabel[c]}</option>)}
+                </select>
+              </td>
+              <td className="num"><input aria-label={`Target ${i + 1}`} inputMode="decimal" size={12} value={r.amount} onChange={(e) => update(i, { amount: e.target.value })} /></td>
+              <td><button onClick={() => setRows(current.filter((_, j) => j !== i))}>Remove</button></td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+      <p><button onClick={() => setRows([...current, { region: '', channel: '', amount: '' }])}>Add a target</button> <button className="primary" onClick={save}>Save targets</button></p>
+    </div>
   )
 }
 

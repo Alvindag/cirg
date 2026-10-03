@@ -24,6 +24,7 @@ public static class Endpoints
         RtmEndpoints.Map(api);
         OrderEndpoints.Map(api);
         CoverageEndpoints.Map(api);
+        TargetEndpoints.Map(api);
     }
 
     // ---------- Customers ----------
