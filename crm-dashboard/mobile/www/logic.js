@@ -86,3 +86,39 @@ export function cleanServerUrl(text) {
     return null;
   }
 }
+
+/** The most recent order for a customer that was not cancelled, from the history on the phone. */
+export function lastOrderFor(history, customerId) {
+  return (history || []).filter((o) => o.customerId === customerId && o.status !== "Cancelled" && o.lines?.length).sort((a, b) => b.orderedAt.localeCompare(a.orderedAt))[0] ?? null;
+}
+
+/** A cart from an earlier order. Products no longer in the catalog are skipped and reported. */
+export function cartFromOrder(order, products) {
+  const cart = {};
+  const skipped = [];
+  for (const l of order.lines || []) {
+    if (products.some((p) => p.id === l.productId)) cart[l.productId] = l.qty;
+    else skipped.push(l.name);
+  }
+  return { cart, skipped };
+}
+
+/** Plain-text receipt the rep can share with the customer. Prices are the server's. */
+export function receiptText(order, repName = "") {
+  const d = new Date(order.orderedAt).toLocaleDateString("en-GB");
+  const lines = (order.lines || []).map((l) => `${l.qty} x ${l.name} @ ${money(l.unitPrice)} = ${money(l.qty * l.unitPrice)}`);
+  return [
+    "DAS PLC order",
+    `Customer: ${order.customerName}`,
+    `Date: ${d}`,
+    `Status: ${order.status}`,
+    "",
+    ...lines,
+    "",
+    `Total: ${money(order.value)} (${order.units} units)`,
+    repName ? `Taken by: ${repName}` : null,
+    `Ref: ${String(order.id).slice(-8).toUpperCase()}`,
+  ].filter((x) => x !== null).join("\n");
+}
+
+export const CANCEL_REASONS = ["Wrong customer", "Wrong quantity", "Customer changed their mind", "Duplicate order"];

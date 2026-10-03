@@ -12,9 +12,11 @@ It is a small web app (`www/`) in an Android shell ([Capacitor](https://capacito
 
 - **Sign-in:** it works with the CRM's demo sign-in (the rep picks their name). It cannot sign in to a server that uses Microsoft sign-in yet; that needs a device sign-in step, which is not built.
 - **Server address:** the phone must reach the CRM, for example `192.168.1.20:3000` for a PC on the same Wi-Fi, or a hosted address later. The app allows plain `http://`, which suits a local network and should be replaced by HTTPS when the CRM is hosted.
-- **Orders are "Placed" only.** Confirming, delivering and cancelling happen outside this app for now. Placed orders count toward order totals, but have no delivery date, so they do not change OTIF until they are delivered.
-- **Not built:** discounts or price edits on the phone, stock levels, order editing after saving, and an app icon of its own (it uses the default).
-- The APK has been built nowhere yet. See below.
+- **Order lifecycle:** a rep can cancel their own order (with a reason) until a manager confirms it; managers confirm, record deliveries (including short deliveries) and cancel on the CRM's Orders page. Revenue is counted when the delivery is recorded. Delivery costs are not recorded for these orders, so cost to serve looks lower than it is for them.
+- **Stock labels** (In stock / Low / Out) come from released warehouse batches. They are a hint, not a reservation, and an order can still be placed when it says Out.
+- **Receipts** are plain text, shared through the phone's share sheet.
+- **Not built:** customer signature and photos, credit limits, discounts needing approval, promotions, editing an order after saving (cancel and repeat instead), stock levels per distributor, and an app icon of its own (it uses the default).
+- The debug APK has been built and run on one phone (same Wi-Fi as the CRM). A store release is not set up.
 
 ## Try it without a phone
 
@@ -53,7 +55,7 @@ This is a **debug** build, fine for the pilot. A store release needs a signing k
 ## Tests
 
 ```
-npm test        # order rules (7 tests)
+npm test        # order rules (9 tests)
 ```
 
 The server rules are in the CRM's tests (`npm test` in `crm-dashboard/`), and the phone flow (offline save, reconnect, no duplicates, typo guard) was run in a headless phone-size browser.

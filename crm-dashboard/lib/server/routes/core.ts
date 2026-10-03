@@ -157,7 +157,7 @@ get("/customers/:id", ({ db, user, params }) => {
     deals: db.deals.filter((d) => d.customerId === c.id),
     tasks: db.tasks.filter((t) => t.customerId === c.id && !t.done),
     // Cost fields stay out: a rep can see what a customer bought, not what it cost to serve.
-    orders: db.orders.filter((o) => o.customerId === c.id).slice(-10).reverse().map((o) => ({ id: o.id, channel: o.channel, orderedAt: o.orderedAt, deliveredAt: o.deliveredAt, unitsOrdered: o.unitsOrdered, unitsDelivered: o.unitsDelivered, revenue: o.revenue })),
+    orders: db.orders.filter((o) => !o.cancelledAt && o.customerId === c.id).slice(-10).reverse().map((o) => ({ id: o.id, channel: o.channel, orderedAt: o.orderedAt, deliveredAt: o.deliveredAt, unitsOrdered: o.unitsOrdered, unitsDelivered: o.unitsDelivered, revenue: o.revenue })),
   };
 });
 
@@ -603,13 +603,24 @@ post("/visits/sync", ({ db, user, body }) => {
 
 const DAY_MS = 864e5;
 
+/**
+ * An indication only: units in the warehouse across released batches. It does not reserve stock,
+ * and orders can still be placed when it says Out; it tells the rep what to expect.
+ */
+function availability(db: DB, productId: string): "In stock" | "Low" | "Out" {
+  const ok = new Set(db.batches.filter((b) => b.productId === productId && b.status === "Active").map((b) => b.id));
+  const units = db.stock.filter((s) => s.holderId === null && ok.has(s.batchId)).reduce((n, s) => n + s.quantity, 0);
+  const reorder = db.products.find((p) => p.id === productId)?.reorderLevel ?? 0;
+  return units <= 0 ? "Out" : units < reorder ? "Low" : "In stock";
+}
+
 /** Everything the order app needs to work offline: products with prices, and this person's customers. */
 get("/orders/catalog", ({ db, user }) => {
   requireFeature(user, "orders");
   return {
     generatedAt: new Date().toISOString(),
     rules: { confirmAboveQty: CONFIRM_ABOVE_QTY, maxLineQty: MAX_LINE_QTY },
-    products: db.products.map((p) => ({ id: p.id, name: p.name, therapeuticArea: p.therapeuticArea, listPrice: p.listPrice })),
+    products: db.products.map((p) => ({ id: p.id, name: p.name, therapeuticArea: p.therapeuticArea, listPrice: p.listPrice, availability: availability(db, p.id) })),
     customers: visibleCustomers(db, user).map((c) => {
       const d = c.channel === "Distributor" ? db.distributors.find((x) => x.id === c.distributorId) : undefined;
       return { id: c.id, name: c.name, city: c.city, channel: c.channel, distributorId: c.distributorId, discountPct: d?.discountPct ?? 0 };
@@ -662,15 +673,23 @@ function placeOrder(db: DB, user: User, b: any): { order: OrderRecord; duplicate
   return { order, duplicate: false };
 }
 
+export const orderStatus = (o: OrderRecord): "Placed" | "Confirmed" | "Delivered" | "Cancelled" => (o.cancelledAt ? "Cancelled" : o.deliveredAt ? "Delivered" : o.confirmedBy || !o.placedBy ? "Confirmed" : "Placed");
+
 const orderOut = (db: DB, o: OrderRecord) => ({
   id: o.id,
   clientId: o.clientId ?? null,
   customerId: o.customerId,
   customerName: db.customers.find((c) => c.id === resolveCustomerId(db, o.customerId))?.name ?? "Unknown",
+  placedBy: o.placedBy ? (db.users.find((u) => u.id === o.placedBy)?.fullName ?? null) : null,
   orderedAt: o.orderedAt,
-  status: o.deliveredAt ? "Delivered" : "Placed",
+  promisedAt: o.promisedAt,
+  deliveredAt: o.deliveredAt,
+  status: orderStatus(o),
+  cancelReason: o.cancelReason ?? null,
+  notes: o.notes ?? null,
   units: o.unitsOrdered,
-  value: o.orderValue ?? o.revenue,
+  unitsDelivered: o.unitsDelivered,
+  value: o.orderValue ?? (o.revenue || null),
   lines: o.lines ?? [],
 });
 
@@ -701,4 +720,79 @@ post("/orders/sync", ({ db, user, body }) => {
 get("/orders/mine", ({ db, user }) => {
   requireFeature(user, "orders");
   return db.orders.filter((o) => o.placedBy === user.id).slice(-50).reverse().map((o) => orderOut(db, o));
+});
+
+/** Orders for managers: everything for the customers they can see, newest first. Filter with ?status and ?q. */
+get("/orders", ({ db, user, q }) => {
+  requireFeature(user, "orders");
+  if (!isManager(user.role)) forbid("Managers see all orders. Reps see theirs under /orders/mine.");
+  const ok = new Set(visibleCustomers(db, user).map((c) => c.id));
+  const status = q.get("status");
+  const text = (q.get("q") ?? "").toLowerCase();
+  return db.orders
+    .filter((o) => ok.has(resolveCustomerId(db, o.customerId)))
+    .map((o) => orderOut(db, o))
+    .filter((o) => (!status || o.status === status) && (!text || o.customerName.toLowerCase().includes(text) || (o.placedBy ?? "").toLowerCase().includes(text)))
+    .sort((a, b) => b.orderedAt.localeCompare(a.orderedAt))
+    .slice(0, Math.min(num(q.get("take"), 100), 300));
+});
+
+function findOrder(db: DB, user: User, id: string): OrderRecord {
+  const o = db.orders.find((x) => x.id === id) ?? notFound("Order");
+  const ok = visibleCustomers(db, user).some((c) => c.id === resolveCustomerId(db, o.customerId));
+  if (!ok && o.placedBy !== user.id) notFound("Order");
+  return o;
+}
+
+/** A rep may cancel their own order until a manager confirms it. A manager may cancel until it is delivered. */
+post("/orders/:id/cancel", ({ db, user, params, body }) => {
+  requireFeature(user, "orders");
+  const o = findOrder(db, user, params[0]);
+  const status = orderStatus(o);
+  if (status === "Cancelled") return orderOut(db, o);
+  if (status === "Delivered") bad("A delivered order cannot be cancelled.");
+  const own = o.placedBy === user.id;
+  if (!isManager(user.role) && !(own && status === "Placed")) forbid(own ? "A manager has confirmed this order. Ask them to cancel it." : "You can only cancel your own orders.");
+  const reason = String(body.reason ?? "").trim().slice(0, 200);
+  if (!reason) bad("Say why the order is being cancelled.");
+  o.cancelledAt = new Date().toISOString();
+  o.cancelledBy = user.id;
+  o.cancelReason = reason;
+  logAudit(user.id, "Cancel", "Order", o.id, { status }, reason);
+  save();
+  return orderOut(db, o);
+});
+
+post("/orders/:id/confirm", ({ db, user, params }) => {
+  requireFeature(user, "orders");
+  if (!isManager(user.role)) forbid("Only managers confirm orders.");
+  const o = findOrder(db, user, params[0]);
+  const status = orderStatus(o);
+  if (status === "Confirmed") return orderOut(db, o);
+  if (status !== "Placed") bad(`A ${status.toLowerCase()} order cannot be confirmed.`);
+  o.confirmedBy = user.id;
+  o.confirmedAt = new Date().toISOString();
+  logAudit(user.id, "Confirm", "Order", o.id);
+  save();
+  return orderOut(db, o);
+});
+
+/** Records a delivery. Revenue is counted now, in proportion to the units delivered. */
+post("/orders/:id/deliver", ({ db, user, params, body }) => {
+  requireFeature(user, "orders");
+  if (!isManager(user.role)) forbid("Only managers record deliveries.");
+  const o = findOrder(db, user, params[0]);
+  const status = orderStatus(o);
+  if (status === "Delivered") return orderOut(db, o);
+  if (status === "Cancelled") bad("A cancelled order cannot be delivered.");
+  const units = body.unitsDelivered === undefined ? o.unitsOrdered : Number(body.unitsDelivered);
+  if (!Number.isInteger(units) || units < 0 || units > o.unitsOrdered) bad(`Units delivered must be a whole number from 0 to ${o.unitsOrdered}.`);
+  const value = o.orderValue ?? o.revenue;
+  o.deliveredAt = new Date().toISOString();
+  o.confirmedBy ??= user.id;
+  o.unitsDelivered = units;
+  o.revenue = Math.round(value * (units / o.unitsOrdered) * 100) / 100;
+  logAudit(user.id, "Deliver", "Order", o.id, { unitsDelivered: units, of: o.unitsOrdered });
+  save();
+  return orderOut(db, o);
 });

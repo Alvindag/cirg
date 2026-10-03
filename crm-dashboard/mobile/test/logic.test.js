@@ -51,3 +51,27 @@ test("server addresses are tidied", () => {
   assert.equal(cleanServerUrl("https://crm.example.com/x"), "https://crm.example.com");
   assert.equal(cleanServerUrl("  "), null);
 });
+
+import { cartFromOrder, lastOrderFor, receiptText } from "../www/logic.js";
+
+test("repeat order uses the latest non-cancelled order and skips withdrawn products", () => {
+  const h = [
+    { id: "1", customerId: "c1", status: "Delivered", orderedAt: "2026-09-01T00:00:00Z", lines: [{ productId: "p1", name: "Amoxil", qty: 5 }] },
+    { id: "2", customerId: "c1", status: "Placed", orderedAt: "2026-09-20T00:00:00Z", lines: [{ productId: "p1", name: "Amoxil", qty: 8 }, { productId: "gone", name: "Old", qty: 2 }] },
+    { id: "3", customerId: "c1", status: "Cancelled", orderedAt: "2026-09-25T00:00:00Z", lines: [{ productId: "p1", name: "Amoxil", qty: 99 }] },
+  ];
+  const last = lastOrderFor(h, "c1");
+  assert.equal(last.id, "2");
+  const { cart, skipped } = cartFromOrder(last, products);
+  assert.deepEqual(cart, { p1: 8 });
+  assert.deepEqual(skipped, ["Old"]);
+  assert.equal(lastOrderFor(h, "other"), null);
+});
+
+test("receipt lists lines, total and a short reference", () => {
+  const t = receiptText({ id: "ord-abc12345xyz", customerName: "Korle Clinic", orderedAt: "2026-10-03T10:00:00Z", status: "Placed", units: 12, value: 100, lines: [{ qty: 10, name: "Amoxil", unitPrice: 6.5 }, { qty: 2, name: "Zinc", unitPrice: 17.5 }] }, "Kofi");
+  assert.match(t, /Customer: Korle Clinic/);
+  assert.match(t, /10 x Amoxil/);
+  assert.match(t, /Ref: 45XYZ|Ref: [A-Z0-9]{8}/);
+  assert.match(t, /Taken by: Kofi/);
+});

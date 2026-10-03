@@ -1,4 +1,4 @@
-import { DEFAULT_RULES, applySync, blockers, cartLines, cleanServerUrl, isOffline, linesToConfirm, makeOrder, money, parseQty, setQty, total, units } from "./logic.js";
+import { CANCEL_REASONS, DEFAULT_RULES, applySync, blockers, cartFromOrder, cartLines, cleanServerUrl, isOffline, lastOrderFor, linesToConfirm, makeOrder, money, parseQty, receiptText, setQty, total, units } from "./logic.js";
 
 /* ---------- storage: everything the app needs is kept on the phone ---------- */
 
@@ -84,6 +84,8 @@ function toast(msg, kind = "ok") {
 let tab = "new"; // new | outbox
 let draft = null; // { customer, cart, notes, search, step: "pick"|"items"|"review", confirmed: {} }
 let setup = { error: null, users: null, busy: false };
+let detail = null; // id of a sent order being viewed
+let cancelling = false;
 
 function header(title) {
   const pending = S.queue.filter((o) => !o.error).length;
@@ -123,6 +125,7 @@ function setupView() {
 }
 
 function mainView() {
+  if (detail && !draft) return detailView();
   return `${header(draft ? "New order" : "DAS Orders")}
     ${draft ? "" : `<nav class="tabs"><button data-tab="new" class="${tab === "new" ? "on" : ""}">New order</button><button data-tab="outbox" class="${tab === "outbox" ? "on" : ""}">Orders${S.queue.length ? ` (${S.queue.length})` : ""}</button></nav>`}
     ${draft ? draftView() : tab === "new" ? homeView() : outboxView()}`;
@@ -150,7 +153,8 @@ function draftView() {
   if (draft.step === "items") {
     const q = draft.search.toLowerCase();
     const ps = S.catalog.products.filter((p) => !q || p.name.toLowerCase().includes(q));
-    return `<main><div class="card"><div class="row"><div class="grow"><div class="name">${esc(draft.customer.name)}</div><div class="muted">${esc(draft.customer.city ?? "")}</div></div><button class="ghost" id="back-customer">Change</button></div></div>
+    return `<main><div class="card"><div class="row"><div class="grow"><div class="name">${esc(draft.customer.name)}</div><div class="muted">${esc(draft.customer.city ?? "")}</div></div><button class="ghost" id="back-customer">Change</button></div>
+      ${lastOrderFor(S.history, draft.customer.id) && !Object.keys(draft.cart).length ? `<p><button class="ghost" id="repeat-last">Repeat last order (${esc(new Date(lastOrderFor(S.history, draft.customer.id).orderedAt).toLocaleDateString("en-GB"))})</button></p>` : ""}</div>
       <div class="card"><input id="search" placeholder="Search products" autocomplete="off" value="${esc(draft.search)}" />
       <div class="list">${ps.map((p) => itemRow(p)).join("")}</div></div></main>${itemsBar(lines)}`;
   }
@@ -171,7 +175,7 @@ function draftView() {
 
 function itemRow(p) {
   const qty = draft.cart[p.id] ?? 0;
-  return `<div class="item" data-row="${esc(p.id)}"><div class="grow"><div class="name">${esc(p.name)}</div><div class="muted">${money(p.listPrice)}${p.therapeuticArea ? " · " + esc(p.therapeuticArea) : ""}</div></div>
+  return `<div class="item" data-row="${esc(p.id)}"><div class="grow"><div class="name">${esc(p.name)}</div><div class="muted">${money(p.listPrice)}${p.therapeuticArea ? " · " + esc(p.therapeuticArea) : ""}${p.availability ? ` · <span class="stock ${p.availability === "In stock" ? "ok" : p.availability === "Low" ? "low" : "out"}">${esc(p.availability)}</span>` : ""}</div></div>
     <div class="step"><button data-dec="${esc(p.id)}" aria-label="Fewer">−</button><input data-qty="${esc(p.id)}" id="q-${esc(p.id)}" type="text" inputmode="numeric" value="${qty || ""}" placeholder="0" aria-label="Quantity of ${esc(p.name)}" /><button data-inc="${esc(p.id)}" aria-label="More">+</button></div></div>`;
 }
 
@@ -179,12 +183,27 @@ function itemsBar(lines) {
   return `<div class="bar" id="itemsbar"><div class="sum"><b>${money(total(lines))}</b><div class="muted">${units(lines)} units · ${lines.length} products</div></div><button class="ghost" id="cancel">Cancel</button><button id="review" ${lines.length ? "" : "disabled"}>Review</button></div>`;
 }
 
+function detailView() {
+  const o = S.history.find((x) => x.id === detail);
+  if (!o) { detail = null; return mainView(); }
+  const canCancel = o.status === "Placed";
+  return `${header("Order")}<main><div class="card"><div class="row"><h2 class="grow">${esc(o.customerName)}</h2><span class="badge ${o.status === "Delivered" ? "ok" : o.status === "Cancelled" ? "bad" : ""}">${esc(o.status)}</span></div>
+    <div class="muted">${new Date(o.orderedAt).toLocaleString("en-GB")} · Ref ${esc(String(o.id).slice(-8).toUpperCase())}</div>
+    <div class="list">${o.lines.map((l) => `<div class="item"><div class="grow"><div class="name">${esc(l.name)}</div><div class="muted">${l.qty} × ${money(l.unitPrice)}</div></div><b>${money(l.qty * l.unitPrice)}</b></div>`).join("") || '<p class="muted">No line detail.</p>'}</div>
+    <p class="row"><span class="grow">${o.units} units</span><b>${money(o.value)}</b></p>
+    ${o.notes ? `<div class="muted">Note: ${esc(o.notes)}</div>` : ""}
+    ${o.cancelReason ? `<div class="note bad">Cancelled: ${esc(o.cancelReason)}</div>` : ""}
+    ${cancelling ? `<div class="confirm"><div>Why is it being cancelled?</div>${CANCEL_REASONS.map((r) => `<button class="ghost" data-cancel-reason="${esc(r)}">${esc(r)}</button>`).join("")}<button class="ghost" id="cancel-no">Keep the order</button></div>` : ""}
+  </div></main>
+  <div class="bar actions"><button class="ghost" id="detail-back">Back</button><button class="ghost" id="share">Share receipt</button>${o.lines.length ? '<button class="ghost" id="repeat-detail">Repeat</button>' : ""}${canCancel && !cancelling ? '<button class="danger" id="cancel-order">Cancel order</button>' : ""}</div>`;
+}
+
 function outboxView() {
   const q = S.queue;
   return `<main>
     ${q.length ? `<div class="card"><h2>On this phone</h2><div class="list">${q.map((o) => `<div class="item"><div class="grow"><div class="name">${esc(o.customerName)}</div><div class="muted">${o.units} units · ${money(o.value)} · ${new Date(o.at).toLocaleString("en-GB")}</div>${o.error ? `<div class="note bad">${esc(o.error)}</div>` : ""}</div>${o.error ? `<button class="danger" data-drop="${esc(o.clientId)}">Delete</button>` : '<span class="badge wait">Waiting</span>'}</div>`).join("")}</div>
     <p><button id="sync">${syncing ? "Syncing…" : "Send now"}</button></p></div>` : '<div class="card"><p class="muted">Nothing waiting. Saved orders are sent when there is a connection.</p></div>'}
-    <div class="card"><h2>Sent</h2><div class="list">${S.history.map((o) => `<div class="item"><div class="grow"><div class="name">${esc(o.customerName)}</div><div class="muted">${o.units} units · ${money(o.value)} · ${new Date(o.orderedAt).toLocaleDateString("en-GB")}</div></div><span class="badge ${o.status === "Delivered" ? "ok" : ""}">${esc(o.status)}</span></div>`).join("") || '<p class="muted">No sent orders yet.</p>'}</div></div></main>`;
+    <div class="card"><h2>Sent</h2><div class="list">${S.history.map((o) => `<div class="item" data-detail="${esc(o.id)}"><div class="grow"><div class="name">${esc(o.customerName)}</div><div class="muted">${o.units} units · ${money(o.value)} · ${new Date(o.orderedAt).toLocaleDateString("en-GB")}</div></div><span class="badge ${o.status === "Delivered" ? "ok" : o.status === "Cancelled" ? "bad" : ""}">${esc(o.status)}</span></div>`).join("") || '<p class="muted">No sent orders yet.</p>'}</div></div></main>`;
 }
 
 /* ---------- actions ---------- */
@@ -236,6 +255,39 @@ function changeQty(id, qty) {
   updateItems();
 }
 
+function startRepeat(order, customerId) {
+  const customer = S.catalog.customers.find((c) => c.id === customerId);
+  if (!customer) return toast("That customer is no longer on your list.", "bad");
+  const { cart, skipped } = cartFromOrder(order, S.catalog.products);
+  draft = { customer, cart, notes: "", search: "", step: "items", confirmed: {} };
+  detail = null;
+  render();
+  if (skipped.length) toast(`Not in the catalog any more: ${skipped.join(", ")}.`, "warn");
+}
+
+async function shareReceipt(o) {
+  const text = receiptText(o, S.user.fullName);
+  try {
+    if (navigator.share) { await navigator.share({ title: "DAS PLC order", text }); return; }
+    await navigator.clipboard.writeText(text);
+    toast("Receipt copied. Paste it into a message.");
+  } catch (e) {
+    if (e?.name !== "AbortError") toast("Could not share the receipt.", "bad");
+  }
+}
+
+async function cancelOrder(o, reason) {
+  try {
+    await api(`/orders/${encodeURIComponent(o.id)}/cancel`, { method: "POST", body: { reason } });
+    cancelling = false;
+    await sync({ quiet: true });
+    toast("Order cancelled.");
+  } catch (e) {
+    cancelling = false;
+    toast(isOffline(e) ? "You need a connection to cancel an order that has been sent." : e.message, "bad");
+  }
+}
+
 function saveOrder() {
   const lines = cartLines(draft.cart, S.catalog.products, draft.customer);
   S.queue.push(makeOrder(draft.customer, lines, draft.notes));
@@ -250,7 +302,7 @@ function saveOrder() {
 /* ---------- events ---------- */
 
 app.addEventListener("click", (e) => {
-  const t = e.target.closest("button, [data-customer]");
+  const t = e.target.closest("button, [data-customer], [data-detail]");
   if (!t) return;
   const d = t.dataset;
   if (t.id === "connect") return connect();
@@ -258,6 +310,14 @@ app.addEventListener("click", (e) => {
   if (d.user) return signIn(d.user);
   if (t.id === "signout") { S.user = null; persist(); return render(); }
   if (d.tab) { tab = d.tab; return render(); }
+  if (d.detail) { detail = d.detail; cancelling = false; return render(); }
+  if (t.id === "detail-back") { detail = null; cancelling = false; return render(); }
+  if (t.id === "share") return shareReceipt(S.history.find((x) => x.id === detail));
+  if (t.id === "repeat-detail") { const o = S.history.find((x) => x.id === detail); return startRepeat(o, o.customerId); }
+  if (t.id === "repeat-last") return startRepeat(lastOrderFor(S.history, draft.customer.id), draft.customer.id);
+  if (t.id === "cancel-order") { cancelling = true; return render(); }
+  if (t.id === "cancel-no") { cancelling = false; return render(); }
+  if (d.cancelReason) return cancelOrder(S.history.find((x) => x.id === detail), d.cancelReason);
   if (t.id === "sync") return sync();
   if (t.id === "start") return startDraft();
   if (t.id === "cancel") { draft = null; return render(); }

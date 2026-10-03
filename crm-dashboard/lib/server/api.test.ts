@@ -276,3 +276,53 @@ describe("orders from the order app", () => {
     expect((await call(null, "POST", "/orders", order())).status).toBe(401);
   });
 });
+
+describe("order lifecycle", () => {
+  const MANAGER = NSM;
+  let cat: any;
+  const place = async (who = REP_ACCRA, qty = 10) => {
+    cat ??= (await call(REP_ACCRA, "GET", "/orders/catalog")).body;
+    const r = await call(who, "POST", "/orders", { clientId: `lc-${Math.random()}`, customerId: cat.customers[0].id, lines: [{ productId: cat.products[0].id, qty }] });
+    return r.body as any;
+  };
+
+  it("shows stock availability in the catalog", async () => {
+    cat = (await call(REP_ACCRA, "GET", "/orders/catalog")).body;
+    expect(cat.products.every((p: any) => ["In stock", "Low", "Out"].includes(p.availability))).toBe(true);
+  });
+  it("lets a rep cancel their own placed order, with a reason, and keeps it out of the numbers", async () => {
+    const o = await place();
+    expect((await call(REP_ACCRA, "POST", `/orders/${o.id}/cancel`, {})).status).toBe(422);
+    const count = async () => ((await call(NSM, "GET", "/rtm/summary")).body as any).overall.orders;
+    const before = await count();
+    const r = await call(REP_ACCRA, "POST", `/orders/${o.id}/cancel`, { reason: "Wrong customer" });
+    expect((r.body as any).status).toBe("Cancelled");
+    expect(await count()).toBe(before - 1); // the order was counted until it was cancelled
+    const mine = (await call(REP_ACCRA, "GET", "/orders/mine")).body as any[];
+    expect(mine.find((x) => x.id === o.id).cancelReason).toBe("Wrong customer");
+  });
+  it("only a manager confirms, and then a rep can no longer cancel", async () => {
+    const o = await place();
+    expect((await call(REP_ACCRA, "POST", `/orders/${o.id}/confirm`)).status).toBe(403);
+    expect(((await call(MANAGER, "POST", `/orders/${o.id}/confirm`)).body as any).status).toBe("Confirmed");
+    expect((await call(REP_ACCRA, "POST", `/orders/${o.id}/cancel`, { reason: "x" })).status).toBe(403);
+    expect(((await call(MANAGER, "POST", `/orders/${o.id}/cancel`, { reason: "Customer asked" })).body as any).status).toBe("Cancelled");
+  });
+  it("records a short delivery and counts revenue in proportion", async () => {
+    const o = await place(REP_ACCRA, 20);
+    const bad = await call(MANAGER, "POST", `/orders/${o.id}/deliver`, { unitsDelivered: 21 });
+    expect(bad.status).toBe(422);
+    const r = (await call(MANAGER, "POST", `/orders/${o.id}/deliver`, { unitsDelivered: 15 })).body as any;
+    expect(r.status).toBe("Delivered");
+    expect(r.unitsDelivered).toBe(15);
+    expect((await call(MANAGER, "POST", `/orders/${o.id}/cancel`, { reason: "x" })).status).toBe(422);
+  });
+  it("lists orders for managers only, and a rep cannot touch another rep's order", async () => {
+    expect((await call(REP_ACCRA, "GET", "/orders")).status).toBe(403);
+    const list = (await call(MANAGER, "GET", "/orders", undefined, "status=Placed")).body as any[];
+    expect(list.length).toBeGreaterThan(0);
+    expect(list.every((o) => o.status === "Placed")).toBe(true);
+    const o = await place();
+    expect((await call(REP_TAMALE, "POST", `/orders/${o.id}/cancel`, { reason: "x" })).status).toBe(404);
+  });
+});

@@ -24,6 +24,12 @@ export interface OrderRecord {
   lines?: OrderLine[];
   /** What the order is worth at list price, less the distributor discount. Revenue is counted on delivery. */
   orderValue?: number;
+  /** Set when a manager confirms the order. */
+  confirmedBy?: string;
+  /** Set when the order is cancelled. Cancelled orders are kept but never counted. */
+  cancelledAt?: string | null;
+  cancelledBy?: string;
+  cancelReason?: string | null;
   notes?: string | null;
 }
 
