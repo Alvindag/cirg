@@ -41,6 +41,12 @@ const routes = {
   'GET /samples/reports/stock': () => [
     { holderId: null, location: 'Warehouse', batchId: 'b1', productId: 'p1', batchNumber: 'AMX-2611', expiryDate: '2027-08-01', daysToExpiry: 300, status: 'Active', quantity: 4200, expired: false, expiringSoon: false, actionRequired: false },
     { holderId: 'rep-2', location: 'Rep', batchId: 'b0', productId: 'p1', batchNumber: 'AMX-2501', expiryDate: '2026-09-01', daysToExpiry: -30, status: 'Active', quantity: 25, expired: true, expiringSoon: false, actionRequired: true }],
+  'GET /orders/summary': () => ({ days: 30, orders: 12, value: 4200, placed: 3, confirmed: 2, delivered: 6, cancelled: 1, avgHoursToDeliver: 30, topProducts: [{ productId: 'p1', name: 'Amoxil 500', quantity: 400, value: 1000 }] }),
+  'GET /orders': () => [{ id: 'o1', number: 'ORD-20261003-AB12CD', repId: 'rep-2', customerId: 'c1', customerName: 'Korle Pharmacy', status: 'Placed', total: 37.5, currency: 'GHS', notes: null,
+    placedAt: '2026-10-03T09:00:00Z', confirmedAt: null, deliveredAt: null, cancelledAt: null, cancelReason: null, lines: [{ id: 'l1', productId: 'p1', productName: 'Amoxil 500', quantity: 15, unitPrice: 2.5, lineTotal: 37.5 }] }],
+  'GET /dashboards/coverage': () => ({ days: 90, customers: 3000, expectedVisits: 9000, completedVisits: 4950, attainmentPct: 55, overdue: 410, neverVisited: 120,
+    territories: [{ territoryId: 't1', territory: 'Accra Central', region: 'Greater Accra', customers: 800, expected: 2400, completed: 1500, attainmentPct: 62.5, overdue: 90, neverVisited: 10 }],
+    worst: [{ customerId: 'c1', name: 'Savelugu Pharmacy', type: 'Pharmacy', segment: 'A', territory: 'Tamale', targetPerMonth: 4, lastVisitAt: null, daysSince: null }] }),
   'GET /dashboards/rtm': () => ({ currency: 'GHS', hasUniverse: true, universeScoped: false, universeTotal: 30000, mapped: 3600, reached: 2100, mappedPct: 12, reachedPct: 7, revenue: 482500, top20Share: 78.4,
     classes: [
       { outletClass: 'IndependentPharmacy', universe: 14000, mapped: 1500, reached: 900, revenue: 120000 }, { outletClass: 'OtcShop', universe: 9000, mapped: 700, reached: 300, revenue: 40000 },
@@ -168,7 +174,13 @@ try {
   await expectText('Coverage by kind of outlet')
   await expectText('Independent pharmacy')
   await expectText('7.0% of the market')
+  await expectText('Savelugu Pharmacy')
   await shot('rtm')
+
+  await page.getByRole('link', { name: 'Orders' }).click()
+  await expectText('Korle Pharmacy')
+  await expectText('GHS 4,200.00 ordered')
+  await shot('orders')
 
   await page.getByRole('link', { name: 'Audit' }).click()
   await expectText('SampleBatch')
