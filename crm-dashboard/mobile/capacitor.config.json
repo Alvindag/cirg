@@ -1,0 +1,12 @@
+{
+  "appId": "com.das.orders",
+  "appName": "DAS Orders",
+  "webDir": "www",
+  "server": {
+    "androidScheme": "https",
+    "cleartext": true
+  },
+  "plugins": {
+    "CapacitorHttp": { "enabled": true }
+  }
+}

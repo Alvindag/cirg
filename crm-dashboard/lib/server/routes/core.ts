@@ -9,6 +9,8 @@ import { DEAL_STAGES } from "../model";
 import { visitPayload } from "../seed";
 import { chainHash, GENESIS } from "@/lib/rtm/hashchain";
 import { verifyCheckIn } from "@/lib/rtm/geo";
+import { checkLines, CONFIRM_ABOVE_QTY, MAX_LINE_QTY, orderValue, unitPrice } from "@/lib/rtm/orders";
+import type { OrderRecord } from "@/lib/rtm/metrics";
 
 const uuid = (p: string) => `${p}-${Date.now().toString(36)}${Math.random().toString(36).slice(2, 7)}`;
 const publicUser = (u: User) => ({
@@ -595,4 +597,108 @@ post("/visits/sync", ({ db, user, body }) => {
   });
   save();
   return { accepted: results.filter((r) => r.ok).length, rejected: results.filter((r) => !r.ok).length, results };
+});
+
+/* ---------------- orders (the order app and the CRM) ---------------- */
+
+const DAY_MS = 864e5;
+
+/** Everything the order app needs to work offline: products with prices, and this person's customers. */
+get("/orders/catalog", ({ db, user }) => {
+  requireFeature(user, "orders");
+  return {
+    generatedAt: new Date().toISOString(),
+    rules: { confirmAboveQty: CONFIRM_ABOVE_QTY, maxLineQty: MAX_LINE_QTY },
+    products: db.products.map((p) => ({ id: p.id, name: p.name, therapeuticArea: p.therapeuticArea, listPrice: p.listPrice })),
+    customers: visibleCustomers(db, user).map((c) => {
+      const d = c.channel === "Distributor" ? db.distributors.find((x) => x.id === c.distributorId) : undefined;
+      return { id: c.id, name: c.name, city: c.city, channel: c.channel, distributorId: c.distributorId, discountPct: d?.discountPct ?? 0 };
+    }),
+  };
+});
+
+function placeOrder(db: DB, user: User, b: any): { order: OrderRecord; duplicate: boolean } {
+  if (!b.clientId || typeof b.clientId !== "string") bad("Every order needs a clientId so a retry is not saved twice.");
+  const dup = db.orders.find((o) => o.clientId === b.clientId && o.placedBy === user.id);
+  if (dup) return { order: dup, duplicate: true };
+  const customer = visibleCustomers(db, user).find((c) => c.id === b.customerId) ?? bad("Unknown customer, or not one of yours.");
+  const checked = checkLines(b.lines, (id) => db.products.some((p) => p.id === id));
+  if (!checked.ok) bad(checked.error);
+  const at = b.at ? Date.parse(b.at) : Date.now();
+  if (!Number.isFinite(at)) bad("The order time is not valid.");
+  if (at > Date.now() + 5 * 60_000) bad("The order time is in the future.");
+  if (Date.now() - at > 14 * DAY_MS) bad("Orders older than 14 days cannot be synced. Place it again.");
+  const dist = customer.channel === "Distributor" ? db.distributors.find((d) => d.id === customer.distributorId) : undefined;
+  const lines = (checked as Extract<typeof checked, { ok: true }>).lines.map((l) => {
+    const p = db.products.find((x) => x.id === l.productId)!;
+    // Prices come from the server's price list, never from the phone.
+    return { productId: p.id, name: p.name, qty: l.qty, unitPrice: unitPrice(p.listPrice, dist?.discountPct ?? 0) };
+  });
+  const territory = db.territories.find((t) => t.id === customer.territoryId);
+  const order: OrderRecord = {
+    id: uuid("ord"),
+    clientId: b.clientId,
+    placedBy: user.id,
+    customerId: customer.id,
+    channel: customer.channel,
+    distributorId: customer.channel === "Distributor" ? customer.distributorId : null,
+    region: territory?.region ?? "Unassigned",
+    orderedAt: new Date(at).toISOString(),
+    confirmedAt: new Date(at).toISOString(),
+    promisedAt: new Date(at + (customer.channel === "Direct" ? 3 : 5) * DAY_MS).toISOString(),
+    deliveredAt: null,
+    unitsOrdered: lines.reduce((n, l) => n + l.qty, 0),
+    unitsDelivered: 0,
+    revenue: 0,
+    logisticsCost: 0,
+    distributionCost: 0,
+    salesCost: 0,
+    lines,
+    orderValue: orderValue(lines),
+    notes: b.notes ? String(b.notes).slice(0, 500) : null,
+  };
+  db.orders.push(order);
+  logAudit(user.id, "Create", "Order", order.id, { customerId: customer.id, units: order.unitsOrdered, value: order.orderValue, via: "order app" });
+  return { order, duplicate: false };
+}
+
+const orderOut = (db: DB, o: OrderRecord) => ({
+  id: o.id,
+  clientId: o.clientId ?? null,
+  customerId: o.customerId,
+  customerName: db.customers.find((c) => c.id === resolveCustomerId(db, o.customerId))?.name ?? "Unknown",
+  orderedAt: o.orderedAt,
+  status: o.deliveredAt ? "Delivered" : "Placed",
+  units: o.unitsOrdered,
+  value: o.orderValue ?? o.revenue,
+  lines: o.lines ?? [],
+});
+
+post("/orders", ({ db, user, body }) => {
+  requireFeature(user, "orders");
+  const { order, duplicate } = placeOrder(db, user, body);
+  if (!duplicate) save();
+  return reply(duplicate ? 200 : 201, orderOut(db, order));
+});
+
+/** Upload for orders taken offline. Each is checked on its own; one bad order does not block the rest. */
+post("/orders/sync", ({ db, user, body }) => {
+  requireFeature(user, "orders");
+  const items: any[] = Array.isArray(body.orders) ? body.orders : [];
+  const results = items.map((b) => {
+    try {
+      const { order, duplicate } = placeOrder(db, user, b);
+      return { clientId: b.clientId, ok: true, duplicate, id: order.id, value: order.orderValue };
+    } catch (e) {
+      return { clientId: b?.clientId ?? null, ok: false, duplicate: false, error: e instanceof Error ? e.message : "Failed" };
+    }
+  });
+  save();
+  return { accepted: results.filter((r) => r.ok).length, rejected: results.filter((r) => !r.ok).length, results };
+});
+
+/** This person's own recent orders, newest first. */
+get("/orders/mine", ({ db, user }) => {
+  requireFeature(user, "orders");
+  return db.orders.filter((o) => o.placedBy === user.id).slice(-50).reverse().map((o) => orderOut(db, o));
 });

@@ -37,3 +37,6 @@ next-env.d.ts
 
 # built-in backend data (generated)
 /.data/
+
+# order app
+/mobile/node_modules

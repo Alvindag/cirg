@@ -18,6 +18,20 @@ export interface OrderRecord {
   logisticsCost: number;
   distributionCost: number;
   salesCost: number;
+  /** Set on orders placed from the CRM or the order app (the older records only carry totals). */
+  clientId?: string;
+  placedBy?: string;
+  lines?: OrderLine[];
+  /** What the order is worth at list price, less the distributor discount. Revenue is counted on delivery. */
+  orderValue?: number;
+  notes?: string | null;
+}
+
+export interface OrderLine {
+  productId: string;
+  name: string;
+  qty: number;
+  unitPrice: number;
 }
 
 const DAY = 864e5;
