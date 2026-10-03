@@ -12,7 +12,7 @@ RUN dotnet restore src/DasEngage.Api/DasEngage.Api.csproj
 COPY src/backend/src/ src/
 RUN dotnet publish src/DasEngage.Api/DasEngage.Api.csproj -c Release -o /app --no-restore /p:UseAppHost=false
 
-FROM mcr.microsoft.com/dotnet/aspnet:8.0 AS runtime
+FROM mcr.microsoft.com/dotnet/aspnet:10.0 AS runtime
 WORKDIR /app
 COPY --from=build /app ./
 # Runs as the image's built-in non-root user; TLS is terminated by the platform ingress.
