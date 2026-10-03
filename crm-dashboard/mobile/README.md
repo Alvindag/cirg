@@ -18,17 +18,14 @@ It is a small web app (`www/`) in an Android shell ([Capacitor](https://capacito
 - **Not built:** customer signature and photos, credit limits, discounts needing approval, promotions, editing an order after saving (cancel and repeat instead), stock levels per distributor, and an app icon of its own (it uses the default).
 - The debug APK has been built and run on one phone (same Wi-Fi as the CRM). A store release is not set up.
 
-## Try it without a phone
+## Test it with your phone
 
-```
-# 1. start the CRM (in crm-dashboard/) with the demo sign-in
-$env:ALLOW_DEMO_AUTH="true"; npm run build; npm run start:standalone     # PowerShell; or: npm run dev
-# 2. in a second window, in crm-dashboard/mobile/
-npm install
-npm run serve
-```
+1. On the PC, in `crm-dashboard`, run `npm install` and `npm run dev`. In development the CRM uses its demo sign-in and sample data, with no setup.
+2. Find the PC's address on the Wi-Fi: run `ipconfig` and read "IPv4 Address" (for example `192.168.1.20`). The first time, Windows asks whether Node.js may use the network: allow it on **private** networks.
+3. Put the phone on the same Wi-Fi. In the app, enter `192.168.1.20:3000` (your address), tap Connect, then pick a rep (for example "Kojo Asante").
+4. Tap Start a new order. Turn on airplane mode to try it offline: orders are saved on the phone and sent when the signal returns. On the PC, open http://localhost:3000/orders to see them (switch the role at the top to a manager, e.g. Esi Mensah).
 
-Open http://localhost:5090 and enter `localhost:3000`. A desktop browser blocks the cross-site calls unless started with web security off; the real app does not have this problem because it makes its calls natively. Simplest is to try it on the phone instead.
+To try the app in a desktop browser instead: in `crm-dashboard/mobile` run `npm install` then `npm run serve`, and open http://localhost:5090. A browser blocks the calls to the CRM (different address), so the phone is the real test.
 
 ## Build the APK on Windows
 
