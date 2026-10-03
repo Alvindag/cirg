@@ -1,9 +1,9 @@
 import { useState } from 'react'
-import type { OutletClass, RtmDashboard, SalesChannel, UniverseRow, UntaggedList } from '../api/types'
+import type { CoverageDashboard, OutletClass, RtmDashboard, SalesChannel, UniverseRow, UntaggedList } from '../api/types'
 import { Empty, ErrorBox, Kpi, Loading, Section } from '../components/ui'
 import { RangePicker } from '../components/RangePicker'
 import { useApp } from '../context'
-import { fmtInt, fmtPct, rangeLastDays } from '../lib/format'
+import { fmtDate, fmtInt, fmtPct, rangeLastDays } from '../lib/format'
 import { canImportCustomers } from '../lib/roles'
 import { useAsync } from '../lib/useAsync'
 
@@ -121,6 +121,8 @@ export function Rtm() {
             </Section>
           </div>
 
+          <VisitCoverage days={Math.min(90, Math.max(7, days))} />
+
           <Section title="Complete the picture">
             <p>
               {d.tagging.total === 0 ? 'No outlets yet.' : `${fmtInt(d.tagging.noChannel)} of ${fmtInt(d.tagging.total)} outlets have no channel, ${fmtInt(d.tagging.noClass)} have no kind of outlet, and ${fmtInt(d.tagging.noRegion)} have no region.`}
@@ -133,6 +135,61 @@ export function Rtm() {
         </>
       )}
     </>
+  )
+}
+
+/** Are the planned calls being made? Reported by territory; the list shows customers, not people. */
+function VisitCoverage({ days }: { days: number }) {
+  const { api } = useApp()
+  const c = useAsync(() => api.get<CoverageDashboard>('/dashboards/coverage', { days }), [days])
+  const d = c.data
+  return (
+    <Section title={`Visit coverage, last ${days} days`}>
+      {c.error && <ErrorBox message={c.error} onRetry={c.reload} />}
+      {c.loading && !d && <Loading />}
+      {d && (d.customers === 0 ? <Empty>No customers have a visit target yet. Set “visits a month” on customers, or in the customer import.</Empty> : (
+        <>
+          <div className="kpis">
+            <Kpi label="Planned calls made" value={d.attainmentPct != null ? fmtPct(d.attainmentPct) : '—'} hint={`${fmtInt(d.completedVisits)} visits against ${fmtInt(Math.round(d.expectedVisits))} expected`}
+              tone={d.attainmentPct != null && d.attainmentPct < 60 ? 'bad' : d.attainmentPct != null && d.attainmentPct < 85 ? 'warn' : 'good'} />
+            <Kpi label="Overdue customers" value={fmtInt(d.overdue)} hint={`of ${fmtInt(d.customers)} with a visit target`} tone={d.overdue > 0 ? 'warn' : 'good'} />
+            <Kpi label="Never visited" value={fmtInt(d.neverVisited)} hint="no completed visit on record" tone={d.neverVisited > 0 ? 'warn' : 'good'} />
+          </div>
+          <table>
+            <thead><tr><th>Territory</th><th>Region</th><th className="num">Customers</th><th className="num">Visits</th><th className="num">Planned calls made</th><th className="num">Overdue</th><th className="num">Never visited</th></tr></thead>
+            <tbody>
+              {d.territories.map((t) => (
+                <tr key={t.territoryId ?? 'none'}>
+                  <td>{t.territory}</td><td>{t.region ?? '—'}</td>
+                  <td className="num">{fmtInt(t.customers)}</td>
+                  <td className="num">{fmtInt(t.completed)} of {fmtInt(Math.round(t.expected))}</td>
+                  <td className="num">{t.attainmentPct != null ? fmtPct(t.attainmentPct) : '—'}</td>
+                  <td className="num">{fmtInt(t.overdue)}</td><td className="num">{fmtInt(t.neverVisited)}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+          {d.worst.length > 0 && (
+            <>
+              <h3>Most overdue customers</h3>
+              <table>
+                <thead><tr><th>Customer</th><th>Territory</th><th>Segment</th><th className="num">Target a month</th><th>Last visit</th></tr></thead>
+                <tbody>
+                  {d.worst.map((w) => (
+                    <tr key={w.customerId}>
+                      <td>{w.name} <span className="muted small">{w.type}</span></td><td>{w.territory}</td><td>{w.segment}</td>
+                      <td className="num">{w.targetPerMonth}</td>
+                      <td>{w.lastVisitAt ? `${fmtDate(w.lastVisitAt)} (${w.daysSince} days ago)` : 'Never'}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </>
+          )}
+          <p className="muted small">A customer is overdue when the time since the last completed visit is longer than their target frequency asks for. Visits above the target do not make up for missed ones elsewhere.</p>
+        </>
+      ))}
+    </Section>
   )
 }
 

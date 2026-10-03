@@ -23,6 +23,7 @@ public static class Endpoints
         Erp.ErpEndpoints.Map(api);
         RtmEndpoints.Map(api);
         OrderEndpoints.Map(api);
+        CoverageEndpoints.Map(api);
     }
 
     // ---------- Customers ----------

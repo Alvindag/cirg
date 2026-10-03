@@ -193,3 +193,10 @@ export interface OrderSummary {
   days: number; orders: number; value: number; placed: number; confirmed: number; delivered: number; cancelled: number
   avgHoursToDeliver: number | null; topProducts: { productId: string; name: string; quantity: number; value: number }[]
 }
+
+export interface CoverageTerritory { territoryId: string | null; territory: string; region: string | null; customers: number; expected: number; completed: number; attainmentPct: number | null; overdue: number; neverVisited: number }
+export interface CoverageCustomer { customerId: string; name: string; type: string; segment: string; territory: string; targetPerMonth: number; lastVisitAt: string | null; daysSince: number | null }
+export interface CoverageDashboard {
+  days: number; customers: number; expectedVisits: number; completedVisits: number; attainmentPct: number | null; overdue: number; neverVisited: number
+  territories: CoverageTerritory[]; worst: CoverageCustomer[]
+}

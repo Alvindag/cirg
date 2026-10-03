@@ -1,7 +1,7 @@
 import { screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { describe, expect, it } from 'vitest'
-import type { RtmDashboard, UniverseRow, UntaggedList } from '../api/types'
+import type { CoverageDashboard, RtmDashboard, UniverseRow, UntaggedList } from '../api/types'
 import { fakeApi, me, renderApp } from '../test/helpers'
 import { Rtm } from './Rtm'
 
@@ -19,10 +19,15 @@ const dash = (over: Partial<RtmDashboard> = {}): RtmDashboard => ({
 })
 const untagged: UntaggedList = { total: 3, items: [{ id: 'c1', name: 'Quiet Pharmacy', type: 'Pharmacy', city: 'Accra', channel: 'Unassigned', outletClass: 'Unclassified' }] }
 const noUniverse: UniverseRow[] = []
+const coverage: CoverageDashboard = {
+  days: 90, customers: 40, expectedVisits: 120, completedVisits: 66, attainmentPct: 55, overdue: 9, neverVisited: 3,
+  territories: [{ territoryId: 't1', territory: 'Tamale', region: 'Northern', customers: 12, expected: 40, completed: 12, attainmentPct: 30, overdue: 6, neverVisited: 2 }],
+  worst: [{ customerId: 'c9', name: 'Savelugu Pharmacy', type: 'Pharmacy', segment: 'A', territory: 'Tamale', targetPerMonth: 4, lastVisitAt: null, daysSince: null }],
+}
 
 describe('Route to market', () => {
   it('shows the market, what is mapped and reached, channels, regions and what is left to tag', async () => {
-    const api = fakeApi({ 'GET /dashboards/rtm': () => dash(), 'GET /rtm/untagged': () => untagged, 'GET /rtm/universe': () => noUniverse })
+    const api = fakeApi({ 'GET /dashboards/rtm': () => dash(), 'GET /rtm/untagged': () => untagged, 'GET /rtm/universe': () => noUniverse, 'GET /dashboards/coverage': () => coverage })
     renderApp(<Rtm />, api, me('NationalSalesManager'))
     expect(await screen.findByText('Coverage by kind of outlet')).toBeInTheDocument()
     expect(screen.getByText('12.0% of the market')).toBeInTheDocument()
@@ -42,7 +47,7 @@ describe('Route to market', () => {
   })
 
   it('says so when no market size is set instead of showing misleading percentages', async () => {
-    const api = fakeApi({ 'GET /dashboards/rtm': () => dash({ hasUniverse: false, universeTotal: null, mappedPct: null, reachedPct: null, top20Share: null }), 'GET /rtm/untagged': () => untagged, 'GET /rtm/universe': () => noUniverse })
+    const api = fakeApi({ 'GET /dashboards/rtm': () => dash({ hasUniverse: false, universeTotal: null, mappedPct: null, reachedPct: null, top20Share: null }), 'GET /rtm/untagged': () => untagged, 'GET /rtm/universe': () => noUniverse, 'GET /dashboards/coverage': () => coverage })
     renderApp(<Rtm />, api, me('Admin'))
     expect(await screen.findByText('Not set')).toBeInTheDocument()
     expect(screen.getByText('set it below to see coverage')).toBeInTheDocument()
@@ -93,7 +98,7 @@ describe('Route to market', () => {
 
   it('shows the server\'s reason when the market size is refused', async () => {
     const api = fakeApi({
-      'GET /dashboards/rtm': () => dash(), 'GET /rtm/untagged': () => ({ total: 0, items: [] }), 'GET /rtm/universe': () => noUniverse,
+      'GET /dashboards/rtm': () => dash(), 'GET /rtm/untagged': () => ({ total: 0, items: [] }), 'GET /rtm/universe': () => noUniverse, 'GET /dashboards/coverage': () => coverage,
       'PUT /rtm/universe': () => { throw new Error('Each region and kind of outlet may appear once.') },
     })
     const user = userEvent.setup()
@@ -102,5 +107,24 @@ describe('Route to market', () => {
     await user.click(screen.getByRole('button', { name: 'Add a row' }))
     await user.click(screen.getByRole('button', { name: 'Save market size' }))
     expect(await screen.findByRole('alert')).toHaveTextContent('may appear once')
+  })
+
+  it('shows whether the planned visits are being made, by territory, and the most overdue customers', async () => {
+    const api = fakeApi({ 'GET /dashboards/rtm': () => dash(), 'GET /rtm/untagged': () => untagged, 'GET /rtm/universe': () => noUniverse, 'GET /dashboards/coverage': () => coverage })
+    renderApp(<Rtm />, api, me('NationalSalesManager'))
+    expect(await screen.findByText('Visit coverage, last 90 days')).toBeInTheDocument()
+    expect(screen.getByText('55.0%')).toBeInTheDocument()
+    expect(screen.getByText('66 visits against 120 expected')).toBeInTheDocument()
+    const row = screen.getAllByText('Tamale', { selector: 'td' })[0].closest('tr')!
+    expect(within(row).getByText('12 of 40')).toBeInTheDocument()
+    expect(within(row).getByText('30.0%')).toBeInTheDocument()
+    const worst = screen.getByText('Savelugu Pharmacy').closest('tr')!
+    expect(within(worst).getByText('Never')).toBeInTheDocument()
+  })
+
+  it('says so when no customer has a visit target yet', async () => {
+    const api = fakeApi({ 'GET /dashboards/rtm': () => dash(), 'GET /rtm/untagged': () => untagged, 'GET /rtm/universe': () => noUniverse, 'GET /dashboards/coverage': () => ({ ...coverage, customers: 0, territories: [], worst: [] }) })
+    renderApp(<Rtm />, api, me('NationalSalesManager'))
+    expect(await screen.findByText(/No customers have a visit target yet/)).toBeInTheDocument()
   })
 })
