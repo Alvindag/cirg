@@ -5,7 +5,7 @@ namespace DasEngage.Api.Erp;
 
 // The canonical data contract between DAS Engage and any ERP. An adapter (or the ERP itself) speaks this; see docs/erp-integration.md.
 
-public record ErpProduct(string ItemCode, string Name, string? TherapeuticArea, decimal? StandardCost, int? ReorderLevel);
+public record ErpProduct(string ItemCode, string Name, string? TherapeuticArea, decimal? StandardCost, int? ReorderLevel, decimal? ListPrice = null);
 public record ErpCustomer(string AccountCode, string Name, string? Type, string? City, string? Phone, string? Email);
 public record ErpSale(string ExternalId, string DocumentNumber, DateOnly Date, string AccountCode, string ItemCode, decimal Quantity, decimal NetAmount, string? Currency);
 public record ErpGoodsReceipt(string ExternalId, string ItemCode, string BatchNumber, DateOnly ExpiryDate, int Quantity, string? RequisitionRef, DateTime? ReceivedAt);

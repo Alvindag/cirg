@@ -49,23 +49,24 @@ public class ErpImporter
             var code = p.ItemCode?.Trim() ?? "";
             if (code.Length is 0 or > 50) { items.Add(new(code, "error", "ItemCode is required (max 50 characters).")); continue; }
             if (string.IsNullOrWhiteSpace(p.Name) || p.Name.Length > 200) { items.Add(new(code, "error", "Name is required (max 200 characters).")); continue; }
-            if (p.StandardCost < 0 || p.ReorderLevel < 0) { items.Add(new(code, "error", "Cost and reorder level cannot be negative.")); continue; }
+            if (p.StandardCost < 0 || p.ReorderLevel < 0 || p.ListPrice < 0) { items.Add(new(code, "error", "Cost, reorder level and price cannot be negative.")); continue; }
 
             var existing = all.FirstOrDefault(x => string.Equals(x.Code, code, StringComparison.OrdinalIgnoreCase))
                 ?? all.FirstOrDefault(x => x.Code == null && Normalize.Name(x.Name) == Normalize.Name(p.Name)); // an item added by hand before the ERP link
             if (existing is null)
             {
-                var n = new Product { Code = code, Name = p.Name.Trim(), TherapeuticArea = p.TherapeuticArea, StandardCost = p.StandardCost, ReorderLevel = p.ReorderLevel };
+                var n = new Product { Code = code, Name = p.Name.Trim(), TherapeuticArea = p.TherapeuticArea, StandardCost = p.StandardCost, ReorderLevel = p.ReorderLevel, ListPrice = p.ListPrice };
                 _db.Products.Add(n); all.Add(n);
                 items.Add(new(code, "created", null));
                 continue;
             }
             var changed = existing.Code != code || existing.Name != p.Name.Trim() || existing.TherapeuticArea != (p.TherapeuticArea ?? existing.TherapeuticArea)
-                || existing.StandardCost != (p.StandardCost ?? existing.StandardCost) || existing.ReorderLevel != (p.ReorderLevel ?? existing.ReorderLevel);
+                || existing.StandardCost != (p.StandardCost ?? existing.StandardCost) || existing.ReorderLevel != (p.ReorderLevel ?? existing.ReorderLevel) || existing.ListPrice != (p.ListPrice ?? existing.ListPrice);
             existing.Code = code; existing.Name = p.Name.Trim();
             existing.TherapeuticArea = p.TherapeuticArea ?? existing.TherapeuticArea;
             existing.StandardCost = p.StandardCost ?? existing.StandardCost;
             existing.ReorderLevel = p.ReorderLevel ?? existing.ReorderLevel;
+            existing.ListPrice = p.ListPrice ?? existing.ListPrice;
             items.Add(new(code, changed ? "updated" : "unchanged", null));
         }
         var summary = await Log("products", source, items, started);

@@ -22,6 +22,7 @@ public static class Endpoints
         Ai.AiEndpoints.Map(api);
         Erp.ErpEndpoints.Map(api);
         RtmEndpoints.Map(api);
+        OrderEndpoints.Map(api);
     }
 
     // ---------- Customers ----------
@@ -347,13 +348,14 @@ public static class Endpoints
                 sampleStock = u.UserId is { } me ? await samples.HoldingsFor(me) : new List<object>(),
                 notifications = await db.Notifications.AsNoTracking().Where(n => n.UserId == u.UserId && n.ReadAt == null && n.CreatedAt > now.AddDays(-30)).OrderByDescending(n => n.CreatedAt).ToListAsync(),
                 sampleRequests = await db.SampleRequests.AsNoTracking().Where(r => r.RepId == u.UserId && r.CreatedAt > now.AddDays(-90)).ToListAsync(),
+                orders = await db.Orders.AsNoTracking().Include(o => o.Lines).Where(o => o.RepId == u.UserId && o.PlacedAt > now.AddDays(-90)).OrderByDescending(o => o.PlacedAt).ToListAsync(),
                 tasks = await db.Tasks.IgnoreQueryFilters().Where(t => t.TenantId == u.TenantId && t.UpdatedAt > cursor && t.AssignedToId == u.UserId).AsNoTracking().ToListAsync(),
             });
         });
 
         // Push: idempotent on client-generated ids; safe to retry. Every item gets its own result, so one refused item
         // (a visit to a customer that no longer exists, for example) never blocks the rest of the batch.
-        g.MapPost("/push", async (SyncPushRequest req, AppDbContext db, HttpCurrentUser u, SampleService samples, TeamScope team) =>
+        g.MapPost("/push", async (SyncPushRequest req, AppDbContext db, HttpCurrentUser u, SampleService samples, OrderService orders, TeamScope team) =>
         {
             if (u.UserId is null) return Results.Forbid();
             var me = u.UserId.Value;
@@ -402,11 +404,13 @@ public static class Endpoints
             // Samples report a result per item, so one rejected line (expired batch, not enough stock) never blocks the rest of the batch.
             var requests = new List<ItemResult>();
             foreach (var r in req.SampleRequests ?? new()) requests.Add(await samples.CreateRequest(me, r));
+            var orderResults = new List<ItemResult>();
+            foreach (var o in req.Orders ?? new()) orderResults.Add(await orders.Create(me, o));
             var distributions = new List<ItemResult>();
             foreach (var d in req.SampleDistributions ?? new())
                 distributions.Add(await samples.InTransaction(() => samples.RecordDistribution(me, d)));
 
-            return Results.Ok(new { ok = errors.Count == 0, errors, customers, plannedVisits = planned, checkIns, callReports = reports, tasks, sampleRequests = requests, sampleDistributions = distributions });
+            return Results.Ok(new { ok = errors.Count == 0, errors, customers, plannedVisits = planned, checkIns, callReports = reports, tasks, sampleRequests = requests, sampleDistributions = distributions, orders = orderResults });
         });
 
         // The device confirms it cleared its data after a remote wipe was requested.

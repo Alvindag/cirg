@@ -44,6 +44,8 @@ public class AppDbContext : DbContext
     public DbSet<Notification> Notifications => Set<Notification>();
     public DbSet<StockMovement> StockMovements => Set<StockMovement>();
     public DbSet<SampleRequest> SampleRequests => Set<SampleRequest>();
+    public DbSet<SalesOrder> Orders => Set<SalesOrder>();
+    public DbSet<SalesOrderLine> OrderLines => Set<SalesOrderLine>();
     public DbSet<SampleDistribution> SampleDistributions => Set<SampleDistribution>();
     public DbSet<AuditLog> AuditLogs => Set<AuditLog>();
 
@@ -62,6 +64,14 @@ public class AppDbContext : DbContext
         b.Entity<SampleBatch>().HasIndex(x => new { x.TenantId, x.ProductId, x.BatchNumber }).IsUnique();
         b.Entity<AiOutput>().HasIndex(x => new { x.TenantId, x.UserId, x.CreatedAt });
         b.Entity<Product>().Property(x => x.StandardCost).HasPrecision(18, 4);
+        b.Entity<Product>().Property(x => x.ListPrice).HasPrecision(18, 2);
+        b.Entity<SalesOrder>().Property(x => x.Total).HasPrecision(18, 2);
+        b.Entity<SalesOrderLine>().Property(x => x.UnitPrice).HasPrecision(18, 2);
+        b.Entity<SalesOrderLine>().Property(x => x.LineTotal).HasPrecision(18, 2);
+        b.Entity<SalesOrder>().HasIndex(x => new { x.TenantId, x.Number }).IsUnique();
+        b.Entity<SalesOrder>().HasIndex(x => new { x.TenantId, x.RepId, x.PlacedAt });
+        b.Entity<SalesOrder>().HasIndex(x => new { x.TenantId, x.CustomerId, x.PlacedAt });
+        b.Entity<SalesOrder>().HasMany(x => x.Lines).WithOne().HasForeignKey(l => l.OrderId);
         b.Entity<SalesFact>().Property(x => x.NetAmount).HasPrecision(18, 2);
         b.Entity<SalesFact>().Property(x => x.Quantity).HasPrecision(18, 3);
         b.Entity<ErpStockSnapshot>().Property(x => x.Quantity).HasPrecision(18, 3);
@@ -111,6 +121,8 @@ public class AppDbContext : DbContext
         b.Entity<AiOutput>().HasQueryFilter(e => e.TenantId == CurrentTenantId && e.DeletedAt == null);
         b.Entity<SampleBatch>().HasQueryFilter(e => e.TenantId == CurrentTenantId && e.DeletedAt == null);
         b.Entity<StockMovement>().HasQueryFilter(e => e.TenantId == CurrentTenantId && e.DeletedAt == null);
+        b.Entity<SalesOrder>().HasQueryFilter(e => e.TenantId == CurrentTenantId && e.DeletedAt == null);
+        b.Entity<SalesOrderLine>().HasQueryFilter(e => e.TenantId == CurrentTenantId && e.DeletedAt == null);
         b.Entity<SampleRequest>().HasQueryFilter(e => e.TenantId == CurrentTenantId && e.DeletedAt == null);
         b.Entity<Notification>().HasQueryFilter(e => e.TenantId == CurrentTenantId && e.DeletedAt == null);
         b.Entity<SampleDistribution>().HasQueryFilter(e => e.TenantId == CurrentTenantId && e.DeletedAt == null);

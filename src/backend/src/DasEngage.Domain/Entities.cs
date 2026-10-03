@@ -22,6 +22,8 @@ public enum MovementType { Receipt, IssueToRep, ReturnFromRep, Distribution, Wri
 
 public enum SampleRequestStatus { Pending, Approved, Rejected, Fulfilled, Cancelled }
 
+public enum OrderStatus { Placed, Confirmed, Delivered, Cancelled }
+
 public enum AiFeature { Transcription, VisitSummary }
 
 public enum AiStatus { Draft, Accepted, Rejected, Failed }
@@ -92,6 +94,8 @@ public class Product : TenantEntity
     /// <summary>Most units of this product one customer may be given in <see cref="SampleLimitDays"/> days (null = no limit).</summary>
     public int? SampleLimitPerCustomer { get; set; }
     public int? SampleLimitDays { get; set; }
+    /// <summary>Selling price per unit in GHS that orders are priced from; null = not for sale yet (cannot be ordered).</summary>
+    public decimal? ListPrice { get; set; }
 }
 
 public class Customer : TenantEntity
@@ -435,4 +439,37 @@ public class MarketUniverse : TenantEntity
     public OutletClass OutletClass { get; set; }
     public int Outlets { get; set; }
     public string? Source { get; set; }
+}
+
+
+/// <summary>An order taken by a rep for a customer. Priced by the server from the product list price, never by the phone.</summary>
+public class SalesOrder : TenantEntity
+{
+    public string Number { get; set; } = "";
+    public Guid RepId { get; set; }
+    public Guid CustomerId { get; set; }
+    public OrderStatus Status { get; set; } = OrderStatus.Placed;
+    public decimal Total { get; set; }
+    public string Currency { get; set; } = "GHS";
+    public string? Notes { get; set; }
+    /// <summary>When the rep took the order (device time, so offline orders keep their real time).</summary>
+    public DateTime PlacedAt { get; set; }
+    public DateTime? ConfirmedAt { get; set; }
+    public Guid? ConfirmedBy { get; set; }
+    public DateTime? DeliveredAt { get; set; }
+    public Guid? DeliveredBy { get; set; }
+    public DateTime? CancelledAt { get; set; }
+    public Guid? CancelledBy { get; set; }
+    public string? CancelReason { get; set; }
+    public List<SalesOrderLine> Lines { get; set; } = new();
+}
+
+public class SalesOrderLine : TenantEntity
+{
+    public Guid OrderId { get; set; }
+    public Guid ProductId { get; set; }
+    public string ProductName { get; set; } = "";
+    public int Quantity { get; set; }
+    public decimal UnitPrice { get; set; }
+    public decimal LineTotal { get; set; }
 }

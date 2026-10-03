@@ -209,7 +209,7 @@ public class BusinessCentralConnector : IErpConnector
             var code = Clean(Str(r, "number")); var name = Clean(Str(r, "displayName"));
             if (code is null || name is null) continue;
             // Business Central's item API has no reorder point; the category stands in for the therapeutic area
-            items.Add(new ErpProduct(code, name, Clean(Str(r, "itemCategoryCode")), Num(r, "unitCost") is { } cost and >= 0 ? cost : null, null));
+            items.Add(new ErpProduct(code, name, Clean(Str(r, "itemCategoryCode")), Num(r, "unitCost") is { } cost and >= 0 ? cost : null, null, Num(r, "unitPrice") is { } price and > 0 ? price : null));
         }
         return (items, NextCursor(cursor, rows.Select(r => Str(r, "lastModifiedDateTime") ?? "").Where(s => s != "").ToList()), null);
     }

@@ -50,8 +50,9 @@ public static class CsvMapper
         foreach (var r in Rows(csv, "item_code", "name"))
         {
             var cost = Dec(r, "standard_cost", errors, out var b1); var reorder = Dec(r, "reorder_level", errors, out var b2);
-            if (b1 || b2) continue;
-            items.Add(new ErpProduct(r.Get("item_code"), r.Get("name"), r.Opt("therapeutic_area"), cost, reorder is null ? null : (int)reorder));
+            var price = Dec(r, "list_price", errors, out var b3);
+            if (b1 || b2 || b3) continue;
+            items.Add(new ErpProduct(r.Get("item_code"), r.Get("name"), r.Opt("therapeutic_area"), cost, reorder is null ? null : (int)reorder, price));
         }
         return new(items, errors);
     }
