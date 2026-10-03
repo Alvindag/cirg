@@ -34,3 +34,8 @@ desktop.ini
 .vscode/
 .idea/
 *.swp
+
+# Release signing material
+src/mobile/android/key.properties
+*.jks
+*.keystore

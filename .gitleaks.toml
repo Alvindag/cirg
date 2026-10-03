@@ -1,0 +1,19 @@
+# Used by the "Secrets scan" job. Everything allowed here was checked by hand: it is public, a placeholder, or test-only.
+# Anything that is not listed fails the build.
+title = "DAS Engage 360"
+
+[extend]
+useDefault = true
+
+[allowlist]
+description = "Known public values, test-only keys and third-party example text"
+regexes = [
+  # Azurite's built-in development storage key; Microsoft publishes it, and docker-compose.yml uses it for the local blob emulator.
+  '''Eby8vdM02xNOcqFlqUwJPLlmEtlCDXJ1OUzFT50uSRZ6IFsuFq2UVErCz4I6tq/K1SZFPTOtr/KBHBeksoGMGw==''',
+  # The signing key of the in-process test host (tests only; the API refuses a development key outside Development/Testing).
+  '''test-signing-key-0123456789abcdef-0123456789''',
+]
+paths = [
+  # Reference documents of the installed third-party skills contain example tokens, curl commands and sample keys.
+  '''^\.claude/skills/''',
+]

@@ -1,0 +1,21 @@
+{
+  "id": "9582e5b5-7521-42ee-8d70-60c384360375",
+  "name": "DAS Engage 360 Integration",
+  "publisher": "DAS PLC",
+  "version": "1.0.0.0",
+  "brief": "Receives sample movements from DAS Engage 360 and prepares item journal lines.",
+  "description": "Custom API page sampleMovements (das/engage/v1.0) with an idempotent message log, and a processor that turns messages into item journal lines for review.",
+  "privacyStatement": "",
+  "EULA": "",
+  "help": "",
+  "url": "",
+  "logo": "",
+  "dependencies": [],
+  "screenshots": [],
+  "platform": "24.0.0.0",
+  "application": "24.0.0.0",
+  "idRanges": [{ "from": 50100, "to": 50149 }],
+  "resourceExposurePolicy": { "allowDebugging": true, "allowDownloadingSource": false, "includeSourceInSymbolFile": false },
+  "runtime": "13.0",
+  "target": "Cloud"
+}

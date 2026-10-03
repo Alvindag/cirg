@@ -1,0 +1,274 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+# A new push to the same branch cancels the run it replaces.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+env:
+  DOTNET_NOLOGO: true
+  DOTNET_CLI_TELEMETRY_OPTOUT: true
+  DOTNET_VERSION: 8.0.x
+  NODE_VERSION: 22
+  FLUTTER_VERSION: 3.47.6
+  EF_VERSION: 8.0.11
+
+jobs:
+  backend:
+    name: Backend (build, tests on in-memory and PostgreSQL, migrations)
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_PASSWORD: postgres
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U postgres" --health-interval 5s --health-timeout 5s --health-retries 10
+    defaults:
+      run:
+        working-directory: src/backend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: ${{ env.DOTNET_VERSION }}
+          cache: true
+          cache-dependency-path: src/backend/**/*.csproj
+
+      - name: Restore
+        run: dotnet restore
+      - name: Build (warnings are errors)
+        run: dotnet build --no-restore -c Release -warnaserror
+
+      - name: Tests (in-memory database)
+        run: dotnet test --no-build -c Release --logger "trx;LogFileName=memory.trx" --results-directory results
+      - name: Tests (real PostgreSQL, schema created by the migrations)
+        env:
+          TEST_POSTGRES: Host=localhost;Username=postgres;Password=postgres
+        run: dotnet test --no-build -c Release --logger "trx;LogFileName=postgres.trx" --results-directory results
+
+      - name: The migrations match the model (no forgotten migration)
+        run: |
+          dotnet tool install --global dotnet-ef --version "$EF_VERSION"
+          dotnet ef migrations has-pending-model-changes -p src/DasEngage.Infrastructure -s src/DasEngage.Api
+      - name: Migrations apply to an empty database, and the API reports ready
+        env:
+          ConnectionStrings__Default: Host=localhost;Database=das_ci;Username=postgres;Password=postgres
+          ASPNETCORE_ENVIRONMENT: Production
+          Auth__Authority: https://login.microsoftonline.com/organizations/v2.0
+          Auth__ValidAudiences__0: api://ci
+          Erp__Worker__Enabled: "false"
+          ASPNETCORE_URLS: http://127.0.0.1:8080
+        run: |
+          PGPASSWORD=postgres psql -h localhost -U postgres -c "CREATE DATABASE das_ci"
+          dotnet src/DasEngage.Api/bin/Release/net8.0/DasEngage.Api.dll migrate
+          dotnet src/DasEngage.Api/bin/Release/net8.0/DasEngage.Api.dll &
+          for i in $(seq 1 30); do curl -fsS http://127.0.0.1:8080/health/ready && exit 0; sleep 1; done
+          echo "API did not become ready"; exit 1
+
+      - name: Known vulnerable packages
+        run: |
+          dotnet list package --vulnerable --include-transitive 2>&1 | tee vulnerable.txt
+          if grep -q "has the following vulnerable packages" vulnerable.txt; then echo "::error::Vulnerable NuGet packages found"; exit 1; fi
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: backend-test-results
+          path: src/backend/results/*.trx
+
+  container:
+    name: API container image (build, scan, run)
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: das_engage
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U postgres" --health-interval 5s --health-timeout 5s --health-retries 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: docker/setup-buildx-action@v3
+      - name: Build
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: src/backend/Dockerfile
+          load: true
+          tags: das-engage-api:ci
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+      - name: Scan for known vulnerabilities (fixed HIGH and CRITICAL fail the build)
+        # Trivy from its published image, pinned: no third-party action to resolve
+        run: |
+          docker run --rm -v /var/run/docker.sock:/var/run/docker.sock aquasec/trivy:0.58.1 \
+            image --severity HIGH,CRITICAL --ignore-unfixed --exit-code 1 --no-progress das-engage-api:ci
+      - name: Run the migration job and the API from the image
+        run: |
+          ENVV="-e ConnectionStrings__Default=Host=localhost;Database=das_engage;Username=postgres;Password=postgres -e Auth__Authority=https://login.microsoftonline.com/organizations/v2.0 -e Auth__ValidAudiences__0=api://ci -e Erp__Worker__Enabled=false -e ASPNETCORE_URLS=http://+:8081"
+          docker run --rm --network host $ENVV das-engage-api:ci migrate
+          docker run -d --name api --network host $ENVV das-engage-api:ci
+          for i in $(seq 1 30); do curl -fsS http://127.0.0.1:8081/health/ready && break; sleep 1; done
+          curl -fsS http://127.0.0.1:8081/health/ready
+          test "$(docker exec api id -u)" != "0" # not root
+          docker logs api | tail -5
+
+  web:
+    name: Web (typecheck, lint, tests, build, browser test)
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    defaults:
+      run:
+        working-directory: src/web
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          cache-dependency-path: src/web/package-lock.json
+      - run: npm ci
+      - run: npm run typecheck
+      - run: npm run lint
+      - run: npm test
+      - run: npm run build
+      - name: Browser test (real Chromium, API mocked, served with the production security headers)
+        env:
+          CHROME_PATH: /usr/bin/google-chrome
+        run: npm run e2e
+      - name: Known vulnerable packages
+        run: npm audit --audit-level=high
+      - uses: actions/upload-artifact@v4
+        with:
+          name: web-dist
+          path: src/web/dist
+          retention-days: 7
+
+  mobile:
+    name: Mobile (generated code, analyze, tests)
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    defaults:
+      run:
+        working-directory: src/mobile
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          channel: stable
+          cache: true
+      - run: flutter pub get
+      - name: Generated database code is up to date
+        run: |
+          dart run build_runner build --delete-conflicting-outputs
+          git diff --exit-code -- lib || { echo "::error::Run 'dart run build_runner build' and commit the result"; exit 1; }
+      - run: flutter analyze
+      - run: flutter test
+
+  mobile-live:
+    name: Mobile sync against a running API (PostgreSQL)
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: das_live
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U postgres" --health-interval 5s --health-timeout 5s --health-retries 10
+    env:
+      ConnectionStrings__Default: Host=localhost;Database=das_live;Username=postgres;Password=postgres
+      ASPNETCORE_ENVIRONMENT: Development # enables the development signing key; this API only lives for this job
+      Auth__DevSigningKey: dev-only-signing-key-change-me-0123456789abcdef
+      Erp__Worker__Enabled: "false"
+      ASPNETCORE_URLS: http://127.0.0.1:5111
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: ${{ env.DOTNET_VERSION }}
+      - name: Build and start the API
+        working-directory: src/backend
+        run: |
+          dotnet build src/DasEngage.Api -c Release
+          dotnet src/DasEngage.Api/bin/Release/net8.0/DasEngage.Api.dll migrate
+          dotnet src/DasEngage.Api/bin/Release/net8.0/DasEngage.Api.dll > "$RUNNER_TEMP/api.log" 2>&1 &
+          for i in $(seq 1 30); do curl -fsS http://127.0.0.1:5111/health/ready && exit 0; sleep 1; done
+          cat "$RUNNER_TEMP/api.log"; exit 1
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          channel: stable
+          cache: true
+      - name: Live sync tests
+        working-directory: src/mobile
+        env:
+          DAS_API: http://127.0.0.1:5111
+        run: |
+          flutter pub get
+          dart run build_runner build --delete-conflicting-outputs
+          flutter test test/integration --tags integration
+
+  infrastructure:
+    name: Infrastructure (Bicep build, lint, security scan)
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - name: Compile every environment (the linter treats warnings as errors)
+        run: |
+          az bicep install
+          for env in dev staging prod; do
+            echo "::group::$env"
+            POSTGRES_ADMIN_PASSWORD=ci-placeholder az bicep build-params --file infra/main.$env.bicepparam --stdout > /dev/null
+            echo "::endgroup::"
+          done
+          az bicep lint --file infra/main.bicep
+      - name: Security scan of the infrastructure code
+        uses: bridgecrewio/checkov-action@v12
+        with:
+          directory: infra
+          framework: bicep
+          quiet: true
+          soft_fail: false
+
+  security:
+    name: Secrets scan
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITLEAKS_ENABLE_COMMENTS: "false" # the token cannot comment on pull requests; findings are in the job summary
+
+  # One required check for branch protection: everything above must pass.
+  ci-ok:
+    name: CI passed
+    if: always()
+    needs: [backend, container, web, mobile, mobile-live, infrastructure, security]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check results
+        run: |
+          echo '${{ toJSON(needs) }}' | jq -e 'to_entries | all(.value.result == "success")' > /dev/null || { echo "::error::A required job failed or was skipped"; exit 1; }

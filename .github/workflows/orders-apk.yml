@@ -1,0 +1,42 @@
+name: DAS Orders test APK
+
+# Builds the offline order app from PR #10 (branch claude/offline-order-app) as a debug APK.
+# NOT for distribution. Run it from the Actions tab (Run workflow), then download the "das-orders-apk" artifact.
+on:
+  workflow_dispatch:
+  push: # also builds when this file changes, so it works before the file reaches the default branch
+    paths: [".github/workflows/orders-apk.yml"]
+
+# build: 3
+permissions:
+  contents: read
+
+jobs:
+  apk:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    defaults:
+      run:
+        working-directory: crm-dashboard/mobile
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: claude/offline-order-app
+      - uses: actions/setup-node@v4
+        with: { node-version: 20 }
+      - uses: actions/setup-java@v4
+        with: { distribution: temurin, java-version: 17 }
+      - name: Accept Android SDK licences (the runner already has the SDK)
+        working-directory: .
+        run: yes | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --licenses > /dev/null || true
+      - run: npm ci
+      - run: npm test
+      - run: npx cap sync android
+      - name: Build the debug APK
+        working-directory: crm-dashboard/mobile/android
+        run: chmod +x gradlew && ./gradlew assembleDebug --no-daemon
+      - uses: actions/upload-artifact@v4
+        with:
+          name: das-orders-apk
+          path: crm-dashboard/mobile/android/app/build/outputs/apk/debug/app-debug.apk
+          retention-days: 14

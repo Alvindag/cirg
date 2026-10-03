@@ -1,0 +1,4 @@
+type,name,specialty,segment,territory,parent,phone,email,address,city,latitude,longitude,target_visits_per_month
+Hospital,Korle Bu Teaching Hospital,,A,Accra Central,,0302123456,,Guggisberg Ave,Accra,5.5365,-0.2271,
+Doctor,Dr Kofi Mensah,Cardiology,A,Accra Central,Korle Bu Teaching Hospital,0244000111,kofi@example.com,,Accra,,,
+Pharmacy,Ernest Chemists Osu,,B,Accra Central,,0200000222,,Oxford St,Accra,,,

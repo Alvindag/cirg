@@ -1,0 +1,203 @@
+// Browser smoke test: builds the app with dev sign-in enabled, serves it, mocks the API at the network layer,
+// and walks the main pages in a real (headless) Chromium. Run with: npm run e2e
+import { spawn, execSync } from 'node:child_process'
+import { mkdirSync } from 'node:fs'
+import { chromium } from 'playwright-core'
+
+const PORT = 4179
+const shots = process.env.E2E_SHOTS ?? ''
+const chrome = process.env.CHROME_PATH ?? '/opt/pw-browsers/chromium-1194/chrome-linux/chrome'
+
+execSync('npx vite build --outDir dist-e2e --emptyOutDir', { stdio: 'inherit', env: { ...process.env, VITE_DEV_LOGIN: 'true', DAS_ALLOW_DEV_LOGIN_BUILD: 'true', VITE_API_BASE_URL: '' } })
+const server = spawn('npx', ['vite', 'preview', '--outDir', 'dist-e2e', '--port', String(PORT), '--strictPort'], { stdio: 'ignore', detached: true, env: { ...process.env, E2E_CSP: '1' } })
+const base = `http://localhost:${PORT}`
+for (let i = 0; i < 50; i++) {
+  try { if ((await fetch(base)).ok) break } catch { /* not up yet */ }
+  await new Promise((r) => setTimeout(r, 200))
+}
+
+const users = [
+  { id: 'rep-1', tenantId: 't', fullName: 'Kofi Mensah', email: 'k@das.test', role: 'Rep', territoryId: 'terr-1', externalId: 'e1', managerId: 'me', isActive: true },
+  { id: 'rep-2', tenantId: 't', fullName: 'Abena Owusu', email: 'a@das.test', role: 'Rep', territoryId: 'terr-1', externalId: 'e2', managerId: 'me', isActive: true },
+  { id: 'me', tenantId: 't', fullName: 'Ama Boateng', email: 'ama@das.test', role: 'Admin', territoryId: null, externalId: 'e0', managerId: null, isActive: true },
+]
+let liveCalls = 184 // the mock API changes this between loads, like a real day's work would
+const day = (n) => new Date(Date.now() - n * 86400000).toISOString().slice(0, 10)
+const routes = {
+  'GET /me': () => users[2],
+  'GET /dashboards/sales': () => ({ callsCompleted: liveCalls, plannedVisits: 215, planAdherencePct: 85.6, coveragePct: 72.4, byRep: [
+    { repId: 'rep-1', calls: 96, uniqueCustomers: 61, outsideGeofence: 2 }, { repId: 'rep-2', calls: 88, uniqueCustomers: 55, outsideGeofence: 0 }] }),
+  'GET /dashboards/trend': () => Array.from({ length: 30 }, (_, i) => ({ date: day(29 - i), calls: 3 + ((i * 7) % 5) })),
+  'GET /dashboards/products': () => [{ productId: 'p1', name: 'Amoxil 500', calls: 72, sampleUnits: 310 }, { productId: 'p2', name: 'Cardiostat', calls: 41, sampleUnits: 120 }],
+  'GET /gps/last-known': () => [{ repId: 'rep-1', recordedAt: new Date().toISOString(), latitude: 5.6037, longitude: -0.187 }],
+  'GET /admin/users': () => users,
+  'GET /notifications': () => [],
+  'GET /admin/territories': () => [{ id: 'terr-1', name: 'Accra Central', region: 'Greater Accra', district: 'Accra' }],
+  'GET /admin/products': () => [{ id: 'p1', name: 'Amoxil 500', code: 'AMX' }, { id: 'p2', name: 'Cardiostat', code: 'CRD' }],
+  'GET /customers': () => ({ total: 2, page: 1, pageSize: 25, items: [
+    { id: 'c1', type: 'Doctor', name: 'Dr Ama Boateng', specialty: 'Cardiology', segment: 'A', territoryId: 'terr-1', phone: null, email: null, city: 'Accra', targetVisitsPerMonth: 4 },
+    { id: 'c2', type: 'Pharmacy', name: 'Ernest Chemists Osu', specialty: null, segment: 'B', territoryId: 'terr-1', phone: null, email: null, city: 'Accra', targetVisitsPerMonth: 2 }] }),
+  'GET /samples/requests': () => [{ id: 'r1', repId: 'rep-1', productId: 'p1', quantity: 50, approvedQuantity: null, status: 'Pending', notes: 'Launch week', decisionNote: null, createdAt: new Date().toISOString() }],
+  'GET /samples/reports/stock': () => [
+    { holderId: null, location: 'Warehouse', batchId: 'b1', productId: 'p1', batchNumber: 'AMX-2611', expiryDate: '2027-08-01', daysToExpiry: 300, status: 'Active', quantity: 4200, expired: false, expiringSoon: false, actionRequired: false },
+    { holderId: 'rep-2', location: 'Rep', batchId: 'b0', productId: 'p1', batchNumber: 'AMX-2501', expiryDate: '2026-09-01', daysToExpiry: -30, status: 'Active', quantity: 25, expired: true, expiringSoon: false, actionRequired: true }],
+  'GET /orders/summary': () => ({ days: 30, orders: 12, value: 4200, placed: 3, confirmed: 2, delivered: 6, cancelled: 1, avgHoursToDeliver: 30, topProducts: [{ productId: 'p1', name: 'Amoxil 500', quantity: 400, value: 1000 }] }),
+  'GET /orders': () => [{ id: 'o1', number: 'ORD-20261003-AB12CD', repId: 'rep-2', customerId: 'c1', customerName: 'Korle Pharmacy', status: 'Placed', total: 37.5, currency: 'GHS', notes: null,
+    placedAt: '2026-10-03T09:00:00Z', confirmedAt: null, deliveredAt: null, cancelledAt: null, cancelReason: null, lines: [{ id: 'l1', productId: 'p1', productName: 'Amoxil 500', quantity: 15, unitPrice: 2.5, lineTotal: 37.5 }] }],
+  'GET /dashboards/coverage': () => ({ days: 90, customers: 3000, expectedVisits: 9000, completedVisits: 4950, attainmentPct: 55, overdue: 410, neverVisited: 120,
+    territories: [{ territoryId: 't1', territory: 'Accra Central', region: 'Greater Accra', customers: 800, expected: 2400, completed: 1500, attainmentPct: 62.5, overdue: 90, neverVisited: 10 }],
+    worst: [{ customerId: 'c1', name: 'Savelugu Pharmacy', type: 'Pharmacy', segment: 'A', territory: 'Tamale', targetPerMonth: 4, lastVisitAt: null, daysSince: null }] }),
+  'GET /dashboards/rtm': () => ({ currency: 'GHS', hasUniverse: true, universeScoped: false, universeTotal: 30000, mapped: 3600, reached: 2100, mappedPct: 12, reachedPct: 7, revenue: 482500, top20Share: 78.4,
+    classes: [
+      { outletClass: 'IndependentPharmacy', universe: 14000, mapped: 1500, reached: 900, revenue: 120000 }, { outletClass: 'OtcShop', universe: 9000, mapped: 700, reached: 300, revenue: 40000 },
+      { outletClass: 'PharmacyChain', universe: 4000, mapped: 400, reached: 330, revenue: 130000 }, { outletClass: 'TeachingHospital', universe: 5, mapped: 5, reached: 5, revenue: 90000 },
+      { outletClass: 'RegionalHospital', universe: 20, mapped: 18, reached: 14, revenue: 60000 }, { outletClass: 'DistrictHospital', universe: 130, mapped: 70, reached: 40, revenue: 30000 },
+      { outletClass: 'Unclassified', universe: null, mapped: 900, reached: 511, revenue: 12500 }],
+    channels: [{ channel: 'VanSales', customers: 1900, reached: 1100, revenue: 190000 }, { channel: 'MedicalSales', customers: 600, reached: 520, revenue: 210000 }, { channel: 'Distributor', customers: 150, reached: 110, revenue: 70000 }, { channel: 'Unassigned', customers: 950, reached: 370, revenue: 12500 }],
+    regions: [{ region: 'Greater Accra', universe: 9000, mapped: 1800, reached: 1200, revenue: 260000 }, { region: 'Ashanti', universe: 6000, mapped: 900, reached: 500, revenue: 140000 }, { region: 'Upper East', universe: 900, mapped: 40, reached: 12, revenue: 4000 }, { region: 'No region', universe: null, mapped: 60, reached: 20, revenue: 2500 }],
+    tagging: { total: 3600, noChannel: 950, noClass: 900, noRegion: 60 } }),
+  'GET /rtm/untagged': () => ({ total: 2, items: [{ id: 'c2', name: 'Ernest Chemists Osu', type: 'Pharmacy', city: 'Accra', channel: 'Unassigned', outletClass: 'Unclassified' }] }),
+  'GET /rtm/universe': () => [{ region: null, outletClass: 'IndependentPharmacy', outlets: 14000, source: 'Sales estimate' }],
+  'GET /dashboards/revenue': () => ({ currency: 'GHS', total: 482500, previousTotal: 401000, growthPct: 20.3, units: 12840, customersBuying: 64, unlinkedAmount: 7200, granularity: 'month',
+    trend: [{ period: '2026-05', amount: 61000, units: 1600 }, { period: '2026-06', amount: 70500, units: 1900 }, { period: '2026-07', amount: 79000, units: 2100 }, { period: '2026-08', amount: 88000, units: 2400 }, { period: '2026-09', amount: 92000, units: 2500 }, { period: '2026-10', amount: 92000, units: 2340 }],
+    topCustomers: [{ customerId: 'c1', name: 'Ernest Chemists Osu', amount: 42000 }, { customerId: 'c2', name: 'Dr Ama Boateng', amount: 31500 }], byProduct: [], byTerritory: [] }),
+  'GET /erp/connection': () => ({ provider: 'rest', baseUrl: 'https://erp-gateway.dasplc.com', secretName: 'ERP_TOKEN', enabled: true, outboundEnabled: true, pullEnabled: true, pullIntervalMinutes: 60, currency: 'GHS', lastPullAt: new Date().toISOString(), lastError: null }),
+  'GET /erp/keys': () => [{ id: 'k1', name: 'SAP gateway', prefix: 'ab12cd34', createdAt: new Date().toISOString(), lastUsedAt: new Date().toISOString(), revokedAt: null }],
+  'GET /erp/runs': () => [{ id: 'r1', entity: 'sales', source: 'pull', startedAt: new Date().toISOString(), created: 120, updated: 3, skipped: 0, errors: 0, message: null }],
+  'GET /erp/outbox': () => ({ counts: [{ status: 'Pending', n: 2 }, { status: 'Sent', n: 41 }, { status: 'DeadLetter', n: 1 }], items: [
+    { id: 'm1', type: 'sample.issue', status: 'Sent', attempts: 1, createdAt: new Date().toISOString(), nextAttemptAt: new Date().toISOString(), lastError: null, externalRef: 'STO-991' },
+    { id: 'm2', type: 'sample.adjustment', status: 'DeadLetter', attempts: 1, createdAt: new Date().toISOString(), nextAttemptAt: new Date().toISOString(), lastError: 'ERP answered 400: unknown item', externalRef: null }] }),
+  'GET /ai/customers/scores': () => [
+    { customerId: 'c1', name: 'Dr Ama Boateng', potential: 90, engagement: 12, overall: 43, status: 'At risk', suggestedSegment: 'B' },
+    { customerId: 'c2', name: 'Ernest Chemists Osu', potential: 60, engagement: 80, overall: 72, status: 'Healthy', suggestedSegment: null }],
+  'GET /ai/customers/c1/score': () => ({ customerId: 'c1', name: 'Dr Ama Boateng', potential: 90, engagement: 12, overall: 43, status: 'At risk', suggestedSegment: 'B', factors: [
+    { name: 'Potential', points: 90, max: 100, explanation: 'A segment, 1 product interest(s).' }, { name: 'Recency', points: 0, max: 35, explanation: 'Last visited 120 day(s) ago.' }] }),
+  'GET /admin/audit-logs': () => [{ id: 3, userId: 'me', at: new Date().toISOString(), action: 'create', entityType: 'SampleBatch', entityId: 'b1b1b1b1-0000', changes: null }],
+}
+
+const errors = []
+const browser = await chromium.launch({ executablePath: chrome, args: ['--no-sandbox'] })
+try {
+  const ctx = await browser.newContext({ viewport: { width: 1280, height: 900 } })
+  await ctx.addInitScript(() => sessionStorage.setItem('das.devToken', 'test-token'))
+  await ctx.route('**/api/v1/**', async (route) => {
+    const req = route.request()
+    const path = new URL(req.url()).pathname.replace('/api/v1', '')
+    const handler = routes[`${req.method()} ${path}`]
+    if (!handler) { errors.push(`unmocked ${req.method()} ${path}`); return route.fulfill({ status: 404, body: 'not mocked' }) }
+    if (req.headers()['authorization'] !== 'Bearer test-token') { errors.push('missing bearer token on ' + path); return route.fulfill({ status: 401, body: '' }) }
+    return route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(handler()) })
+  })
+  const page = await ctx.newPage()
+  page.on('pageerror', (e) => errors.push('page error: ' + e.message))
+  page.on('console', (m) => { if (m.type() === 'error') errors.push('console: ' + m.text()) })
+  const headers = (await ctx.request.get(base)).headers()
+  if (!headers['content-security-policy']?.includes("default-src 'self'")) errors.push('the security headers were not applied to the build')
+  if (shots) mkdirSync(shots, { recursive: true })
+  const shot = async (name) => { if (shots) { await new Promise((r) => setTimeout(r, 700)); await page.screenshot({ path: `${shots}/${name}.png`, fullPage: true }) } }
+  const expectText = async (text) => page.getByText(text, { exact: false }).first().waitFor({ timeout: 8000 })
+
+  await page.goto(base)
+  await expectText('Sales overview')
+  await expectText('184')
+  await expectText('Kofi Mensah')
+  await page.waitForSelector('.recharts-line-curve', { timeout: 8000 })   // the trend chart really rendered
+  await page.waitForSelector('.recharts-bar-rectangle', { timeout: 8000 })
+  await expectText('GHS 482,500')
+  await shot('overview')
+  await page.evaluate(() => document.documentElement.setAttribute('data-theme', 'dark'))
+  await new Promise((r) => setTimeout(r, 900))
+  await shot('overview-dark')
+  await page.evaluate(() => document.documentElement.removeAttribute('data-theme'))
+
+  // customise: drag a card, hide one, and the layout is remembered
+  const order = () => page.evaluate(() => [...document.querySelectorAll('[data-widget]')].map((e) => e.dataset.widget))
+  await page.getByRole('button', { name: 'Customise' }).click()
+  const before = await order()
+  await page.locator('[data-widget="calls-by-rep"]').dragTo(page.locator('[data-widget="calls-per-day"]'))
+  const after = await order()
+  if (after.indexOf('calls-by-rep') >= after.indexOf('calls-per-day')) errors.push(`dragging a card did not move it (${before} -> ${after})`)
+  await page.getByRole('button', { name: 'Hide Product engagement' }).click()
+  if (await page.locator('[data-widget="products"]').count()) errors.push('a hidden widget is still on the page')
+  const stored = await page.evaluate(() => Object.entries(localStorage).filter(([k]) => k.startsWith('das.dashboard.')).map(([, v]) => v).join(''))
+  if (!stored.includes('"hidden":true')) errors.push('the dashboard layout was not saved')
+  await shot('overview-customise')
+  await page.getByRole('button', { name: 'Reset layout' }).click()
+  await page.getByRole('button', { name: 'Done' }).click()
+  if (!(await page.locator('[data-widget="products"]').count())) errors.push('Reset layout did not bring the hidden widget back')
+
+  // live data: the page shows how fresh it is, and picks up new numbers without a reload
+  await page.getByText('Live · updated').first().waitFor({ timeout: 8000 })
+  liveCalls = 197
+  await page.getByRole('button', { name: 'Refresh' }).first().click()
+  // the headline number counts up to its new value; wait for it to finish (a hidden copy of the final value is there from the start)
+  await page.waitForFunction(() => [...document.querySelectorAll('.kpi-value')].some((e) => e.textContent.trim() === '197'), null, { timeout: 8000 })
+  if (await page.getByText('184', { exact: true }).count()) errors.push('the old number is still on screen after a refresh')
+
+  // command palette: keyboard-only navigation and customer search
+  await page.keyboard.press('Control+K')
+  await page.getByRole('dialog', { name: 'Command palette' }).waitFor({ timeout: 8000 })
+  await page.keyboard.type('dr am')
+  await page.getByRole('option', { name: /Dr Ama Boateng/ }).waitFor({ timeout: 8000 })
+  await shot('palette')
+  await page.keyboard.press('Enter')
+  await expectText('Dr Ama Boateng')
+  if (!page.url().includes('/customers?q=')) errors.push('the palette did not open the customers list for the chosen customer: ' + page.url())
+  await shot('customers')
+
+
+  await page.getByRole('link', { name: 'Team' }).click()
+  await expectText('Add a person')
+  await shot('team')
+
+  await page.getByRole('link', { name: 'Samples' }).click()
+  await expectText('Launch week')
+  await page.getByRole('button', { name: 'Approve' }).waitFor()
+  await shot('samples-requests')
+  await page.getByRole('tab', { name: 'Stock' }).click()
+  await expectText('should be recovered')
+  await shot('samples-stock')
+
+  await page.getByRole('link', { name: 'Insights' }).click()
+  await expectText('At risk')
+  await page.getByRole('button', { name: 'Dr Ama Boateng' }).click()
+  await expectText('Last visited 120 day(s) ago.')
+  await shot('insights')
+
+  await page.getByRole('link', { name: 'ERP' }).click()
+  await expectText('ERP gateway')
+  await page.getByRole('tab', { name: 'Outbox' }).click()
+  await expectText('unknown item')
+  await shot('erp-outbox')
+
+  await page.getByRole('link', { name: 'Route to market' }).click()
+  await expectText('Coverage by kind of outlet')
+  await expectText('Independent pharmacy')
+  await expectText('7.0% of the market')
+  await expectText('Savelugu Pharmacy')
+  await shot('rtm')
+
+  await page.getByRole('link', { name: 'Orders' }).click()
+  await expectText('Korle Pharmacy')
+  await expectText('GHS 4,200.00 ordered')
+  await shot('orders')
+
+  await page.getByRole('link', { name: 'Audit' }).click()
+  await expectText('SampleBatch')
+  await shot('audit')
+
+  // phone width: nothing should overflow horizontally
+  await page.setViewportSize({ width: 390, height: 800 })
+  await page.getByRole('link', { name: 'Overview' }).click()
+  await expectText('197')
+  const overflow = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth)
+  if (overflow > 1) errors.push(`page scrolls horizontally on a phone (${overflow}px)`)
+  await shot('overview-phone')
+} catch (e) {
+  errors.push('test failed: ' + e.message)
+} finally {
+  await browser.close()
+  try { process.kill(-server.pid) } catch { /* already stopped */ } // the whole group: npx and the server it started
+}
+if (errors.length) { console.error('E2E problems:\n - ' + errors.join('\n - ')); process.exit(1) }
+console.log('E2E smoke test passed')

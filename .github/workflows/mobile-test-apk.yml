@@ -1,0 +1,40 @@
+name: Mobile test APK
+
+# A debug-signed Android APK for trying the app on a phone against a developer's own API.
+# NOT for distribution: it has the paste-a-token development sign-in and allows plain http (debug builds only).
+# Run it from the Actions tab (Run workflow), then download the "das-engage-test-apk" artifact.
+on:
+  workflow_dispatch:
+  push: # also builds when this file changes, so it can be tried before it reaches the default branch (manual runs need it there)
+    paths: [".github/workflows/mobile-test-apk.yml"]
+
+# To get a fresh APK from a branch before this file reaches the default branch, edit the line below (any change to this file triggers a build).
+# build: 7
+permissions:
+  contents: read
+
+env:
+  FLUTTER_VERSION: 3.47.6
+
+jobs:
+  apk:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    defaults:
+      run:
+        working-directory: src/mobile
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with: { distribution: temurin, java-version: 17 }
+      - uses: subosito/flutter-action@v2
+        with: { flutter-version: "${{ env.FLUTTER_VERSION }}", channel: stable, cache: true }
+      - run: flutter pub get
+      - run: dart run build_runner build --delete-conflicting-outputs
+      - name: Build the debug APK
+        run: flutter build apk --debug --dart-define=DEV_LOGIN=true
+      - uses: actions/upload-artifact@v4
+        with:
+          name: das-engage-test-apk
+          path: src/mobile/build/app/outputs/flutter-apk/app-debug.apk
+          retention-days: 14
