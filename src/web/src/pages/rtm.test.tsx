@@ -152,7 +152,7 @@ describe('Route to market', () => {
   })
 
   it('lets a national role set the month targets', async () => {
-    const put = vi.fn(async () => undefined)
+    const put = vi.fn(async (..._args: unknown[]) => undefined)
     const api = fakeApi({ 'GET /dashboards/rtm': () => dash(), 'GET /rtm/untagged': () => untagged, 'GET /rtm/universe': () => noUniverse, 'GET /dashboards/coverage': () => coverage, 'GET /dashboards/distributors': () => distributors,
       'GET /dashboards/targets': () => targets, 'GET /rtm/targets': () => [{ region: null, channel: null, amount: 100000 }], 'PUT /rtm/targets': put })
     const user = userEvent.setup()

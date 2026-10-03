@@ -72,7 +72,7 @@ describe('Orders', () => {
 
   it('marks an order on credit hold and only a national role can release it, with a reason', async () => {
     const held = order({ creditHold: true, creditHoldReason: 'The customer has GHS 120.00 overdue.' })
-    const post = vi.fn(async () => order({ status: 'Confirmed' }))
+    const post = vi.fn(async (..._args: unknown[]) => order({ status: 'Confirmed' }))
     vi.spyOn(window, 'prompt').mockReturnValue('Paid this morning')
     const api = fakeApi({ 'GET /orders/summary': () => summary, 'GET /orders': () => [held], 'GET /users': () => [], 'POST /orders/o1/confirm': post })
     renderApp(<Orders />, api, me('NationalSalesManager'))
@@ -93,7 +93,7 @@ describe('Orders', () => {
   it('shows who is over their limit or overdue and lets a senior role change a limit', async () => {
     const overview: CreditOverview = { customers: 2, withLimit: 1, overdueTotal: 120, outstandingTotal: 900, overLimit: 1, withOverdue: 1, heldOrders: 2,
       watch: [{ customerId: 'c1', name: 'Korle Pharmacy', territory: 'Accra Central', creditLimit: 500, outstanding: 450, overdue: 120, openOrders: 100, asOf: null, overLimit: true }] }
-    const put = vi.fn(async () => undefined)
+    const put = vi.fn(async (..._args: unknown[]) => undefined)
     const api = fakeApi({ 'GET /orders/summary': () => summary, 'GET /orders': () => [], 'GET /users': () => [], 'GET /credit/overview': () => overview, 'PUT /credit/c1': put })
     const user = userEvent.setup()
     renderApp(<Orders />, api, me('Admin'))
@@ -119,7 +119,7 @@ describe('Orders', () => {
   })
 
   it('asks whether the whole order was delivered, and for what was short when it was not', async () => {
-    const post = vi.fn(async () => order({ status: 'Delivered' }))
+    const post = vi.fn(async (..._args: unknown[]) => order({ status: 'Delivered' }))
     vi.spyOn(window, 'confirm').mockReturnValue(false)
     vi.spyOn(window, 'prompt').mockReturnValue('Only 1 carton')
     const api = fakeApi({ 'GET /orders/summary': () => summary, 'GET /orders': () => [order({ status: 'Confirmed', promisedAt: '2099-01-01T00:00:00Z' })], 'GET /users': () => [], 'POST /orders/o1/deliver': post })
