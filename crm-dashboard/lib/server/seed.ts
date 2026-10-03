@@ -433,6 +433,32 @@ export function seedDb(now = Date.now()): DB {
   };
 }
 
+/** A database with no people, customers or orders. The first administrator is created at sign-in. */
+export function emptyDb(now = Date.now()): DB {
+  return {
+    version: 1,
+    seededAt: new Date(now).toISOString(),
+    users: [],
+    territories: [],
+    distributors: [],
+    customers: [],
+    products: [],
+    batches: [],
+    stock: [],
+    distributorStock: [],
+    sampleRequests: [],
+    distributions: [],
+    ledger: [],
+    deals: [],
+    tasks: [],
+    visits: [],
+    orders: [],
+    audit: [],
+    notifications: [],
+    tcoScenarios: [],
+  };
+}
+
 /** The fields that make up a visit record's hash. Anything not listed here is not protected. */
 export function visitPayload(v: Omit<Visit, "prevHash" | "hash">) {
   return [v.id, v.clientId, v.repId, v.customerId, v.at, v.kind, v.outcome, v.notes, v.durationMin, v.productIds, v.latitude, v.longitude, v.distanceM, v.verified, v.verifyReason];

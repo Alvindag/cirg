@@ -1,7 +1,7 @@
 import { HttpError } from "./access";
 import type { DB, User } from "./model";
 import { authConfig, cookieValue, readSession, SESSION_COOKIE } from "./auth";
-import { getDb } from "./store";
+import { getDb, withDb } from "./store";
 
 export interface Ctx {
   db: DB;
@@ -78,7 +78,7 @@ async function authenticate(method: string, auth: string | null, cookie: string 
   return getDb().users.find((x) => x.id === id && x.isActive) ?? null;
 }
 
-export async function dispatch(
+async function dispatchInner(
   method: string,
   path: string,
   q: URLSearchParams,
@@ -111,4 +111,9 @@ export async function dispatch(
     if (e instanceof HttpError) return { status: e.status, body: { title: e.message } };
     return { status: 500, body: { title: e instanceof Error ? e.message : "Something went wrong." } };
   }
+}
+
+/** Runs one API request with up-to-date data, and saves what it changed. */
+export function dispatch(method: string, path: string, q: URLSearchParams, text: string, auth: string | null, cookie: string | null = null): Promise<Reply> {
+  return withDb(() => dispatchInner(method, path, q, text, auth, cookie));
 }

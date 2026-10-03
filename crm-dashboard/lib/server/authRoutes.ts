@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 
 import { authConfig, authorizeUrl, cookieValue, exchangeCode, FLOW_COOKIE, newFlow, readFlow, SESSION_COOKIE, SESSION_HOURS, signFlow, signSession, verifyIdToken } from "./auth";
 import { resolveEntraUser } from "./identity";
-import { logAudit, getDb, save } from "./store";
+import { logAudit, getDb, save, withDb } from "./store";
 
 /** The public address of the app, for the redirect URI registered in Entra. */
 const baseUrl = (req: Request) => (process.env.APP_BASE_URL?.replace(/\/+$/, "") ?? new URL(req.url).origin);
@@ -41,14 +41,14 @@ export async function callback(req: Request) {
   try {
     const idToken = await exchangeCode(cfg, code, flow.verifier, `${baseUrl(req)}/auth/callback`);
     const claims = await verifyIdToken(idToken, cfg, flow.nonce);
-    const r = resolveEntraUser(getDb(), claims, cfg.bootstrapAdminEmail);
-    if ("error" in r) {
-      logAudit(null, "SignInDenied", "User", claims.oid, { email: claims.email });
+    const r = await withDb(() => {
+      const found = resolveEntraUser(getDb(), claims, cfg.bootstrapAdminEmail);
+      if ("error" in found) logAudit(null, "SignInDenied", "User", claims.oid, { email: claims.email });
+      else logAudit(found.user.id, "SignIn", "User", found.user.id);
       save();
-      return fail(r.error);
-    }
-    logAudit(r.user.id, "SignIn", "User", r.user.id);
-    save();
+      return found;
+    });
+    if ("error" in r) return fail(r.error);
     const res = toApp(req, flow.returnTo);
     res.cookies.set(SESSION_COOKIE, await signSession(r.user.id, cfg.sessionSecret!), cookieOpts(req, SESSION_HOURS * 3600));
     res.cookies.delete(FLOW_COOKIE);

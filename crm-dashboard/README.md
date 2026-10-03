@@ -65,6 +65,10 @@ How it behaves:
 
 Not done: Entra group or app-role mapping (roles are managed in the Team page), single sign-out, and distributor-partner accounts from the screen (the API accepts `role: "Distributor"` with a `distributorId`).
 
+## Deploying to Azure
+
+Hosting setup (App Service, PostgreSQL, Key Vault, a manual-only deploy workflow) is prepared in `infra/` and described in [docs/azure-deployment.md](docs/azure-deployment.md), with the list of what you must do in Azure. Nothing is deployed yet. With `DATABASE_URL` set the built-in backend stores data in PostgreSQL instead of the JSON file.
+
 ## Built-in backend
 
 - `lib/server/seed.ts` makes deterministic sample data: Ghana regions, about 220 customers (with duplicates and gaps on purpose), 1,250 visits, 1,000+ orders, deals, sample stock.
