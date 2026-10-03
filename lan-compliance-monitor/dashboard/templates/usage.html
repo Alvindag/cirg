@@ -1,0 +1,46 @@
+{% extends "base.html" %}
+{% block title %}Usage Compliance — LAN Compliance Monitor{% endblock %}
+{% block content %}
+<h1>Internet Usage Compliance (last 7 days)</h1>
+
+<h2>By user</h2>
+<table>
+    <thead><tr><th>User</th><th>Department</th><th>Requests</th><th>Bytes transferred</th></tr></thead>
+    <tbody>
+        {% for row in by_user %}
+        <tr>
+            <td>{{ row.username }}</td>
+            <td>{{ row.department or '—' }}</td>
+            <td>{{ row.request_count }}</td>
+            <td>{{ '{:,}'.format(row.total_bytes or 0) }}</td>
+        </tr>
+        {% else %}
+        <tr><td colspan="4">No usage data yet.</td></tr>
+        {% endfor %}
+    </tbody>
+</table>
+
+<h2>By category</h2>
+<table>
+    <thead><tr><th>Category</th><th>Requests</th></tr></thead>
+    <tbody>
+        {% for row in by_category %}
+        <tr><td>{{ row.category or 'uncategorized' }}</td><td>{{ row.request_count }}</td></tr>
+        {% else %}
+        <tr><td colspan="2">No usage data yet.</td></tr>
+        {% endfor %}
+    </tbody>
+</table>
+
+<h2>Top domains</h2>
+<table>
+    <thead><tr><th>Domain</th><th>Requests</th></tr></thead>
+    <tbody>
+        {% for row in top_domains %}
+        <tr><td>{{ row.domain }}</td><td>{{ row.request_count }}</td></tr>
+        {% else %}
+        <tr><td colspan="2">No usage data yet.</td></tr>
+        {% endfor %}
+    </tbody>
+</table>
+{% endblock %}

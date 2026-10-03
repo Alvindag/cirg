@@ -1,0 +1,21 @@
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <title>{% block title %}LAN Compliance Monitor{% endblock %}</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+    <nav>
+        <div class="brand">LAN Compliance Monitor</div>
+        <a href="/">Overview</a>
+        <a href="/usage">Usage Compliance</a>
+        <a href="/posture">Endpoint Posture</a>
+        <a href="/ad-security">AD Security</a>
+        <a href="/network">Network Devices</a>
+    </nav>
+    <main>
+        {% block content %}{% endblock %}
+    </main>
+</body>
+</html>

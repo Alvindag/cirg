@@ -1,0 +1,3 @@
+# Seed list — populate via collector/update_blocklists.py or add domains manually, one per line.
+# Example:
+# example-blocked-domain.com

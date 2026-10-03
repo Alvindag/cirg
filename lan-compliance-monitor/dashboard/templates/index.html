@@ -1,0 +1,45 @@
+{% extends "base.html" %}
+{% block title %}Overview — LAN Compliance Monitor{% endblock %}
+{% block content %}
+<h1>Overview</h1>
+
+<div class="stat-grid">
+    <div class="stat-card">
+        <div class="stat-value">{{ events_24h }}</div>
+        <div class="stat-label">Requests logged (24h)</div>
+    </div>
+    <div class="stat-card {{ 'warn' if violations_24h > 0 }}">
+        <div class="stat-value">{{ violations_24h }}</div>
+        <div class="stat-label">Compliance violations (24h)</div>
+    </div>
+    <div class="stat-card {{ 'warn' if at_risk_endpoints > 0 }}">
+        <div class="stat-value">{{ at_risk_endpoints }}</div>
+        <div class="stat-label">At-risk endpoints</div>
+    </div>
+    <div class="stat-card {{ 'warn' if rogue_devices > 0 }}">
+        <div class="stat-value">{{ rogue_devices }}</div>
+        <div class="stat-label">Unrecognized network devices</div>
+    </div>
+</div>
+
+<h2>Recent violations</h2>
+<table>
+    <thead>
+        <tr><th>Time</th><th>User</th><th>Department</th><th>Rule</th><th>Detail</th><th>Severity</th></tr>
+    </thead>
+    <tbody>
+        {% for v in recent_violations %}
+        <tr>
+            <td>{{ v.ts }}</td>
+            <td>{{ v.username }}</td>
+            <td>{{ v.department or '—' }}</td>
+            <td>{{ v.rule }}</td>
+            <td>{{ v.detail }}</td>
+            <td><span class="badge badge-{{ v.severity }}">{{ v.severity }}</span></td>
+        </tr>
+        {% else %}
+        <tr><td colspan="6">No violations recorded.</td></tr>
+        {% endfor %}
+    </tbody>
+</table>
+{% endblock %}

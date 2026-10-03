@@ -1,0 +1,71 @@
+version: "3.8"
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${DB_NAME:-lancompliance}
+      POSTGRES_USER: ${DB_USER:-lancompliance}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:?set DB_PASSWORD in .env}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+      - ./database/schema.sql:/docker-entrypoint-initdb.d/01-schema.sql:ro
+    ports:
+      - "127.0.0.1:5432:5432"
+
+  squid:
+    image: ubuntu/squid:latest
+    restart: unless-stopped
+    volumes:
+      - ./squid/squid.conf:/etc/squid/squid.conf:ro
+      - blocklists:/etc/squid/blocklists
+      - squid_logs:/var/log/squid
+    ports:
+      - "3128:3128"   # point client browsers/GPO proxy setting here
+
+  collector:
+    build:
+      context: .
+      dockerfile: collector/Dockerfile
+    restart: unless-stopped
+    depends_on:
+      - postgres
+      - squid
+    environment:
+      DB_HOST: postgres
+      DB_NAME: ${DB_NAME:-lancompliance}
+      DB_USER: ${DB_USER:-lancompliance}
+      DB_PASSWORD: ${DB_PASSWORD:?set DB_PASSWORD in .env}
+      SQUID_LOG_PATH: /var/log/squid/access.log
+      AD_SERVER: ${AD_SERVER:-}
+      AD_BIND_DN: ${AD_BIND_DN:-}
+      AD_BIND_PASSWORD: ${AD_BIND_PASSWORD:-}
+      AD_BASE_DN: ${AD_BASE_DN:-}
+      WINRM_USERNAME: ${WINRM_USERNAME:-}
+      WINRM_PASSWORD: ${WINRM_PASSWORD:-}
+      NETWORK_CIDR: ${NETWORK_CIDR:-192.168.1.0/24}
+    volumes:
+      - squid_logs:/var/log/squid:ro
+      - blocklists:/etc/squid/blocklists
+      - ./collector/hosts.txt:/app/hosts.txt:ro
+
+  dashboard:
+    build: ./dashboard
+    restart: unless-stopped
+    depends_on:
+      - postgres
+    environment:
+      DB_HOST: postgres
+      DB_NAME: ${DB_NAME:-lancompliance}
+      DB_USER: ${DB_USER:-lancompliance}
+      DB_PASSWORD: ${DB_PASSWORD:?set DB_PASSWORD in .env}
+      DASHBOARD_SECRET_KEY: ${DASHBOARD_SECRET_KEY:?set DASHBOARD_SECRET_KEY in .env}
+      ADMIN_USERNAME: ${ADMIN_USERNAME:-admin}
+      ADMIN_PASSWORD: ${ADMIN_PASSWORD:?set ADMIN_PASSWORD in .env}
+    ports:
+      - "8080:8080"
+
+volumes:
+  pgdata:
+  squid_logs:
