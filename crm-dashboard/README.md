@@ -1,6 +1,6 @@
 # CRM Dashboard
 
-A dark, glassmorphic CRM dashboard built with Next.js 14 (App Router), TypeScript, Tailwind CSS and shadcn/ui conventions (New York style, zinc base). Runs on sample data out of the box and can connect to a DAS Engage 360 API.
+A dark, glassmorphic CRM dashboard built with Next.js 14 (App Router), TypeScript, Tailwind CSS and shadcn/ui conventions (New York style, zinc base). Runs on a built-in backend with sample data out of the box and can connect to a DAS Engage 360 API.
 
 ## Getting started
 
@@ -14,44 +14,48 @@ npm run lint
 
 Requires Node 18.17 or newer. Press **⌘K** or **Ctrl+K** anywhere to open the command palette.
 
-## Connecting to DAS Engage 360
+## What it is
 
-By default the dashboard shows sample data. Set `DAS_API_BASE_URL` (see `.env.example`) and the widgets read from a [DAS Engage 360](https://github.com/Alvindag/cirg/pull/7) API instead:
+The DAS Engage 360 web app: a working CRM for a pharma sales force, plus the tools the Route-to-Market review asked for. It runs out of the box on a **built-in backend** (sample data, a JSON file store, role-based access), so every page works with no setup. See [docs/memo-to-features.md](docs/memo-to-features.md) for how each need in the review memo maps to a page, and what is not covered.
+
+| Area | Pages |
+| --- | --- |
+| Sell | Dashboard (what needs attention), Customers (add, edit, import, customer page), Pipeline (deals by stage), Visits and tasks (GPS check-in, offline queue, tasks), Samples (request, approve, issue, hand over, limits, compliance) |
+| Route to market | Route to market (OTIF, cost to serve, cycle time, reach, channel conflict), Field force, Data quality (duplicates, gaps, merge), Batch trace (recall impact), Cost of ownership (saved scenarios) |
+| Partners | Distributor portal (own prices, stock, orders, performance) |
+| Admin | Team, Audit trail, Access rules and record integrity |
+
+Try it as any role with the **Signed in as** menu in the header. A rep sees their territory, a manager sees their team, a distributor sees only their own partner data. The menu is only a convenience: the server refuses what a role may not do.
+
+## Connecting to a real DAS Engage 360 API
+
+Set `DAS_API_BASE_URL` (see `.env.example`) and the app proxies `/das-api/*` to that API instead of using the built-in backend:
 
 ```bash
 cp .env.example .env.local      # edit DAS_API_BASE_URL
 npm run dev
 ```
 
-Then open **Connect DAS Engage** in the header, paste an access token and press Connect. For a development API, mint one with `python3 scripts/dev-token.py --role Admin` in the DAS Engage 360 repo. The token is kept in `sessionStorage` (this tab only), and the header shows the signed-in role.
+Then open **Connect DAS Engage** in the header and paste an access token (`python3 scripts/dev-token.py --role Admin` in the DAS Engage 360 repo). Pages that use features the real API does not have yet (pipeline, visits, RTM, portal, trace, TCO) will show errors until it grows them; the built-in backend defines those endpoints in `lib/server/routes/`.
 
-| Widget | Endpoint |
-| --- | --- |
-| Last 30 days (KPIs) | `GET /dashboards/sales` |
-| Product Engagement | `GET /dashboards/products` |
-| Recent Activity | `GET /notifications` |
-| AI Copilot Insight | `GET /admin/products`, then `GET /ai/opportunities` |
-| Command palette, Recent Contacts | `GET /customers` |
+`node scripts/mock-das-api.mjs` runs a small fake of the original API on port 5050 for trying external mode.
 
-Pages (live data only; they ask you to connect first):
+## Built-in backend
 
-| Page | What it does |
-| --- | --- |
-| Customers | Search and filter, edit or remove a customer, CSV import with a check-first step |
-| Samples | Requests (approve, reject, issue stock), stock (adjust, write off, return), batches (create, receive, quarantine, recall), per-customer limits, compliance report and CSV download |
-| Team | People and reporting lines (add, deactivate with reassignment, reactivate) and territories (add, edit, delete) |
-| Audit | The append-only audit log, newest first, with "Load older" |
+- `lib/server/seed.ts` makes deterministic sample data: Ghana regions, about 220 customers (with duplicates and gaps on purpose), 1,250 visits, 1,000+ orders, deals, sample stock.
+- `lib/server/store.ts` keeps it in `.data/crm-db.json` (override with `CRM_DATA_FILE`). Delete the file to start over; an Admin can also reset it from the API (`POST /das-api/api/v1/demo/reset`).
+- `lib/server/routes/` holds the endpoints, with role checks. `lib/das/rbac.ts` is the single table of who may open what, used by the menu, the pages and the server.
+- Visits and the audit trail are hash-chained (`lib/rtm/hashchain.ts`). Changing a record breaks the chain and the Access page says so.
+- Sign-in is a demo role picker (`Bearer builtin:<userId>`). **Do not put real data or real partners on it.** Use Microsoft Entra or your identity provider first.
+- One JSON file on one server. Serverless hosts with a read-only or per-request disk will lose changes.
 
-Pages for managers show a short message to other roles. Edits that need a number or a reason use the browser's built-in prompt boxes, as the original DAS web app did; a nicer dialog is a possible follow-up.
+## Tests
 
-Each widget shows a **Live** or **Sample data** badge, so it is always clear which one you are looking at. Signed out, offline or on an API error, widgets fall back to sample data.
-
-How it works:
-- `next.config.mjs` proxies `/das-api/*` to `DAS_API_BASE_URL`, so the API needs no CORS change.
-- `lib/das/` holds the typed client (`client.ts`), the sign-in state (`context.tsx`), the `useDasQuery` hook and the sample data (`demo.ts`).
-- `node scripts/mock-das-api.mjs` runs a tiny fake API on port 5050 so you can try live mode without the .NET backend: `DAS_API_BASE_URL=http://localhost:5050 npm run dev`.
-
-Not done yet: Microsoft Entra sign-in (only pasted development tokens), and the DAS web app's Insights, ERP, Route-to-market and Notices pages.
+```bash
+npm test        # unit tests: RTM maths, offline queue, API roles and rules
+npm run lint
+npx tsc --noEmit
+```
 
 ## Stack
 
@@ -74,7 +78,9 @@ app/
     layout.tsx            App shell: sidebar, header, command menu, main glass panel
     page.tsx              Dashboard home: the bento grid
     loading.tsx           Skeleton version of the bento grid
-    customers/ samples/ team/ audit/ connect/   DAS Engage 360 pages
+    customers/ pipeline/ activities/ samples/ rtm/ field-force/ data-quality/
+    trace/ tco/ portal/ team/ audit/ access/ connect/   pages
+  das-api/[...path]/      Built-in DAS Engage 360 API (used when DAS_API_BASE_URL is unset)
 components/
   ui/                     Primitives: GlassPanel, SkeletonLoader, tables, buttons, fields, badges
   layout/                 Shell pieces: Sidebar, Header, CommandMenu,
@@ -83,7 +89,9 @@ components/
   dashboard/              Page widgets: Widget (shared frame), KpiRow, ProductEngagement,
                           QuickActions, ActivityTimeline, CopilotInsight, BentoGrid
 lib/utils.ts              cn() and the shared focusRing class
-lib/das/                  DAS Engage 360 client, sign-in state, query hook, sample data
+lib/das/                  API client, sign-in state, query hook, role table (rbac.ts), offline queue
+lib/rtm/                  Pure RTM logic: metrics, data quality, GPS, hash chain, TCO
+lib/server/               Built-in backend: model, seed, store, routes
 scripts/mock-das-api.mjs  Tiny fake API for trying live mode
 ```
 
@@ -114,6 +122,7 @@ Only `transform` and `opacity` are animated, so the browser can composite them w
 
 ## Known gaps
 
-- The sidebar is hidden below the `md` breakpoint and there is no mobile nav yet; the command palette is the fallback.
-- Quick Actions and the palette's Actions group are placeholders.
+- No deployment is set up. Microsoft Entra sign-in is not built.
+- Edits that need a number or a reason still use the browser's prompt boxes.
+- No photo proof, face check or push notifications for field staff.
 - `shadcn init` could not reach the shadcn registry from the build environment, so `components.json` and the theme were written by hand. `npx shadcn add <component>` should work wherever the registry is reachable.

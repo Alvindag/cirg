@@ -5,7 +5,7 @@ import { RequireLive } from "@/components/layout/RequireLive";
 
 export default function CustomersPage() {
   return (
-    <RequireLive>
+    <RequireLive feature="customers">
       {/* useSearchParams needs a Suspense boundary during static rendering. */}
       <Suspense>
         <CustomersView />

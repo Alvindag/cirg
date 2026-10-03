@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { useState, type ChangeEvent, type FormEvent } from "react";
 
@@ -57,6 +58,7 @@ export function CustomersView() {
   const [segment, setSegment] = useState("");
   const [page, setPage] = useState(1);
   const [importing, setImporting] = useState(false);
+  const [adding, setAdding] = useState(params.get("new") === "1");
   const [editing, setEditing] = useState<string>();
   const [notice, setNotice] = useState<string>();
 
@@ -75,19 +77,42 @@ export function CustomersView() {
     ? Math.max(1, Math.ceil(list.data.total / list.data.pageSize))
     : 1;
   const canEdit = canEditCustomers(me.role);
+  const canAdd = me.role === "Rep" || canEdit;
 
   return (
     <>
       <PageHead
         title="Customers"
         actions={
-          canImportCustomers(me.role) && (
-            <Button onClick={() => setImporting((v) => !v)}>
-              {importing ? "Close import" : "Import CSV"}
-            </Button>
-          )
+          <div className="flex gap-2">
+            {canAdd && (
+              <Button variant="primary" onClick={() => setAdding((v) => !v)}>
+                {adding ? "Close" : "Add customer"}
+              </Button>
+            )}
+            {canImportCustomers(me.role) && (
+              <Button onClick={() => setImporting((v) => !v)}>
+                {importing ? "Close import" : "Import CSV"}
+              </Button>
+            )}
+          </div>
         }
       />
+
+      {adding && (
+        <div className="mb-4">
+          <AddCustomer
+            territories={territories.data ?? []}
+            canPickTerritory={canEdit}
+            onDone={(text) => {
+              setAdding(false);
+              setNotice(text);
+              setPage(1);
+              list.reload();
+            }}
+          />
+        </div>
+      )}
 
       {importing && (
         <div className="mb-4">
@@ -179,7 +204,14 @@ export function CustomersView() {
               <tbody>
                 {list.data.items.map((c) => (
                   <tr key={c.id}>
-                    <Td>{c.name}</Td>
+                    <Td>
+                      <Link
+                        href={`/customers/${c.id}`}
+                        className="text-indigo-200 underline-offset-2 hover:underline"
+                      >
+                        {c.name}
+                      </Link>
+                    </Td>
                     <Td>{c.type}</Td>
                     <Td>{c.specialty ?? "—"}</Td>
                     <Td>{c.city ?? "—"}</Td>
@@ -504,6 +536,24 @@ function CustomerEditor({
           value={c.email ?? ""}
           onChange={(e) => set("email", e.target.value)}
         />
+        <div className="flex items-center gap-2 sm:col-span-2">
+          <Button
+            onClick={() =>
+              navigator.geolocation?.getCurrentPosition(
+                (p) => setF({ ...c, latitude: p.coords.latitude, longitude: p.coords.longitude }),
+                () => setError("Could not get a location. Allow location access and try again."),
+                { enableHighAccuracy: true, timeout: 12000 },
+              )
+            }
+          >
+            Set location to where I am now
+          </Button>
+          <span className="text-xs text-zinc-300">
+            {c.latitude != null && c.longitude != null
+              ? `Saved location: ${c.latitude.toFixed(5)}, ${c.longitude.toFixed(5)}`
+              : "No location yet. Visits cannot be verified without it."}
+          </span>
+        </div>
         <Input
           type="number"
           min={0}
@@ -527,6 +577,80 @@ function CustomerEditor({
               Remove customer
             </Button>
           )}
+        </div>
+      </form>
+    </Widget>
+  );
+}
+
+/** Adds one customer. If the server thinks it is a duplicate, asks before saving it anyway. */
+function AddCustomer({
+  territories,
+  canPickTerritory,
+  onDone,
+}: {
+  territories: Territory[];
+  canPickTerritory: boolean;
+  onDone: (message: string) => void;
+}) {
+  const api = useDasApi();
+  const [f, setF] = useState({ name: "", type: "Pharmacy", city: "", address: "", phone: "", email: "", territoryId: "", latitude: null as number | null, longitude: null as number | null });
+  const [error, setError] = useState<string>();
+  const [busy, setBusy] = useState(false);
+
+  async function save(e: FormEvent, allowDuplicate = false) {
+    e.preventDefault();
+    setBusy(true);
+    setError(undefined);
+    try {
+      await api.post("/customers", { ...f, territoryId: f.territoryId || undefined, allowDuplicate });
+      onDone(`${f.name.trim()} added.`);
+    } catch (err) {
+      const msg = errorText(err);
+      if (/looks like a duplicate/i.test(msg) && window.confirm(`${msg.replace(" Send allowDuplicate to save it anyway.", "")}\n\nSave it anyway?`)) {
+        await save(e, true);
+        return;
+      }
+      setError(msg);
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <Widget title="Add a customer">
+      <form className="grid gap-2 sm:grid-cols-2" onSubmit={(e) => void save(e)} aria-label="Add customer">
+        <Input required placeholder="Name" aria-label="Name" value={f.name} onChange={(e) => setF({ ...f, name: e.target.value })} />
+        <Select aria-label="Type" value={f.type} onChange={(e) => setF({ ...f, type: e.target.value })}>
+          {types.map((t) => <option key={t}>{t}</option>)}
+        </Select>
+        <Input placeholder="City" aria-label="City" value={f.city} onChange={(e) => setF({ ...f, city: e.target.value })} />
+        <Input placeholder="Address" aria-label="Address" value={f.address} onChange={(e) => setF({ ...f, address: e.target.value })} />
+        <Input placeholder="Phone" aria-label="Phone" value={f.phone} onChange={(e) => setF({ ...f, phone: e.target.value })} />
+        <Input type="email" placeholder="Email" aria-label="Email" value={f.email} onChange={(e) => setF({ ...f, email: e.target.value })} />
+        {canPickTerritory && (
+          <Select aria-label="Territory" value={f.territoryId} onChange={(e) => setF({ ...f, territoryId: e.target.value })}>
+            <option value="">My territory</option>
+            {territories.map((t) => <option key={t.id} value={t.id}>{t.name}</option>)}
+          </Select>
+        )}
+        <div className="flex items-center gap-2 sm:col-span-2">
+          <Button
+            onClick={() =>
+              navigator.geolocation?.getCurrentPosition(
+                (p) => setF({ ...f, latitude: p.coords.latitude, longitude: p.coords.longitude }),
+                () => setError("Could not get a location. Allow location access and try again."),
+                { enableHighAccuracy: true, timeout: 12000 },
+              )
+            }
+          >
+            Use my location for this outlet
+          </Button>
+          <span className="text-xs text-zinc-300">{f.latitude != null ? "Location captured." : "Optional, but needed to verify visits."}</span>
+        </div>
+        {error && <div className="sm:col-span-2"><ErrorBanner message={error} /></div>}
+        <div className="sm:col-span-2">
+          <Button type="submit" variant="primary" disabled={busy}>{busy ? "Saving…" : "Save customer"}</Button>
         </div>
       </form>
     </Widget>

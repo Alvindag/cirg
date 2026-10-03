@@ -1,5 +1,6 @@
 "use client";
 
+import { useSearchParams } from "next/navigation";
 import { useMemo, useState, type FormEvent } from "react";
 
 import { Widget } from "@/components/dashboard/Widget";
@@ -21,7 +22,7 @@ import {
 import { useDas } from "@/lib/das/context";
 import { errorText, fmtDate, fmtDateTime, fmtInt } from "@/lib/das/format";
 import { rangeLastDays } from "@/lib/das/range";
-import { canApproveSamples, isAdmin } from "@/lib/das/roles";
+import { canApproveSamples, isAdmin, isManager } from "@/lib/das/roles";
 import type {
   Batch,
   Compliance,
@@ -32,46 +33,146 @@ import type {
 import { useDasApi } from "@/lib/das/useDasApi";
 import { useDasQuery } from "@/lib/das/useDasQuery";
 import { useProducts, useUserNames } from "@/lib/das/useLookups";
+import { useActions } from "@/lib/das/useActions";
+import { CustomerPicker } from "./CustomerPicker";
 
-type Tab = "requests" | "stock" | "batches" | "compliance";
+type Tab = "requests" | "handover" | "stock" | "batches" | "compliance";
 
-const tabs: [Tab, string][] = [
-  ["requests", "Requests"],
-  ["stock", "Stock"],
-  ["batches", "Batches"],
-  ["compliance", "Compliance"],
-];
+const tabsFor = (manager: boolean): [Tab, string][] =>
+  manager
+    ? [
+        ["requests", "Requests"],
+        ["handover", "Hand over"],
+        ["stock", "Stock"],
+        ["batches", "Batches"],
+        ["compliance", "Compliance"],
+      ]
+    : [
+        ["requests", "My requests"],
+        ["handover", "Hand over"],
+        ["stock", "My stock"],
+      ];
 
 export function SamplesView() {
+  const { me } = useDas();
+  const params = useSearchParams();
   const [tab, setTab] = useState<Tab>("requests");
+  if (!me) return null;
+  const manager = isManager(me.role);
   return (
     <>
       <PageHead title="Samples" />
-      <Tabs tabs={tabs} value={tab} onChange={setTab} />
-      {tab === "requests" && <Requests />}
+      <Tabs tabs={tabsFor(manager)} value={tab} onChange={setTab} />
+      {tab === "requests" && (
+        <>
+          <RequestForm defaultOpen={params.get("new") === "1"} />
+          <Requests />
+        </>
+      )}
+      {tab === "handover" && <HandOver />}
       {tab === "stock" && <Stock />}
-      {tab === "batches" && <Batches />}
-      {tab === "compliance" && <ComplianceTab />}
+      {tab === "batches" && manager && <Batches />}
+      {tab === "compliance" && manager && <ComplianceTab />}
     </>
   );
 }
 
-/** Shared message/error state and an action runner that reloads afterwards. */
-function useActions(reload: () => void) {
-  const [message, setMessage] = useState<string>();
-  const [error, setError] = useState<string>();
-  async function act<T>(fn: () => Promise<T>, ok: string | ((r: T) => string)) {
-    setError(undefined);
-    setMessage(undefined);
+/** Ask for samples. Managers who hold their own approval line see it in the list below. */
+function RequestForm({ defaultOpen }: { defaultOpen: boolean }) {
+  const api = useDasApi();
+  const { products } = useProducts();
+  const [open, setOpen] = useState(defaultOpen);
+  const [f, setF] = useState({ productId: "", quantity: "10", notes: "" });
+  const [msg, setMsg] = useState<string>();
+  const [err, setErr] = useState<string>();
+  async function submit(e: FormEvent) {
+    e.preventDefault();
+    setErr(undefined);
+    setMsg(undefined);
     try {
-      const r = await fn();
-      setMessage(typeof ok === "function" ? ok(r) : ok);
-      reload();
-    } catch (e) {
-      setError(errorText(e));
+      await api.post("/samples/requests", { productId: f.productId || products[0]?.id, quantity: Number(f.quantity), notes: f.notes || null });
+      setMsg("Request sent for approval. Refresh the list to see it.");
+      setF({ ...f, notes: "" });
+    } catch (e2) {
+      setErr(errorText(e2));
     }
   }
-  return { message, error, setError, act };
+  return (
+    <div className="mb-4">
+      <Button onClick={() => setOpen((o) => !o)} aria-expanded={open}>
+        {open ? "Close" : "Request samples"}
+      </Button>
+      {open && (
+        <div className="mt-3">
+          <Widget title="Request samples">
+            {msg && <Notice>{msg}</Notice>}
+            {err && <ErrorBanner message={err} />}
+            <form onSubmit={submit} className="grid gap-2 sm:grid-cols-3" aria-label="Request samples">
+              <Select aria-label="Product" value={f.productId || products[0]?.id || ""} onChange={(e) => setF({ ...f, productId: e.target.value })}>
+                {products.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
+              </Select>
+              <Input type="number" min={1} aria-label="Quantity" value={f.quantity} onChange={(e) => setF({ ...f, quantity: e.target.value })} />
+              <Input aria-label="Reason" placeholder="Why do you need them?" value={f.notes} onChange={(e) => setF({ ...f, notes: e.target.value })} />
+              <div className="sm:col-span-3"><Button type="submit" variant="primary">Send request</Button></div>
+            </form>
+          </Widget>
+        </div>
+      )}
+    </div>
+  );
+}
+
+/** Record samples given to a customer, from the stock you hold. */
+function HandOver() {
+  const { me } = useDas();
+  const api = useDasApi();
+  const { name: productName } = useProducts();
+  const stock = useDasQuery<StockRow[]>("/samples/reports/stock");
+  const [customerId, setCustomerId] = useState("");
+  const [batchId, setBatchId] = useState("");
+  const [units, setUnits] = useState("5");
+  const [signed, setSigned] = useState(false);
+  const { message, error, act } = useActions(stock.reload);
+  if (!me) return null;
+  const mine = (stock.data ?? []).filter((r) => r.holderId === me.id && !r.expired && r.status === "Active");
+  const chosen = mine.find((r) => r.batchId === batchId) ?? mine[0];
+  return (
+    <Widget title="Hand samples to a customer">
+      {message && <Notice>{message}</Notice>}
+      {error && <ErrorBanner message={error} />}
+      {stock.loading && !stock.data && <Loading what="Loading your stock" />}
+      {stock.data && mine.length === 0 ? (
+        <Empty>You hold no usable stock. Request samples first.</Empty>
+      ) : (
+        <form
+          className="grid gap-2 sm:grid-cols-2"
+          aria-label="Hand over samples"
+          onSubmit={(e) => {
+            e.preventDefault();
+            if (!chosen) return;
+            void act(() => api.post("/samples/distributions", { customerId, batchId: chosen.batchId, units: Number(units), signed }), "Recorded. The customer's sample total and your stock are updated.");
+          }}
+        >
+          <div className="sm:col-span-2"><CustomerPicker value={customerId} onChange={setCustomerId} /></div>
+          <Select aria-label="Batch" value={chosen?.batchId ?? ""} onChange={(e) => setBatchId(e.target.value)}>
+            {mine.map((r) => (
+              <option key={r.batchId} value={r.batchId}>
+                {productName(r.productId)} · batch {r.batchNumber} · {r.quantity} held
+              </option>
+            ))}
+          </Select>
+          <Input type="number" min={1} max={chosen?.quantity} aria-label="Units" value={units} onChange={(e) => setUnits(e.target.value)} />
+          <label className="flex items-center gap-2 text-sm text-zinc-300 sm:col-span-2">
+            <input type="checkbox" checked={signed} onChange={(e) => setSigned(e.target.checked)} />
+            The customer signed for these samples
+          </label>
+          <div className="sm:col-span-2">
+            <Button type="submit" variant="primary" disabled={!customerId}>Record hand-over</Button>
+          </div>
+        </form>
+      )}
+    </Widget>
+  );
 }
 
 const statusTone = (s: string) =>

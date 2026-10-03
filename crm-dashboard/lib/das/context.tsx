@@ -10,12 +10,12 @@ import {
 } from "react";
 
 import { dasGet, DasApiError } from "./client";
-import { dasEnabled } from "./config";
+import { BUILTIN_DEFAULT_USER, builtinToken, dasBuiltIn, dasEnabled } from "./config";
 import { loadToken, saveToken } from "./token";
 import type { Me } from "./types";
 
 /**
- * demo:        no API configured, built-in sample data
+ * demo:        sign-in is switched off (not used by the app any more)
  * signed-out:  API configured, no valid token yet (sample data shown)
  * connecting:  token present, checking it with GET /me
  * live:        signed in, widgets read from the API
@@ -29,6 +29,8 @@ type DasContextValue = {
   error: string | null;
   signIn: (token: string) => void;
   signOut: () => void;
+  /** Built-in backend only: switch to another demo user. */
+  switchUser: (userId: string) => void;
 };
 
 const DasContext = createContext<DasContextValue | null>(null);
@@ -40,11 +42,22 @@ export function DasProvider({ children }: { children: React.ReactNode }) {
   const [ready, setReady] = useState(false);
 
   useEffect(() => {
-    if (dasEnabled) setToken(loadToken());
+    // The built-in backend signs in as a default demo user so every page works at once.
+    if (dasEnabled) {
+      setToken(loadToken() ?? (dasBuiltIn ? builtinToken(BUILTIN_DEFAULT_USER) : null));
+    }
     setReady(true);
   }, []);
 
   const signOut = useCallback(() => {
+    if (dasBuiltIn) {
+      // There is no signed-out state with the built-in backend: fall back to the default user.
+      const t = builtinToken(BUILTIN_DEFAULT_USER);
+      saveToken(t);
+      setMe(null);
+      setToken(t);
+      return;
+    }
     saveToken(null);
     setToken(null);
     setMe(null);
@@ -57,6 +70,13 @@ export function DasProvider({ children }: { children: React.ReactNode }) {
     setToken(t);
   }, []);
 
+  const switchUser = useCallback(
+    (userId: string) => {
+      signIn(builtinToken(userId));
+    },
+    [signIn],
+  );
+
   useEffect(() => {
     if (!token) return;
     const ctrl = new AbortController();
@@ -65,6 +85,11 @@ export function DasProvider({ children }: { children: React.ReactNode }) {
       .catch((e: unknown) => {
         if (ctrl.signal.aborted) return;
         const unauthorized = e instanceof DasApiError && e.status === 401;
+        // A built-in token for a user that no longer exists (data was reset): start over as the default user.
+        if (dasBuiltIn && unauthorized && token !== builtinToken(BUILTIN_DEFAULT_USER)) {
+          signIn(builtinToken(BUILTIN_DEFAULT_USER));
+          return;
+        }
         setError(
           unauthorized
             ? "The API refused this token. It may have expired."
@@ -75,7 +100,7 @@ export function DasProvider({ children }: { children: React.ReactNode }) {
         signOut();
       });
     return () => ctrl.abort();
-  }, [token, signOut]);
+  }, [token, signOut, signIn]);
 
   const status: DasStatus = !dasEnabled
     ? "demo"
@@ -88,8 +113,8 @@ export function DasProvider({ children }: { children: React.ReactNode }) {
           : "signed-out";
 
   const value = useMemo(
-    () => ({ status, token, me, error, signIn, signOut }),
-    [status, token, me, error, signIn, signOut],
+    () => ({ status, token, me, error, signIn, signOut, switchUser }),
+    [status, token, me, error, signIn, signOut, switchUser],
   );
   return <DasContext.Provider value={value}>{children}</DasContext.Provider>;
 }

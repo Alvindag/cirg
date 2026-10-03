@@ -3,19 +3,22 @@
 import { useCallback, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Command } from "cmdk";
-import { PhoneCall, Search, UserPlus } from "lucide-react";
+import { CalendarCheck, KanbanSquare, PackagePlus, Search, UserPlus } from "lucide-react";
 
-import { demoCustomers } from "@/lib/das/demo";
+import { useDas } from "@/lib/das/context";
+import { can, type Feature } from "@/lib/das/rbac";
 import type { Customer, Page } from "@/lib/das/types";
 import { useDasQuery } from "@/lib/das/useDasQuery";
 import { cn } from "@/lib/utils";
-import { navItems } from "./nav-items";
+import { navFor } from "./nav-items";
 
 export const OPEN_COMMAND_MENU_EVENT = "open-command-menu";
 
-const actions = [
-  { label: "Create New Lead", icon: UserPlus },
-  { label: "Log Call", icon: PhoneCall },
+const actions: { label: string; icon: typeof UserPlus; href: string; feature: Feature }[] = [
+  { label: "Log a visit", icon: CalendarCheck, href: "/activities?new=1", feature: "activities" },
+  { label: "New deal", icon: KanbanSquare, href: "/pipeline?new=1", feature: "deals" },
+  { label: "Add a customer", icon: UserPlus, href: "/customers?new=1", feature: "customers" },
+  { label: "Request samples", icon: PackagePlus, href: "/samples?new=1", feature: "samples" },
 ];
 
 const itemClass = cn(
@@ -30,9 +33,17 @@ const groupClass = cn(
 
 export function CommandMenu() {
   const router = useRouter();
+  const { me } = useDas();
   const [open, setOpen] = useState(false);
-  const customers = useDasQuery<Page<Customer>>("/customers", { pageSize: 4 });
-  const recentContacts = (customers.data?.items ?? demoCustomers).map((c) => ({
+  const [text, setText] = useState("");
+  const navItems = navFor(me?.role).flatMap((g) => g.items);
+  const myActions = me ? actions.filter((a) => can(me.role, a.feature)) : [];
+  // Search the customer list on the server as the person types.
+  const customers = useDasQuery<Page<Customer>>(
+    me && can(me.role, "customers") && open ? "/customers" : null,
+    { pageSize: 6, q: text.trim() || undefined },
+  );
+  const recentContacts = (customers.data?.items ?? []).map((c) => ({
     id: c.id,
     name: c.name,
     detail: c.city ?? `Segment ${c.segment}`,
@@ -61,6 +72,7 @@ export function CommandMenu() {
 
   return (
     <Command.Dialog
+      shouldFilter
       open={open}
       onOpenChange={setOpen}
       label="Command palette"
@@ -73,6 +85,8 @@ export function CommandMenu() {
           className="h-4 w-4 shrink-0 text-zinc-400 group-focus-within:text-indigo-300"
         />
         <Command.Input
+          value={text}
+          onValueChange={setText}
           placeholder="Search or jump to…"
           className="h-12 w-full bg-transparent text-sm text-zinc-100 outline-none placeholder:text-zinc-400"
         />
@@ -98,12 +112,11 @@ export function CommandMenu() {
         </Command.Group>
 
         <Command.Group heading="Actions" className={groupClass}>
-          {actions.map(({ label, icon: Icon }) => (
+          {myActions.map(({ label, icon: Icon, href }) => (
             <Command.Item
               key={label}
               value={label}
-              // Placeholder: real handlers arrive with the lead/call flows.
-              onSelect={() => run(() => {})}
+              onSelect={() => run(() => router.push(href))}
               className={itemClass}
             >
               <Icon className="h-4 w-4 text-zinc-400" />
@@ -112,14 +125,14 @@ export function CommandMenu() {
           ))}
         </Command.Group>
 
-        <Command.Group heading="Recent Contacts" className={groupClass}>
+        <Command.Group heading="Customers" className={groupClass}>
           {recentContacts.map((c) => (
             <Command.Item
               key={c.id}
-              value={`${c.name} ${c.detail}`}
+              value={`${c.name} ${c.detail} ${c.id}`}
               onSelect={() =>
                 run(() =>
-                  router.push(`/customers?q=${encodeURIComponent(c.name)}`),
+                  router.push(`/customers/${c.id}`),
                 )
               }
               className={itemClass}

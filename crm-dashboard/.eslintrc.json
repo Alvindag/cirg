@@ -1,3 +1,10 @@
 {
-  "extends": ["next/core-web-vitals", "next/typescript"]
+  "extends": ["next/core-web-vitals", "next/typescript"],
+  "overrides": [
+    {
+      // Request bodies are untyped JSON that each route validates by hand.
+      "files": ["lib/server/**/*.ts"],
+      "rules": { "@typescript-eslint/no-explicit-any": "off" }
+    }
+  ]
 }
