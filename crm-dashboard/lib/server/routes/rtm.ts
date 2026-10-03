@@ -18,6 +18,7 @@ function scopedOrders(db: DB, user: User, q: URLSearchParams, days = 180) {
   const ok = new Set(visibleCustomers(db, user).map((c) => c.id));
   return db.orders.filter(
     (o) =>
+      !o.cancelledAt &&
       ok.has(resolveCustomerId(db, o.customerId)) &&
       inRange(o.orderedAt, r) &&
       (!q.get("region") || o.region === q.get("region")) &&
@@ -222,7 +223,7 @@ get("/portal/partners", ({ db, user }) => {
 
 get("/portal/overview", ({ db, user, q }) => {
   const d = partnerOf(db, user, q);
-  const orders = db.orders.filter((o) => o.distributorId === d.id && inRange(o.orderedAt, range(q, 90)));
+  const orders = db.orders.filter((o) => !o.cancelledAt && o.distributorId === d.id && inRange(o.orderedAt, range(q, 90)));
   const s = summarise(orders);
   const stock = db.distributorStock.filter((x) => x.distributorId === d.id);
   return {
@@ -250,7 +251,7 @@ get("/portal/inventory", ({ db, user, q }) => {
 get("/portal/orders", ({ db, user, q }) => {
   const d = partnerOf(db, user, q);
   return db.orders
-    .filter((o) => o.distributorId === d.id)
+    .filter((o) => !o.cancelledAt && o.distributorId === d.id)
     .sort((a, b) => b.orderedAt.localeCompare(a.orderedAt))
     .slice(0, 40)
     .map((o) => ({ id: o.id, outlet: db.customers.find((c) => c.id === o.customerId)?.name ?? "—", orderedAt: o.orderedAt, promisedAt: o.promisedAt, deliveredAt: o.deliveredAt, unitsOrdered: o.unitsOrdered, unitsDelivered: o.unitsDelivered, revenue: o.revenue, status: !o.deliveredAt ? "In progress" : isOtif(o) ? "On time, in full" : Date.parse(o.deliveredAt) > Date.parse(o.promisedAt) ? "Late" : "Short" }));
@@ -258,7 +259,7 @@ get("/portal/orders", ({ db, user, q }) => {
 
 get("/portal/performance", ({ db, user, q }) => {
   const d = partnerOf(db, user, q);
-  const mine = db.orders.filter((o) => o.distributorId === d.id);
+  const mine = db.orders.filter((o) => !o.cancelledAt && o.distributorId === d.id);
   return Object.entries(groupBy(mine, (o) => o.orderedAt.slice(0, 7))).sort(([a], [b]) => a.localeCompare(b)).map(([m, v]) => { const s = summarise(v as OrderRecord[]); return { month: m, orders: s.orders, revenue: Math.round(s.revenue), otifPct: rate(s.otifPct) }; });
 });
 

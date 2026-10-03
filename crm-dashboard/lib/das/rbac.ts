@@ -18,6 +18,8 @@ export type Feature =
   | "customers"
   | "deals"
   | "activities"
+  | "orders"
+  | "orderDesk"
   | "samples"
   | "rtm"
   | "fieldForce"
@@ -34,6 +36,8 @@ export const FEATURE_ROLES: Record<Feature, Role[]> = {
   customers: INTERNAL,
   deals: INTERNAL,
   activities: INTERNAL,
+  orders: INTERNAL,
+  orderDesk: MANAGERS,
   samples: INTERNAL,
   rtm: [...MANAGERS, ...COMMERCIAL],
   fieldForce: MANAGERS,
@@ -52,6 +56,8 @@ export const FEATURE_LABELS: Record<Feature, string> = {
   customers: "Customers",
   deals: "Pipeline",
   activities: "Visits and tasks",
+  orders: "Take orders (phone app)",
+  orderDesk: "Orders",
   samples: "Samples",
   rtm: "Route to market",
   fieldForce: "Field force",

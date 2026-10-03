@@ -65,6 +65,10 @@ How it behaves:
 
 Not done: Entra group or app-role mapping (roles are managed in the Team page), single sign-out, and distributor-partner accounts from the screen (the API accepts `role: "Distributor"` with a `distributorId`).
 
+## Order app for phones
+
+`mobile/` holds DAS Orders, an offline Android order-taking app for reps (catalog on the phone, quantity checks, orders sync when there is signal). See [mobile/README.md](mobile/README.md), including how to build the APK on Windows.
+
 ## Deploying to Azure
 
 Hosting setup (App Service, PostgreSQL, Key Vault, a manual-only deploy workflow) is prepared in `infra/` and described in [docs/azure-deployment.md](docs/azure-deployment.md), with the list of what you must do in Azure. Nothing is deployed yet. With `DATABASE_URL` set the built-in backend stores data in PostgreSQL instead of the JSON file.

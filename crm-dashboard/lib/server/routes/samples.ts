@@ -282,7 +282,7 @@ get("/ai/opportunities", ({ db, user, q }) => {
     .map((c) => {
       const visits = db.visits.filter((v) => v.customerId === c.id && now - Date.parse(v.at) < 90 * DAY);
       const mentions = visits.filter((v) => v.productIds.includes(p.id)).length;
-      const orders = db.orders.filter((o) => o.customerId === c.id && now - Date.parse(o.orderedAt) < 180 * DAY).length;
+      const orders = db.orders.filter((o) => !o.cancelledAt && o.customerId === c.id && now - Date.parse(o.orderedAt) < 180 * DAY).length;
       const interest = c.productInterests.some((i) => i.productId === p.id) ? 1 : 0;
       const seg = { A: 1, B: 0.6, C: 0.3 }[c.segment] ?? 0.2;
       const score = Math.min(0.98, 0.1 + 0.25 * seg + 0.2 * interest + 0.06 * Math.min(mentions, 4) + 0.04 * Math.min(orders, 5) + 0.02 * Math.min(visits.length, 5));

@@ -1,0 +1,21 @@
+{
+  "name": "das-orders-mobile",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "DAS Orders: offline order-taking app for field reps (Android, via Capacitor).",
+  "scripts": {
+    "test": "node --test test/logic.test.js",
+    "serve": "node scripts/serve.mjs",
+    "sync": "cap sync android",
+    "open": "cap open android",
+    "apk": "cap sync android && cd android && gradlew.bat assembleDebug"
+  },
+  "dependencies": {
+    "@capacitor/android": "^6.2.0",
+    "@capacitor/core": "^6.2.0"
+  },
+  "devDependencies": {
+    "@capacitor/cli": "^6.2.0"
+  }
+}
