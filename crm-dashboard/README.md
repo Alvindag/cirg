@@ -1,6 +1,6 @@
 # CRM Dashboard
 
-A dark, glassmorphic CRM dashboard built with Next.js 14 (App Router), TypeScript, Tailwind CSS and shadcn/ui conventions (New York style, zinc base). All data is mock data for now.
+A dark, glassmorphic CRM dashboard built with Next.js 14 (App Router), TypeScript, Tailwind CSS and shadcn/ui conventions (New York style, zinc base). Runs on sample data out of the box and can connect to a DAS Engage 360 API.
 
 ## Getting started
 
@@ -13,6 +13,34 @@ npm run lint
 ```
 
 Requires Node 18.17 or newer. Press **⌘K** or **Ctrl+K** anywhere to open the command palette.
+
+## Connecting to DAS Engage 360
+
+By default the dashboard shows sample data. Set `DAS_API_BASE_URL` (see `.env.example`) and the widgets read from a [DAS Engage 360](https://github.com/Alvindag/cirg/pull/7) API instead:
+
+```bash
+cp .env.example .env.local      # edit DAS_API_BASE_URL
+npm run dev
+```
+
+Then open **Connect DAS Engage** in the header, paste an access token and press Connect. For a development API, mint one with `python3 scripts/dev-token.py --role Admin` in the DAS Engage 360 repo. The token is kept in `sessionStorage` (this tab only), and the header shows the signed-in role.
+
+| Widget | Endpoint |
+| --- | --- |
+| Last 30 days (KPIs) | `GET /dashboards/sales` |
+| Product Engagement | `GET /dashboards/products` |
+| Recent Activity | `GET /notifications` |
+| AI Copilot Insight | `GET /admin/products`, then `GET /ai/opportunities` |
+| Command palette, Recent Contacts | `GET /customers` |
+
+Each widget shows a **Live** or **Sample data** badge, so it is always clear which one you are looking at. Signed out, offline or on an API error, widgets fall back to sample data.
+
+How it works:
+- `next.config.mjs` proxies `/das-api/*` to `DAS_API_BASE_URL`, so the API needs no CORS change.
+- `lib/das/` holds the typed client (`client.ts`), the sign-in state (`context.tsx`), the `useDasQuery` hook and the sample data (`demo.ts`).
+- `node scripts/mock-das-api.mjs` runs a tiny fake API on port 5050 so you can try live mode without the .NET backend: `DAS_API_BASE_URL=http://localhost:5050 npm run dev`.
+
+Not done yet: Microsoft Entra sign-in (only pasted development tokens), and the Customers, Samples, Team and Audit pages from the DAS web app.
 
 ## Stack
 
@@ -39,9 +67,11 @@ components/
   ui/                     Primitives: GlassPanel, SkeletonLoader
   layout/                 Shell pieces: Sidebar, Header, CommandMenu,
                           MeshGradientBackground, Providers, nav-items
-  dashboard/              Page widgets: Widget (shared frame), PipelineOverview,
+  dashboard/              Page widgets: Widget (shared frame), KpiRow, ProductEngagement,
                           QuickActions, ActivityTimeline, CopilotInsight, BentoGrid
 lib/utils.ts              cn() and the shared focusRing class
+lib/das/                  DAS Engage 360 client, sign-in state, query hook, sample data
+scripts/mock-das-api.mjs  Tiny fake API for trying live mode
 ```
 
 Server components are the default. Anything that uses Framer Motion, state or browser events is a client component (`"use client"`). The `(dashboard)` route group lets future pages share the shell without adding to the URL.

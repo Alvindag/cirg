@@ -4,9 +4,20 @@ import { Bell, Search } from "lucide-react";
 
 import { GlassPanel } from "@/components/ui/glass-panel";
 import { cn, focusRing } from "@/lib/utils";
+import { useDas } from "@/lib/das/context";
+import { DasStatus } from "./DasStatus";
 import { OPEN_COMMAND_MENU_EVENT } from "./CommandMenu";
 
 export function Header() {
+  const { me } = useDas();
+  const initials = me
+    ? me.fullName
+        .split(/\s+/)
+        .map((p) => p[0])
+        .join("")
+        .slice(0, 2)
+        .toUpperCase()
+    : "AD";
   return (
     <GlassPanel
       as="header"
@@ -30,6 +41,7 @@ export function Header() {
       </button>
 
       <div className="flex items-center gap-3">
+        <DasStatus />
         <button
           type="button"
           aria-label="Notifications (unread)"
@@ -49,7 +61,7 @@ export function Header() {
           aria-label="User profile"
           className="flex h-8 w-8 items-center justify-center rounded-full bg-gradient-to-br from-indigo-600 to-purple-600 text-xs font-semibold text-white ring-1 ring-white/20"
         >
-          AD
+          {initials}
         </div>
       </div>
     </GlassPanel>

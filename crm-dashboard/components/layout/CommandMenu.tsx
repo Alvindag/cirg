@@ -5,6 +5,9 @@ import { useRouter } from "next/navigation";
 import { Command } from "cmdk";
 import { PhoneCall, Search, UserPlus } from "lucide-react";
 
+import { demoCustomers } from "@/lib/das/demo";
+import type { Customer, Page } from "@/lib/das/types";
+import { useDasQuery } from "@/lib/das/useDasQuery";
 import { cn } from "@/lib/utils";
 import { navItems } from "./nav-items";
 
@@ -13,14 +16,6 @@ export const OPEN_COMMAND_MENU_EVENT = "open-command-menu";
 const actions = [
   { label: "Create New Lead", icon: UserPlus },
   { label: "Log Call", icon: PhoneCall },
-];
-
-// Mock data until contacts are backed by a real source.
-const recentContacts = [
-  { name: "Ava Thompson", company: "Northwind Traders" },
-  { name: "Liam Chen", company: "Globex Corporation" },
-  { name: "Sofia Martinez", company: "Initech" },
-  { name: "Noah Patel", company: "Umbrella Labs" },
 ];
 
 const itemClass = cn(
@@ -36,6 +31,12 @@ const groupClass = cn(
 export function CommandMenu() {
   const router = useRouter();
   const [open, setOpen] = useState(false);
+  const customers = useDasQuery<Page<Customer>>("/customers", { pageSize: 4 });
+  const recentContacts = (customers.data?.items ?? demoCustomers).map((c) => ({
+    id: c.id,
+    name: c.name,
+    detail: c.city ?? `Segment ${c.segment}`,
+  }));
 
   useEffect(() => {
     const onKeyDown = (e: KeyboardEvent) => {
@@ -114,8 +115,8 @@ export function CommandMenu() {
         <Command.Group heading="Recent Contacts" className={groupClass}>
           {recentContacts.map((c) => (
             <Command.Item
-              key={c.name}
-              value={`${c.name} ${c.company}`}
+              key={c.id}
+              value={`${c.name} ${c.detail}`}
               onSelect={() => run(() => router.push("/contacts"))}
               className={itemClass}
             >
@@ -126,7 +127,7 @@ export function CommandMenu() {
                   .join("")}
               </span>
               <span>{c.name}</span>
-              <span className="ml-auto text-xs text-zinc-400">{c.company}</span>
+              <span className="ml-auto text-xs text-zinc-400">{c.detail}</span>
             </Command.Item>
           ))}
         </Command.Group>
