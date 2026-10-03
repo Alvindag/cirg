@@ -52,7 +52,7 @@ public class OrderService
         var merged = lines.GroupBy(l => l.ProductId).Select(g => (ProductId: g.Key, Quantity: g.Sum(x => x.Quantity))).ToList();
         var ids = merged.Select(m => m.ProductId).ToList();
         var products = await _db.Products.Where(p => ids.Contains(p.Id)).ToDictionaryAsync(p => p.Id);
-        var order = new SalesOrder { Id = id, RepId = repId, CustomerId = customer.Id, Notes = d.Notes?.Trim() };
+        var order = new SalesOrder { Id = id, RepId = repId, CustomerId = customer.Id, CustomerName = customer.Name, Notes = d.Notes?.Trim() };
         foreach (var (productId, qty) in merged)
         {
             if (!products.TryGetValue(productId, out var p)) return new(id, "rejected", "A product on this order is not available any more.");

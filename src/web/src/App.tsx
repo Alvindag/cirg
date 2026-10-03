@@ -9,6 +9,7 @@ import { canUseDashboard } from './lib/roles'
 const Overview = lazy(() => import('./pages/Overview').then((m) => ({ default: m.Overview })))
 const Customers = lazy(() => import('./pages/Customers').then((m) => ({ default: m.Customers })))
 const Team = lazy(() => import('./pages/Team').then((m) => ({ default: m.Team })))
+const Orders = lazy(() => import('./pages/Orders').then((m) => ({ default: m.Orders })))
 const Samples = lazy(() => import('./pages/Samples').then((m) => ({ default: m.Samples })))
 const Insights = lazy(() => import('./pages/Insights').then((m) => ({ default: m.Insights })))
 const Rtm = lazy(() => import('./pages/Rtm').then((m) => ({ default: m.Rtm })))
@@ -34,6 +35,7 @@ export function App() {
         <Route index element={<Overview />} />
         <Route path="customers" element={<Customers />} />
         <Route path="team" element={<Team />} />
+        <Route path="orders" element={<Orders />} />
         <Route path="samples" element={<Samples />} />
         <Route path="insights" element={<Insights />} />
         <Route path="rtm" element={<Rtm />} />

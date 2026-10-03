@@ -21,3 +21,9 @@ export const canSeeErp = (r: Role) => ['Admin', 'NationalSalesManager', 'Executi
 
 /** Mirrors the API's `Roles.CustomerEditors` (reps edit on the phone). */
 export const canEditCustomers = (r: Role) => ['AreaManager', 'RegionalManager', 'NationalSalesManager', 'KeyAccountManager', 'Marketing', 'Admin'].includes(r)
+
+/** Confirm, deliver and cancel others' orders (mirrors the API's order approvers). */
+export const canManageOrders = (r: Role) => ['AreaManager', 'RegionalManager', 'NationalSalesManager', 'Admin'].includes(r)
+
+/** Set the product price list that orders are priced from. */
+export const canSetPrices = (r: Role) => ['NationalSalesManager', 'Executive', 'Admin'].includes(r)

@@ -448,6 +448,8 @@ public class SalesOrder : TenantEntity
     public string Number { get; set; } = "";
     public Guid RepId { get; set; }
     public Guid CustomerId { get; set; }
+    /// <summary>The customer's name when the order was taken, so lists and receipts do not need the customer loaded.</summary>
+    public string CustomerName { get; set; } = "";
     public OrderStatus Status { get; set; } = OrderStatus.Placed;
     public decimal Total { get; set; }
     public string Currency { get; set; } = "GHS";

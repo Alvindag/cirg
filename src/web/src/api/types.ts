@@ -53,6 +53,8 @@ export interface Product {
   therapeuticArea?: string | null; standardCost?: number | null; reorderLevel?: number | null
   /** Most units one customer may be given in `sampleLimitDays` days; null = no limit. */
   sampleLimitPerCustomer?: number | null; sampleLimitDays?: number | null
+  /** Selling price (GHS) that orders are priced from; null = not for sale yet. */
+  listPrice?: number | null
 }
 export interface AppNotification { id: string; kind: string; title: string; body: string | null; createdAt: string; readAt: string | null }
 export interface Batch { id: string; productId: string; batchNumber: string; expiryDate: string; status: string; statusReason: string | null }
@@ -178,3 +180,16 @@ export interface RtmDashboard {
 }
 export interface UniverseRow { region: string | null; outletClass: OutletClass; outlets: number; source: string | null }
 export interface UntaggedList { total: number; items: { id: string; name: string; type: string; city: string | null; channel: SalesChannel; outletClass: OutletClass }[] }
+
+export type OrderStatus = 'Placed' | 'Confirmed' | 'Delivered' | 'Cancelled'
+export interface OrderLine { id: string; productId: string; productName: string; quantity: number; unitPrice: number; lineTotal: number }
+export interface SalesOrder {
+  id: string; number: string; repId: string; customerId: string; customerName: string; status: OrderStatus
+  total: number; currency: string; notes: string | null; placedAt: string
+  confirmedAt: string | null; deliveredAt: string | null; cancelledAt: string | null; cancelReason: string | null
+  lines: OrderLine[]
+}
+export interface OrderSummary {
+  days: number; orders: number; value: number; placed: number; confirmed: number; delivered: number; cancelled: number
+  avgHoursToDeliver: number | null; topProducts: { productId: string; name: string; quantity: number; value: number }[]
+}

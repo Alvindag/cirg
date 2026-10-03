@@ -48,6 +48,7 @@ public class OrderTests : IClassFixture<ErpFactory>
         Assert.Equal(15, saved.GetProperty("lines")[0].GetProperty("quantity").GetInt32());
         Assert.StartsWith("ORD-", saved.GetProperty("number").GetString());
         Assert.Equal("Placed", saved.GetProperty("status").GetString());
+        Assert.Equal("Korle Pharmacy", saved.GetProperty("customerName").GetString());
     }
 
     [Fact]

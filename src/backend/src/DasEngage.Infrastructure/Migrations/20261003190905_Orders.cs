@@ -27,6 +27,7 @@ namespace DasEngage.Infrastructure.Migrations
                     Number = table.Column<string>(type: "text", nullable: false),
                     RepId = table.Column<Guid>(type: "uuid", nullable: false),
                     CustomerId = table.Column<Guid>(type: "uuid", nullable: false),
+                    CustomerName = table.Column<string>(type: "text", nullable: false),
                     Status = table.Column<int>(type: "integer", nullable: false),
                     Total = table.Column<decimal>(type: "numeric(18,2)", precision: 18, scale: 2, nullable: false),
                     Currency = table.Column<string>(type: "text", nullable: false),
