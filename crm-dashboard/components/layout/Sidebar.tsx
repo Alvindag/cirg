@@ -6,7 +6,7 @@ import { usePathname } from "next/navigation";
 import { motion } from "framer-motion";
 
 import { GlassPanel } from "@/components/ui/glass-panel";
-import { cn } from "@/lib/utils";
+import { cn, focusRing } from "@/lib/utils";
 import { navItems } from "./nav-items";
 
 export function Sidebar() {
@@ -22,14 +22,18 @@ export function Sidebar() {
   return (
     <GlassPanel
       as="aside"
-      className="hidden w-64 shrink-0 flex-col rounded-2xl p-4 md:flex"
+      className="hidden w-64 shrink-0 flex-col p-4 md:flex"
     >
       <div className="mb-6 flex items-center gap-2 px-3 py-2">
-        <div className="h-6 w-6 rounded-md bg-gradient-to-br from-indigo-400 to-teal-300" />
+        <div
+          aria-hidden
+          className="h-6 w-6 rounded-md bg-gradient-to-br from-indigo-400 to-teal-300"
+        />
         <span className="text-sm font-semibold tracking-tight">Orbit CRM</span>
       </div>
 
       <nav
+        aria-label="Main"
         className="flex flex-col gap-1"
         onMouseLeave={() => setHovered(null)}
       >
@@ -42,10 +46,11 @@ export function Sidebar() {
             onBlur={() => setHovered(null)}
             aria-current={isActive(href) ? "page" : undefined}
             className={cn(
-              "relative flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium outline-none transition-colors",
+              "relative flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors",
+              focusRing,
               pillTarget === href || isActive(href)
                 ? "text-zinc-100"
-                : "text-zinc-400"
+                : "text-zinc-400",
             )}
           >
             {pillTarget === href && (
@@ -55,7 +60,7 @@ export function Sidebar() {
                 transition={{ type: "spring", stiffness: 400, damping: 34 }}
               />
             )}
-            <Icon className="relative z-10 h-4 w-4" />
+            <Icon className="relative z-10 h-4 w-4" aria-hidden />
             <span className="relative z-10">{label}</span>
           </Link>
         ))}

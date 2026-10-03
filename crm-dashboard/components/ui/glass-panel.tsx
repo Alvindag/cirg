@@ -11,12 +11,12 @@ const GlassPanel = React.forwardRef<HTMLElement, GlassPanelProps>(
     <Tag
       ref={ref as React.Ref<never>}
       className={cn(
-        "border border-white/10 bg-white/5 shadow-lg shadow-black/20 backdrop-blur-md",
-        className
+        "rounded-2xl border border-white/10 bg-white/5 shadow-lg shadow-black/20 backdrop-blur-md",
+        className,
       )}
       {...props}
     />
-  )
+  ),
 );
 GlassPanel.displayName = "GlassPanel";
 

@@ -8,10 +8,9 @@ import { cn } from "@/lib/utils";
 export function SkeletonLoader({ className }: { className?: string }) {
   return (
     <div
-      aria-hidden
       className={cn(
         "relative overflow-hidden rounded-md bg-white/5",
-        className
+        className,
       )}
     >
       <motion.div

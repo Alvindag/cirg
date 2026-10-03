@@ -25,12 +25,12 @@ const recentContacts = [
 
 const itemClass = cn(
   "flex cursor-pointer select-none items-center gap-3 rounded-lg px-3 py-2 text-sm text-zinc-300 outline-none",
-  "data-[selected=true]:bg-white/10 data-[selected=true]:text-zinc-100"
+  "data-[selected=true]:bg-white/10 data-[selected=true]:text-zinc-100",
 );
 
 const groupClass = cn(
   "px-1 py-1",
-  "[&_[cmdk-group-heading]]:px-3 [&_[cmdk-group-heading]]:py-1.5 [&_[cmdk-group-heading]]:text-xs [&_[cmdk-group-heading]]:font-medium [&_[cmdk-group-heading]]:uppercase [&_[cmdk-group-heading]]:tracking-wider [&_[cmdk-group-heading]]:text-zinc-500"
+  "[&_[cmdk-group-heading]]:px-3 [&_[cmdk-group-heading]]:py-1.5 [&_[cmdk-group-heading]]:text-xs [&_[cmdk-group-heading]]:font-medium [&_[cmdk-group-heading]]:uppercase [&_[cmdk-group-heading]]:tracking-wider [&_[cmdk-group-heading]]:text-zinc-400",
 );
 
 export function CommandMenu() {
@@ -67,15 +67,18 @@ export function CommandMenu() {
       contentClassName="fixed left-1/2 top-[20vh] z-50 w-[calc(100%-2rem)] max-w-xl -translate-x-1/2 overflow-hidden rounded-2xl border border-white/10 bg-white/5 bg-zinc-950/60 shadow-2xl shadow-black/40 backdrop-blur-xl"
     >
       <div className="group flex items-center gap-3 border-b border-white/10 px-4 transition-shadow focus-within:border-indigo-400/60 focus-within:shadow-[inset_0_-1px_0_rgba(129,140,248,0.6),inset_0_-12px_24px_-12px_rgba(99,102,241,0.35)]">
-        <Search className="h-4 w-4 shrink-0 text-zinc-500 group-focus-within:text-indigo-300" />
+        <Search
+          aria-hidden
+          className="h-4 w-4 shrink-0 text-zinc-400 group-focus-within:text-indigo-300"
+        />
         <Command.Input
           placeholder="Search or jump to…"
-          className="h-12 w-full bg-transparent text-sm text-zinc-100 outline-none placeholder:text-zinc-500"
+          className="h-12 w-full bg-transparent text-sm text-zinc-100 outline-none placeholder:text-zinc-400"
         />
       </div>
 
       <Command.List className="max-h-80 overflow-y-auto p-2">
-        <Command.Empty className="py-8 text-center text-sm text-zinc-500">
+        <Command.Empty className="py-8 text-center text-sm text-zinc-400">
           No results found.
         </Command.Empty>
 
@@ -116,14 +119,14 @@ export function CommandMenu() {
               onSelect={() => run(() => router.push("/contacts"))}
               className={itemClass}
             >
-              <span className="flex h-6 w-6 items-center justify-center rounded-full bg-gradient-to-br from-indigo-500 to-purple-500 text-[10px] font-semibold text-white">
+              <span className="flex h-6 w-6 items-center justify-center rounded-full bg-gradient-to-br from-indigo-600 to-purple-600 text-[10px] font-semibold text-white">
                 {c.name
                   .split(" ")
                   .map((p) => p[0])
                   .join("")}
               </span>
               <span>{c.name}</span>
-              <span className="ml-auto text-xs text-zinc-500">{c.company}</span>
+              <span className="ml-auto text-xs text-zinc-400">{c.company}</span>
             </Command.Item>
           ))}
         </Command.Group>

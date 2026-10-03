@@ -1,6 +1,6 @@
 "use client";
 
-import { MotionConfig, motion, type Variants } from "framer-motion";
+import { motion, type Variants } from "framer-motion";
 
 import { cn } from "@/lib/utils";
 
@@ -20,16 +20,14 @@ const item: Variants = {
 
 export function BentoGrid({ children }: { children: React.ReactNode }) {
   return (
-    <MotionConfig reducedMotion="user">
-      <motion.div
-        className="grid grid-cols-1 gap-4 md:grid-cols-3 lg:grid-cols-4"
-        variants={container}
-        initial="hidden"
-        animate="show"
-      >
-        {children}
-      </motion.div>
-    </MotionConfig>
+    <motion.div
+      className="grid grid-cols-1 gap-4 md:grid-cols-3 lg:grid-cols-4"
+      variants={container}
+      initial="hidden"
+      animate="show"
+    >
+      {children}
+    </motion.div>
   );
 }
 

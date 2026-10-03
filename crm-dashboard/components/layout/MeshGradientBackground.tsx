@@ -10,7 +10,10 @@ const blobs = [
   },
   {
     className: "-right-1/4 top-1/4 h-[50vmax] w-[50vmax] bg-teal-400",
-    animate: { x: ["0%", "-25%", "-10%", "0%"], y: ["0%", "20%", "-10%", "0%"] },
+    animate: {
+      x: ["0%", "-25%", "-10%", "0%"],
+      y: ["0%", "20%", "-10%", "0%"],
+    },
     duration: 48,
   },
   {
@@ -29,7 +32,7 @@ export function MeshGradientBackground() {
       {blobs.map((blob, i) => (
         <motion.div
           key={i}
-          className={`absolute rounded-full opacity-20 blur-3xl ${blob.className}`}
+          className={`absolute rounded-full opacity-20 blur-3xl will-change-transform ${blob.className}`}
           animate={blob.animate}
           transition={{
             duration: blob.duration,

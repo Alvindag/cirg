@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import localFont from "next/font/local";
 import "./globals.css";
+import { Providers } from "@/components/layout/Providers";
 import { MeshGradientBackground } from "@/components/layout/MeshGradientBackground";
 
 const geistSans = localFont({
@@ -29,8 +30,10 @@ export default function RootLayout({
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
       >
-        <MeshGradientBackground />
-        {children}
+        <Providers>
+          <MeshGradientBackground />
+          {children}
+        </Providers>
       </body>
     </html>
   );
