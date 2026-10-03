@@ -1,0 +1,10 @@
+{
+  "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentParameters.json#",
+  "contentVersion": "1.0.0.0",
+  "parameters": {
+    "appName": { "value": "dasengage" },
+    "entraTenantId": { "value": "<directory (tenant) ID>" },
+    "entraClientId": { "value": "<application (client) ID>" },
+    "bootstrapAdminEmail": { "value": "<first administrator's work email>" }
+  }
+}

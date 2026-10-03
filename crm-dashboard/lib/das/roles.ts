@@ -35,6 +35,9 @@ export const canEditCustomers = (r: Role) =>
     "Admin",
   ].includes(r);
 
+/** "NationalSalesManager" -> "National Sales Manager". */
+export const roleLabel = (r: string) => r.replace(/([a-z])([A-Z])/g, "$1 $2");
+
 export const ROLES: Role[] = [
   "Rep",
   "AreaManager",

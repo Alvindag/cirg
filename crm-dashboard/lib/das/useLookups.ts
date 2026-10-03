@@ -18,12 +18,14 @@ export function useUserNames() {
   return useMemo(() => {
     const users = q.data ?? [];
     const map = new Map(users.map((u) => [u.id, u.fullName]));
+    // Non-managers cannot list users, but they can always name themselves.
+    if (me) map.set(me.id, me.fullName);
     return {
       users,
       name: (id: string | null | undefined) =>
         id ? (map.get(id) ?? shortId(id)) : "—",
     };
-  }, [q.data]);
+  }, [q.data, me]);
 }
 
 export function useProducts() {

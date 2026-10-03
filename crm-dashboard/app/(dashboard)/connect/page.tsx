@@ -1,14 +1,15 @@
 "use client";
 
-import { useState } from "react";
+import { useSearchParams } from "next/navigation";
+import { Suspense, useState } from "react";
 
-import { dasEnabled } from "@/lib/das/config";
 import { useDas } from "@/lib/das/context";
 import { checkPastedToken } from "@/lib/das/token";
 import { cn, focusRing } from "@/lib/utils";
 
-export default function ConnectPage() {
-  const { status, me, error, signIn, signOut } = useDas();
+function ConnectPage() {
+  const { status, me, error, signIn, signOut, authMode } = useDas();
+  const signinError = useSearchParams().get("signin_error");
   const [raw, setRaw] = useState("");
   const [problem, setProblem] = useState<string | null>(null);
 
@@ -25,12 +26,35 @@ export default function ConnectPage() {
     <div className="mx-auto max-w-xl">
       <h1 className="text-xl font-semibold tracking-tight">DAS Engage 360</h1>
 
-      {!dasEnabled ? (
-        <p className="mt-3 text-sm leading-relaxed text-zinc-400">
-          This dashboard is running on sample data. Set{" "}
-          <code className="font-mono text-zinc-200">DAS_API_BASE_URL</code> and
-          restart to connect it to a DAS Engage 360 API (see the README).
+      {authMode === "unconfigured" ? (
+        <p role="alert" className="mt-3 text-sm leading-relaxed text-red-300">
+          {error ?? "Sign-in is not configured on this server."}
         </p>
+      ) : authMode === "demo" && !(status === "live" && me) ? (
+        <p className="mt-3 text-sm text-zinc-400" role="status">
+          Demo sign-in is starting…
+        </p>
+      ) : authMode === "entra" && !(status === "live" && me) ? (
+        <div className="mt-4 space-y-3">
+          <p className="text-sm leading-relaxed text-zinc-400">
+            Sign in with your DAS work account. If you are not set up yet, ask
+            an administrator to add your work email.
+          </p>
+          {(signinError || error) && (
+            <p role="alert" className="text-sm text-red-300">
+              {signinError ?? error}
+            </p>
+          )}
+          <a
+            href="/auth/login"
+            className={cn(
+              "inline-block rounded-lg bg-indigo-500/80 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-500",
+              focusRing,
+            )}
+          >
+            Sign in with Microsoft
+          </a>
+        </div>
       ) : status === "live" && me ? (
         <div className="mt-4 space-y-4">
           <p className="text-sm text-zinc-300">
@@ -94,5 +118,14 @@ export default function ConnectPage() {
         </form>
       )}
     </div>
+  );
+}
+
+export default function Page() {
+  // useSearchParams needs a Suspense boundary during static rendering.
+  return (
+    <Suspense>
+      <ConnectPage />
+    </Suspense>
   );
 }

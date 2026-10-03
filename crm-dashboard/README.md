@@ -1,6 +1,6 @@
 # CRM Dashboard
 
-A dark, glassmorphic CRM dashboard built with Next.js 14 (App Router), TypeScript, Tailwind CSS and shadcn/ui conventions (New York style, zinc base). Runs on sample data out of the box and can connect to a DAS Engage 360 API.
+A dark, glassmorphic CRM dashboard built with Next.js 14 (App Router), TypeScript, Tailwind CSS and shadcn/ui conventions (New York style, zinc base). Runs on a built-in backend with sample data out of the box and can connect to a DAS Engage 360 API.
 
 ## Getting started
 
@@ -12,46 +12,79 @@ npm run start   # serve the production build
 npm run lint
 ```
 
-Requires Node 18.17 or newer. Press **⌘K** or **Ctrl+K** anywhere to open the command palette.
+Requires Node 18.17 or newer. In production, set up Microsoft sign-in first (see Signing in) or set `ALLOW_DEMO_AUTH=true` for a demo. Press **⌘K** or **Ctrl+K** anywhere to open the command palette.
 
-## Connecting to DAS Engage 360
+## What it is
 
-By default the dashboard shows sample data. Set `DAS_API_BASE_URL` (see `.env.example`) and the widgets read from a [DAS Engage 360](https://github.com/Alvindag/cirg/pull/7) API instead:
+The DAS Engage 360 web app: a working CRM for a pharma sales force, plus the tools the Route-to-Market review asked for. It runs out of the box on a **built-in backend** (sample data, a JSON file store, role-based access), so every page works with no setup. See [docs/memo-to-features.md](docs/memo-to-features.md) for how each need in the review memo maps to a page, and what is not covered.
+
+| Area | Pages |
+| --- | --- |
+| Sell | Dashboard (what needs attention), Customers (add, edit, import, customer page), Pipeline (deals by stage), Visits and tasks (GPS check-in, offline queue, tasks), Samples (request, approve, issue, hand over, limits, compliance) |
+| Route to market | Route to market (OTIF, cost to serve, cycle time, reach, channel conflict), Field force, Data quality (duplicates, gaps, merge), Batch trace (recall impact), Cost of ownership (saved scenarios) |
+| Partners | Distributor portal (own prices, stock, orders, performance) |
+| Admin | Team, Audit trail, Access rules and record integrity |
+
+Try it as any role with the **Signed in as** menu in the header. A rep sees their territory, a manager sees their team, a distributor sees only their own partner data. The menu is only a convenience: the server refuses what a role may not do.
+
+## Connecting to a real DAS Engage 360 API
+
+Set `DAS_API_BASE_URL` (see `.env.example`) and the app proxies `/das-api/*` to that API instead of using the built-in backend:
 
 ```bash
 cp .env.example .env.local      # edit DAS_API_BASE_URL
 npm run dev
 ```
 
-Then open **Connect DAS Engage** in the header, paste an access token and press Connect. For a development API, mint one with `python3 scripts/dev-token.py --role Admin` in the DAS Engage 360 repo. The token is kept in `sessionStorage` (this tab only), and the header shows the signed-in role.
+Then open **Connect DAS Engage** in the header and paste an access token (`python3 scripts/dev-token.py --role Admin` in the DAS Engage 360 repo). Pages that use features the real API does not have yet (pipeline, visits, RTM, portal, trace, TCO) will show errors until it grows them; the built-in backend defines those endpoints in `lib/server/routes/`.
 
-| Widget | Endpoint |
-| --- | --- |
-| Last 30 days (KPIs) | `GET /dashboards/sales` |
-| Product Engagement | `GET /dashboards/products` |
-| Recent Activity | `GET /notifications` |
-| AI Copilot Insight | `GET /admin/products`, then `GET /ai/opportunities` |
-| Command palette, Recent Contacts | `GET /customers` |
+`node scripts/mock-das-api.mjs` runs a small fake of the original API on port 5050 for trying external mode.
 
-Pages (live data only; they ask you to connect first):
+## Signing in
 
-| Page | What it does |
-| --- | --- |
-| Customers | Search and filter, edit or remove a customer, CSV import with a check-first step |
-| Samples | Requests (approve, reject, issue stock), stock (adjust, write off, return), batches (create, receive, quarantine, recall), per-customer limits, compliance report and CSV download |
-| Team | People and reporting lines (add, deactivate with reassignment, reactivate) and territories (add, edit, delete) |
-| Audit | The append-only audit log, newest first, with "Load older" |
+| Mode | When | How people sign in |
+| --- | --- | --- |
+| Microsoft Entra | All `ENTRA_*` settings and `AUTH_SESSION_SECRET` are set | "Sign in with Microsoft" on the Connect page |
+| Demo picker | No Entra settings, in development, or in production with `ALLOW_DEMO_AUTH=true` | The "Signed in as" menu; anyone can pick any role |
+| Refused | Production with neither, or Entra settings only partly filled in | Every API call answers 503 and the Connect page says why |
 
-Pages for managers show a short message to other roles. Edits that need a number or a reason use the browser's built-in prompt boxes, as the original DAS web app did; a nicer dialog is a possible follow-up.
+Set up Microsoft sign-in:
 
-Each widget shows a **Live** or **Sample data** badge, so it is always clear which one you are looking at. Signed out, offline or on an API error, widgets fall back to sample data.
+1. In the Azure portal, **Microsoft Entra ID > App registrations > New registration**. Single tenant. Add a **Web** redirect URI: `https://<your-host>/auth/callback` (and `http://localhost:3000/auth/callback` for development).
+2. **Certificates & secrets > New client secret.** Copy the value.
+3. Set the variables from `.env.example` (`ENTRA_TENANT_ID`, `ENTRA_CLIENT_ID`, `ENTRA_CLIENT_SECRET`, `AUTH_SESSION_SECRET`, `APP_BASE_URL`, and `ENTRA_BOOTSTRAP_ADMIN_EMAIL` for the first administrator). Make the session secret long and random, for example `openssl rand -base64 48`.
+4. Restart and sign in as the bootstrap admin. Then add everyone else on the **Team** page using their work email. Nobody is created just by signing in with Microsoft.
 
-How it works:
-- `next.config.mjs` proxies `/das-api/*` to `DAS_API_BASE_URL`, so the API needs no CORS change.
-- `lib/das/` holds the typed client (`client.ts`), the sign-in state (`context.tsx`), the `useDasQuery` hook and the sample data (`demo.ts`).
-- `node scripts/mock-das-api.mjs` runs a tiny fake API on port 5050 so you can try live mode without the .NET backend: `DAS_API_BASE_URL=http://localhost:5050 npm run dev`.
+How it behaves:
+- The server does the whole sign-in (authorization code with PKCE). It checks the token's signature, issuer, audience, tenant, expiry and nonce. The browser holds only an HttpOnly, SameSite=Lax session cookie (8 hours), never a Microsoft token.
+- The first sign-in links a person to their Microsoft account id. After that the id is what counts, so reusing an email address does not give access.
+- Writes also need an `Authorization: Bearer session` header, which blocks cross-site request forgery on top of the cookie.
+- Sign-ins and refused sign-ins are written to the audit trail.
+- A deactivated person is refused at once, even with a valid cookie.
+- `scripts/mock-entra.mjs` is a fake Microsoft for trying the flow locally (see the comment at the top of that file). Never use it in production.
 
-Not done yet: Microsoft Entra sign-in (only pasted development tokens), and the DAS web app's Insights, ERP, Route-to-market and Notices pages.
+Not done: Entra group or app-role mapping (roles are managed in the Team page), single sign-out, and distributor-partner accounts from the screen (the API accepts `role: "Distributor"` with a `distributorId`).
+
+## Deploying to Azure
+
+Hosting setup (App Service, PostgreSQL, Key Vault, a manual-only deploy workflow) is prepared in `infra/` and described in [docs/azure-deployment.md](docs/azure-deployment.md), with the list of what you must do in Azure. Nothing is deployed yet. With `DATABASE_URL` set the built-in backend stores data in PostgreSQL instead of the JSON file.
+
+## Built-in backend
+
+- `lib/server/seed.ts` makes deterministic sample data: Ghana regions, about 220 customers (with duplicates and gaps on purpose), 1,250 visits, 1,000+ orders, deals, sample stock.
+- `lib/server/store.ts` keeps it in `.data/crm-db.json` (override with `CRM_DATA_FILE`). Delete the file to start over; an Admin can also reset it from the API (`POST /das-api/api/v1/demo/reset`).
+- `lib/server/routes/` holds the endpoints, with role checks. `lib/das/rbac.ts` is the single table of who may open what, used by the menu, the pages and the server.
+- Visits and the audit trail are hash-chained (`lib/rtm/hashchain.ts`). Changing a record breaks the chain and the Access page says so.
+- Sign-in is Microsoft Entra ID when configured (see Signing in), otherwise a demo role picker. **Do not put real data or real partners on the demo picker.**
+- One JSON file on one server. Serverless hosts with a read-only or per-request disk will lose changes.
+
+## Tests
+
+```bash
+npm test        # unit tests: RTM maths, offline queue, API roles and rules, sign-in checks
+npm run lint
+npx tsc --noEmit
+```
 
 ## Stack
 
@@ -74,7 +107,9 @@ app/
     layout.tsx            App shell: sidebar, header, command menu, main glass panel
     page.tsx              Dashboard home: the bento grid
     loading.tsx           Skeleton version of the bento grid
-    customers/ samples/ team/ audit/ connect/   DAS Engage 360 pages
+    customers/ pipeline/ activities/ samples/ rtm/ field-force/ data-quality/
+    trace/ tco/ portal/ team/ audit/ access/ connect/   pages
+  das-api/[...path]/      Built-in DAS Engage 360 API (used when DAS_API_BASE_URL is unset)
 components/
   ui/                     Primitives: GlassPanel, SkeletonLoader, tables, buttons, fields, badges
   layout/                 Shell pieces: Sidebar, Header, CommandMenu,
@@ -83,7 +118,9 @@ components/
   dashboard/              Page widgets: Widget (shared frame), KpiRow, ProductEngagement,
                           QuickActions, ActivityTimeline, CopilotInsight, BentoGrid
 lib/utils.ts              cn() and the shared focusRing class
-lib/das/                  DAS Engage 360 client, sign-in state, query hook, sample data
+lib/das/                  API client, sign-in state, query hook, role table (rbac.ts), offline queue
+lib/rtm/                  Pure RTM logic: metrics, data quality, GPS, hash chain, TCO
+lib/server/               Built-in backend: model, seed, store, routes
 scripts/mock-das-api.mjs  Tiny fake API for trying live mode
 ```
 
@@ -114,6 +151,7 @@ Only `transform` and `opacity` are animated, so the browser can composite them w
 
 ## Known gaps
 
-- The sidebar is hidden below the `md` breakpoint and there is no mobile nav yet; the command palette is the fallback.
-- Quick Actions and the palette's Actions group are placeholders.
+- No deployment is set up, and the real DAS API has not been connected or tested.
+- Edits that need a number or a reason still use the browser's prompt boxes.
+- No photo proof, face check or push notifications for field staff.
 - `shadcn init` could not reach the shadcn registry from the build environment, so `components.json` and the theme were written by hand. `npx shadcn add <component>` should work wherever the registry is reachable.

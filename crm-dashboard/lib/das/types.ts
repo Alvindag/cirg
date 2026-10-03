@@ -8,7 +8,8 @@ export type Role =
   | "Marketing"
   | "KeyAccountManager"
   | "Executive"
-  | "Admin";
+  | "Admin"
+  | "Distributor";
 
 export interface Me {
   id: string;
@@ -17,6 +18,8 @@ export interface Me {
   email: string;
   role: Role;
   territoryId: string | null;
+  /** Set for distributor-partner users. */
+  distributorId?: string | null;
 }
 
 export interface Page<T> {
