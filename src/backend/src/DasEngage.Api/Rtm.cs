@@ -93,6 +93,9 @@ public static class RtmEndpoints
             var revenue = (await db.SalesFacts.AsNoTracking().Where(s => s.SaleDate >= start && s.SaleDate <= end && s.CustomerId != null && s.Currency == currency)
                 .GroupBy(s => s.CustomerId!.Value).Select(x => new { id = x.Key, amount = x.Sum(s => s.NetAmount) }).ToListAsync())
                 .Where(r => ids.Contains(r.id)).ToDictionary(r => r.id, r => r.amount);
+            // Outlets a distributor sold to in the period that DAS neither visited nor invoiced itself: reached, but only through the distributor.
+            var viaDistributor = (await db.SecondarySales.AsNoTracking().Where(s => s.OutletId != null && s.SaleDate >= start && s.SaleDate <= end).Select(s => s.OutletId!.Value).Distinct().ToListAsync())
+                .Where(id => ids.Contains(id) && !visited.Contains(id) && !revenue.ContainsKey(id)).ToHashSet();
             bool Reached(Guid id) => visited.Contains(id) || revenue.ContainsKey(id);
             decimal Rev(Guid id) => revenue.GetValueOrDefault(id);
 
@@ -139,6 +142,8 @@ public static class RtmEndpoints
                 mappedPct = universeTotal is > 0 ? Math.Round(customers.Count * 100.0 / universeTotal.Value, 1) : (double?)null,
                 reachedPct = universeTotal is > 0 ? Math.Round(reachedAll * 100.0 / universeTotal.Value, 1) : (double?)null,
                 revenue = total, top20Share = top20,
+                viaDistributors = viaDistributor.Count,
+                viaDistributorsPct = universeTotal is > 0 ? Math.Round(viaDistributor.Count * 100.0 / universeTotal.Value, 1) : (double?)null,
                 classes, channels, regions,
                 tagging = new { total = customers.Count, noChannel = customers.Count(c => c.Channel == SalesChannel.Unassigned), noClass = customers.Count(c => c.OutletClass == OutletClass.Unclassified), noRegion = customers.Count(c => RegionName(c.TerritoryId) == "No region") },
             });

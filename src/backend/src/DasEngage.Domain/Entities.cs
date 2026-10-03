@@ -460,6 +460,11 @@ public class SalesOrder : TenantEntity
     public Guid? ConfirmedBy { get; set; }
     public DateTime? DeliveredAt { get; set; }
     public Guid? DeliveredBy { get; set; }
+    /// <summary>When the office promised delivery (set at confirmation); on time means delivered by then.</summary>
+    public DateTime? PromisedAt { get; set; }
+    /// <summary>Whether everything ordered was delivered; null until delivered. A shortfall needs a note.</summary>
+    public bool? DeliveredInFull { get; set; }
+    public string? ShortfallNote { get; set; }
     public DateTime? CancelledAt { get; set; }
     public Guid? CancelledBy { get; set; }
     public string? CancelReason { get; set; }
@@ -503,4 +508,20 @@ public class CustomerCredit : TenantEntity
     public decimal Overdue { get; set; }
     /// <summary>When the ERP last reported the balances.</summary>
     public DateTime? AsOf { get; set; }
+}
+
+/// <summary>A sale by a distributor to an outlet (sell-out), as the distributor reports it. Lets DAS see the outlets it reaches through them.</summary>
+public class SecondarySale : TenantEntity
+{
+    /// <summary>The reference given, or a fingerprint of the row, so loading the same file twice changes nothing.</summary>
+    public string ExternalId { get; set; } = "";
+    public Guid DistributorId { get; set; }
+    /// <summary>The outlet as a DAS customer; null when the name could not be matched.</summary>
+    public Guid? OutletId { get; set; }
+    public string OutletName { get; set; } = "";
+    public DateOnly SaleDate { get; set; }
+    public string ItemCode { get; set; } = "";
+    public Guid? ProductId { get; set; }
+    public decimal Quantity { get; set; }
+    public decimal NetAmount { get; set; }
 }

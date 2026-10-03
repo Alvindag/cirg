@@ -7,6 +7,8 @@ namespace DasEngage.Api;
 public record OrderLineDto(Guid ProductId, int Quantity);
 public record OrderDto(Guid? Id, Guid CustomerId, List<OrderLineDto>? Lines, string? Notes, DateTime? PlacedAt);
 public record OrderNoteDto(string? Note);
+public record ConfirmDto(string? Note, DateOnly? PromisedDate);
+public record DeliverDto(bool? InFull, string? Note);
 public record PriceDto(Guid ProductId, decimal? Price);
 
 /// <summary>
@@ -17,6 +19,8 @@ public partial class OrderService
 {
     public const int MaxQuantityPerLine = 1000;
     public const int MaxLines = 100;
+    /// <summary>Delivery is promised this many days after confirmation unless the office sets a date.</summary>
+    public const int DefaultPromiseDays = 2;
 
     private readonly AppDbContext _db;
     private readonly TeamScope _team;
@@ -145,6 +149,9 @@ public static class OrderEndpoints
                 delivered = delivered.Count,
                 cancelled = orders.Count(o => o.Status == OrderStatus.Cancelled),
                 avgHoursToDeliver = delivered.Count == 0 ? (double?)null : Math.Round(delivered.Average(o => (o.DeliveredAt!.Value - o.PlacedAt).TotalHours), 1),
+                service = Service(delivered),
+                lateOpen = orders.Count(o => o.Status == OrderStatus.Confirmed && o.PromisedAt != null && o.PromisedAt < DateTime.UtcNow),
+                regions = await ServiceByRegion(db, delivered),
                 topProducts = live.SelectMany(o => o.Lines).GroupBy(l => new { l.ProductId, l.ProductName })
                     .Select(x => new { x.Key.ProductId, name = x.Key.ProductName, quantity = x.Sum(l => l.Quantity), value = x.Sum(l => l.LineTotal) })
                     .OrderByDescending(x => x.value).Take(5).ToList(),
@@ -164,7 +171,7 @@ public static class OrderEndpoints
             return Results.NoContent();
         }).RequireAuthorization(p => p.RequireRole(PriceEditors));
 
-        g.MapPost("/{id:guid}/confirm", async (Guid id, OrderNoteDto? d, AppDbContext db, TeamScope team, HttpCurrentUser u) =>
+        g.MapPost("/{id:guid}/confirm", async (Guid id, ConfirmDto? d, AppDbContext db, TeamScope team, HttpCurrentUser u) =>
         {
             var o = await Find(db, team, id);
             if (o is null) return Results.NotFound();
@@ -175,17 +182,23 @@ public static class OrderEndpoints
                 if (string.IsNullOrWhiteSpace(d?.Note)) return Results.BadRequest("This order is on credit hold: give the reason for releasing it.");
                 o.CreditReleasedBy = u.UserId; o.CreditReleaseNote = d!.Note!.Trim();
             }
-            o.Status = OrderStatus.Confirmed; o.ConfirmedAt = DateTime.UtcNow; o.ConfirmedBy = u.UserId;
+            var confirmedAt = DateTime.UtcNow;
+            if (d?.PromisedDate is { } day && day < DateOnly.FromDateTime(confirmedAt)) return Results.BadRequest("The promised date cannot be in the past.");
+            o.Status = OrderStatus.Confirmed; o.ConfirmedAt = confirmedAt; o.ConfirmedBy = u.UserId;
+            o.PromisedAt = d?.PromisedDate is { } pd ? new DateTime(pd.Year, pd.Month, pd.Day, 23, 59, 59, DateTimeKind.Utc) : confirmedAt.AddDays(OrderService.DefaultPromiseDays);
             await db.SaveChangesAsync();
             return Results.Ok(o);
         }).RequireAuthorization(p => p.RequireRole(Approvers));
 
-        g.MapPost("/{id:guid}/deliver", async (Guid id, AppDbContext db, TeamScope team, HttpCurrentUser u) =>
+        g.MapPost("/{id:guid}/deliver", async (Guid id, DeliverDto? d, AppDbContext db, TeamScope team, HttpCurrentUser u) =>
         {
             var o = await Find(db, team, id);
             if (o is null) return Results.NotFound();
             if (o.Status != OrderStatus.Confirmed) return Results.BadRequest("Only a confirmed order can be marked delivered.");
+            var inFull = d?.InFull ?? true;
+            if (!inFull && string.IsNullOrWhiteSpace(d?.Note)) return Results.BadRequest("Say what was short when an order is not delivered in full.");
             o.Status = OrderStatus.Delivered; o.DeliveredAt = DateTime.UtcNow; o.DeliveredBy = u.UserId;
+            o.DeliveredInFull = inFull; o.ShortfallNote = inFull ? null : d!.Note!.Trim();
             await db.SaveChangesAsync();
             return Results.Ok(o);
         }).RequireAuthorization(p => p.RequireRole(Approvers));
@@ -204,6 +217,37 @@ public static class OrderEndpoints
             await db.SaveChangesAsync();
             return Results.Ok(o);
         });
+    }
+
+    /// <summary>On time (delivered by the promised time), in full, and both (OTIF), as a share of delivered orders that carry a promise.</summary>
+    private static object Service(List<SalesOrder> delivered)
+    {
+        var judged = delivered.Where(o => o.PromisedAt != null && o.DeliveredInFull != null).ToList();
+        double? Pct(Func<SalesOrder, bool> f) => judged.Count == 0 ? null : Math.Round(judged.Count(f) * 100.0 / judged.Count, 1);
+        return new
+        {
+            judged = judged.Count,
+            onTimePct = Pct(o => o.DeliveredAt <= o.PromisedAt),
+            inFullPct = Pct(o => o.DeliveredInFull == true),
+            otifPct = Pct(o => o.DeliveredAt <= o.PromisedAt && o.DeliveredInFull == true),
+        };
+    }
+
+    private static async Task<object> ServiceByRegion(AppDbContext db, List<SalesOrder> delivered)
+    {
+        var judged = delivered.Where(o => o.PromisedAt != null && o.DeliveredInFull != null).ToList();
+        if (judged.Count == 0) return new List<object>();
+        var ids = judged.Select(o => o.CustomerId).Distinct().ToList();
+        var terr = await db.Customers.AsNoTracking().Where(c => ids.Contains(c.Id)).Select(c => new { c.Id, c.TerritoryId }).ToDictionaryAsync(c => c.Id, c => c.TerritoryId);
+        var regionOf = await db.Territories.AsNoTracking().ToDictionaryAsync(t => t.Id, t => (t.Region ?? "").Trim());
+        string Region(Guid customer) => terr.TryGetValue(customer, out var t) && t is { } id && regionOf.TryGetValue(id, out var r) && r != "" ? r : "No region";
+        return judged.GroupBy(o => Region(o.CustomerId)).OrderBy(g => g.Key).Select(g => (object)new
+        {
+            region = g.Key, delivered = g.Count(),
+            onTimePct = Math.Round(g.Count(o => o.DeliveredAt <= o.PromisedAt) * 100.0 / g.Count(), 1),
+            inFullPct = Math.Round(g.Count(o => o.DeliveredInFull == true) * 100.0 / g.Count(), 1),
+            otifPct = Math.Round(g.Count(o => o.DeliveredAt <= o.PromisedAt && o.DeliveredInFull == true) * 100.0 / g.Count(), 1),
+        }).ToList();
     }
 
     private static async Task<IQueryable<SalesOrder>> Visible(AppDbContext db, TeamScope team)

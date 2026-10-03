@@ -19,6 +19,7 @@ builder.Services.AddScoped<CustomerImporter>();
 builder.Services.AddScoped<DasEngage.Api.Erp.ErpOutbox>();
 builder.Services.AddScoped<SampleService>();
 builder.Services.AddScoped<OrderService>();
+builder.Services.AddScoped<SellOutImporter>();
 
 // ERP integration: a gateway speaking the DAS Engage contract (docs/erp-integration.md), reached over https.
 builder.Services.AddSingleton<DasEngage.Api.Erp.ISecretProvider, DasEngage.Api.Erp.ConfigSecretProvider>();
