@@ -43,3 +43,7 @@ API: `GET /api/v1/dashboards/rtm`, `GET/PUT /api/v1/rtm/universe`, `GET /api/v1/
 ## Visit coverage
 
 The RTM page also shows whether planned calls are being made. Each customer's *visits a month* is the target; the page counts completed visits in the period against it (a customer visited more than their target does not make up for another missed), by territory, with the most overdue customers (longest past their target frequency; never-visited first). It reports territories and customers, not individual reps. `GET /dashboards/coverage?days=30` (7 to 90 days).
+
+## Sales targets
+
+Senior roles (National Sales Manager, Executive, Admin) set a monthly target for the company, a region, a channel, or a region and channel together (Route to market → *Sales against target* → *Set targets*). The page compares invoiced sales that arrived from Business Central with each target, and shows where the month is heading at the current daily rate. Managers with a limited area see the invoiced total for their area but no company targets. Sales without a customer record count toward the company total only.

@@ -173,6 +173,7 @@ export interface RtmDashboard {
   currency: string; hasUniverse: boolean; universeScoped: boolean; universeTotal: number | null
   mapped: number; reached: number; mappedPct: number | null; reachedPct: number | null
   revenue: number; top20Share: number | null
+  viaDistributors?: number; viaDistributorsPct?: number | null
   classes: (RtmRow & { outletClass: OutletClass })[]
   channels: { channel: SalesChannel; customers: number; reached: number; revenue: number }[]
   regions: (RtmRow & { region: string })[]
@@ -187,11 +188,16 @@ export interface SalesOrder {
   id: string; number: string; repId: string; customerId: string; customerName: string; status: OrderStatus
   total: number; currency: string; notes: string | null; placedAt: string
   confirmedAt: string | null; deliveredAt: string | null; cancelledAt: string | null; cancelReason: string | null
+  creditHold: boolean; creditHoldReason: string | null; creditReleaseNote: string | null
+  promisedAt?: string | null; deliveredInFull?: boolean | null; shortfallNote?: string | null
   lines: OrderLine[]
 }
 export interface OrderSummary {
   days: number; orders: number; value: number; placed: number; confirmed: number; delivered: number; cancelled: number
   avgHoursToDeliver: number | null; topProducts: { productId: string; name: string; quantity: number; value: number }[]
+  service?: { judged: number; onTimePct: number | null; inFullPct: number | null; otifPct: number | null }
+  lateOpen?: number
+  regions?: { region: string; delivered: number; onTimePct: number; inFullPct: number; otifPct: number }[]
 }
 
 export interface CoverageTerritory { territoryId: string | null; territory: string; region: string | null; customers: number; expected: number; completed: number; attainmentPct: number | null; overdue: number; neverVisited: number }
@@ -200,3 +206,17 @@ export interface CoverageDashboard {
   days: number; customers: number; expectedVisits: number; completedVisits: number; attainmentPct: number | null; overdue: number; neverVisited: number
   territories: CoverageTerritory[]; worst: CoverageCustomer[]
 }
+
+export interface TargetRowDto { region: string | null; channel: SalesChannel | null; amount: number }
+export interface TargetProgressRow { region: string | null; channel: SalesChannel | null; target: number | null; actual: number; attainmentPct: number | null; projected: number | null; projectedPct: number | null }
+export interface TargetsDashboard { month: string; currency: string; scoped: boolean; daysInMonth: number; daysElapsed: number; paceNote: string | null; companyActual: number; rows: TargetProgressRow[] }
+
+export interface CreditRow { customerId: string; name: string; territory: string | null; creditLimit: number | null; outstanding: number; overdue: number; openOrders: number; asOf: string | null; overLimit: boolean }
+export interface CreditOverview { customers: number; withLimit: number; overdueTotal: number; outstandingTotal: number; overLimit: number; withOverdue: number; heldOrders: number; watch: CreditRow[] }
+
+export interface DistributorRow { distributorId: string; name: string; value: number; quantity: number; outlets: number; matchedOutlets: number; lastSale: string }
+export interface DistributorDashboard {
+  scoped: boolean; value: number; lines: number; outletsMatched: number; outletsUnmatched: number; outletsOnlyViaDistributors: number
+  distributors: DistributorRow[]; unmatched: { outlet: string; distributor: string; value: number }[]
+}
+export interface SellOutResult { dryRun: boolean; total: number; created: number; updated: number; unchanged: number; errors: number; unmatchedOutlets: number; rows: { row: number; status: string; message: string | null }[] }

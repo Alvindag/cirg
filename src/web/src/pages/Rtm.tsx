@@ -1,6 +1,6 @@
-import { useState } from 'react'
-import type { CoverageDashboard, OutletClass, RtmDashboard, SalesChannel, UniverseRow, UntaggedList } from '../api/types'
-import { Empty, ErrorBox, Kpi, Loading, Section } from '../components/ui'
+import { useState, type ChangeEvent } from 'react'
+import type { CoverageDashboard, DistributorDashboard, OutletClass, RtmDashboard, SalesChannel, SellOutResult, TargetRowDto, TargetsDashboard, UniverseRow, UntaggedList } from '../api/types'
+import { Badge, Empty, ErrorBox, Kpi, Loading, Section } from '../components/ui'
 import { RangePicker } from '../components/RangePicker'
 import { useApp } from '../context'
 import { fmtDate, fmtInt, fmtPct, rangeLastDays } from '../lib/format'
@@ -57,6 +57,7 @@ export function Rtm() {
               hint={d.universeScoped ? 'compared nationally, not for your area' : d.hasUniverse ? 'estimated by the business' : 'set it below to see coverage'} tone={d.hasUniverse ? undefined : 'warn'} />
             <Kpi label="Mapped on the platform" value={fmtInt(d.mapped)} num={d.mapped} format={fmtInt} hint={d.mappedPct != null ? `${fmtPct(d.mappedPct)} of the market` : 'outlets with a record'} />
             <Kpi label="Reached in the period" value={fmtInt(d.reached)} num={d.reached} format={fmtInt} hint={d.reachedPct != null ? `${fmtPct(d.reachedPct)} of the market` : 'visited or invoiced'} tone={d.reachedPct != null && d.reachedPct < 25 ? 'warn' : undefined} />
+            {d.viaDistributors != null && d.viaDistributors > 0 && <Kpi label="Reached only through distributors" value={fmtInt(d.viaDistributors)} hint={d.viaDistributorsPct != null ? `${fmtPct(d.viaDistributorsPct)} of the market, not in “reached”` : 'not counted in “reached”'} />}
             <Kpi label="Top 20% of buyers" value={d.top20Share != null ? fmtPct(d.top20Share) : '—'} hint={d.top20Share != null ? `of ${money(d.revenue, d.currency)} revenue` : 'needs at least 5 buyers'} tone={d.top20Share != null && d.top20Share > 80 ? 'warn' : undefined} />
           </div>
 
@@ -121,6 +122,10 @@ export function Rtm() {
             </Section>
           </div>
 
+          <SalesTargets />
+
+          <Distributors days={days} />
+
           <VisitCoverage days={Math.min(90, Math.max(7, days))} />
 
           <Section title="Complete the picture">
@@ -135,6 +140,171 @@ export function Rtm() {
         </>
       )}
     </>
+  )
+}
+
+/** What distributors sell on to outlets: outlets DAS reaches only through them. The distributor's file is checked first, then loaded. */
+function Distributors({ days }: { days: number }) {
+  const { api, me } = useApp()
+  const range = rangeLastDays(days)
+  const d = useAsync(() => api.get<DistributorDashboard>('/dashboards/distributors', range), [days])
+  const [csv, setCsv] = useState<string>()
+  const [fileName, setFileName] = useState('')
+  const [result, setResult] = useState<SellOutResult>()
+  const [error, setError] = useState<string>()
+  const [busy, setBusy] = useState(false)
+  const data = d.data
+  async function pick(e: ChangeEvent<HTMLInputElement>) {
+    const f = e.target.files?.[0]
+    setResult(undefined); setError(undefined)
+    if (!f) return
+    if (f.size > 5_000_000) { setError('The file is larger than 5 MB.'); return }
+    setFileName(f.name); setCsv(await f.text())
+  }
+  async function run(dryRun: boolean) {
+    if (!csv) return
+    setBusy(true); setError(undefined)
+    try { const r = await api.postText<SellOutResult>('/distributors/sell-out/import', csv, { dryRun }); setResult(r); if (!dryRun) d.reload() }
+    catch (e) { setError(e instanceof Error ? e.message : String(e)) } finally { setBusy(false) }
+  }
+  const issues = result?.rows.filter((r) => r.status === 'error' || (r.status === 'created' && r.message)) ?? []
+  return (
+    <Section title="Distributors: sales to outlets">
+      {d.error && <ErrorBox message={d.error} onRetry={d.reload} />}
+      {d.loading && !data && <Loading />}
+      {data && (data.lines === 0 ? <Empty>No distributor sell-out has been loaded for this period. Ask each distributor for what they sold to which outlet, then load it below.</Empty> : (
+        <>
+          <div className="kpis">
+            <Kpi label="Sold on by distributors" value={money(data.value, 'GHS')} hint={`${fmtInt(data.lines)} lines`} />
+            <Kpi label="Outlets matched to a DAS record" value={fmtInt(data.outletsMatched)} />
+            <Kpi label="Reached only through a distributor" value={fmtInt(data.outletsOnlyViaDistributors)} hint="not visited or invoiced by DAS itself" tone="warn" />
+            <Kpi label="Outlets not matched yet" value={fmtInt(data.outletsUnmatched)} tone={data.outletsUnmatched > 0 ? 'warn' : 'good'} hint="add them as customers to count them" />
+          </div>
+          <table>
+            <thead><tr><th>Distributor</th><th className="num">Value</th><th className="num">Outlets supplied</th><th className="num">Matched</th><th>Last sale</th></tr></thead>
+            <tbody>{data.distributors.map((r) => <tr key={r.distributorId}><td>{r.name}</td><td className="num">{money(r.value, 'GHS')}</td><td className="num">{fmtInt(r.outlets)}</td><td className="num">{fmtInt(r.matchedOutlets)}</td><td>{fmtDate(r.lastSale)}</td></tr>)}</tbody>
+          </table>
+          {data.unmatched.length > 0 && (
+            <>
+              <h3>Outlets to add or link</h3>
+              <table>
+                <thead><tr><th>Outlet (as the distributor writes it)</th><th>Distributor</th><th className="num">Sold</th></tr></thead>
+                <tbody>{data.unmatched.map((u) => <tr key={`${u.distributor}|${u.outlet}`}><td>{u.outlet}</td><td>{u.distributor}</td><td className="num">{money(u.value, 'GHS')}</td></tr>)}</tbody>
+              </table>
+            </>
+          )}
+        </>
+      ))}
+      {canImportCustomers(me.role) && (
+        <div className="card">
+          <h3>Load a distributor's sales file</h3>
+          <p className="muted small">CSV with columns: distributor, outlet, date, quantity, net_amount; optionally outlet_code, item_code, reference. Always checked first; nothing is saved until you confirm. Loading the same file again changes nothing; a reference lets a line be corrected later.</p>
+          <input type="file" accept=".csv,text/csv" aria-label="Distributor sales file" onChange={pick} />
+          <button disabled={!csv || busy} onClick={() => run(true)}>Check file</button>
+          {error && <ErrorBox message={error} />}
+          {result && (
+            <div className="import-result">
+              <p><strong>{result.dryRun ? 'Check result' : 'Loaded'}:</strong> {result.created} new, {result.updated} corrected, {result.unchanged} already there, {result.errors} with errors (of {result.total} lines in {fileName}).{result.unmatchedOutlets > 0 && ` ${result.unmatchedOutlets} outlet name(s) are not matched to a DAS customer yet.`}</p>
+              {issues.length > 0 && (
+                <table>
+                  <thead><tr><th>Line</th><th>Result</th><th>Details</th></tr></thead>
+                  <tbody>{issues.slice(0, 100).map((r) => <tr key={r.row}><td>{r.row}</td><td><Badge tone={r.status === 'error' ? 'bad' : 'warn'}>{r.status}</Badge></td><td>{r.message}</td></tr>)}</tbody>
+                </table>
+              )}
+              {result.dryRun && result.created + result.updated > 0 && <button className="primary" disabled={busy} onClick={() => run(false)}>Load {result.created + result.updated} line{result.created + result.updated === 1 ? '' : 's'}</button>}
+            </div>
+          )}
+        </div>
+      )}
+    </Section>
+  )
+}
+
+const thisMonth = () => new Date().toISOString().slice(0, 7)
+
+/** Invoiced sales against the monthly target, by region and channel. Targets are set nationally by senior roles. */
+function SalesTargets() {
+  const { api, me } = useApp()
+  const [month, setMonth] = useState(thisMonth())
+  const t = useAsync(() => api.get<TargetsDashboard>('/dashboards/targets', { month }), [month])
+  const [editing, setEditing] = useState(false)
+  const d = t.data
+  const label = (region: string | null, channel: SalesChannel | null) =>
+    [region ?? 'All regions', channel ? channelLabel[channel] : 'all channels'].join(' · ')
+  return (
+    <Section title="Sales against target" actions={
+      <span className="filters">
+        <input type="month" aria-label="Month" value={month} onChange={(e) => e.target.value && setMonth(e.target.value)} />
+        {canSetMarket(me.role) && <button onClick={() => setEditing(!editing)}>{editing ? 'Close' : 'Set targets'}</button>}
+      </span>
+    }>
+      {t.error && <ErrorBox message={t.error} onRetry={t.reload} />}
+      {t.loading && !d && <Loading />}
+      {editing && <TargetEditor month={month} onSaved={() => { setEditing(false); t.reload() }} />}
+      {d && (d.scoped ? (
+        <p>Invoiced in your area this month: <strong>{money(d.companyActual, d.currency)}</strong>. Company targets are national, so they are compared only for national roles.</p>
+      ) : d.rows.length === 0 ? <Empty>No targets set for this month{canSetMarket(me.role) ? ': use “Set targets”' : ''}. Invoiced so far: {money(d.companyActual, d.currency)}.</Empty> : (
+        <>
+          {d.paceNote && <p className="muted small">{d.paceNote} “On pace for” assumes the rest of the month sells at the same daily rate.</p>}
+          <table>
+            <thead><tr><th>Target for</th><th className="num">Target</th><th className="num">Invoiced</th><th className="num">Of target</th><th className="num">On pace for</th></tr></thead>
+            <tbody>
+              {d.rows.map((r) => (
+                <tr key={`${r.region}|${r.channel}`}>
+                  <td>{label(r.region, r.channel)}</td>
+                  <td className="num">{r.target != null ? money(r.target, d.currency) : '—'}</td>
+                  <td className="num">{money(r.actual, d.currency)}</td>
+                  <td className="num">{r.attainmentPct != null ? fmtPct(r.attainmentPct) : '—'}</td>
+                  <td className="num">{r.projectedPct != null ? fmtPct(r.projectedPct) : '—'}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+          <p className="muted small">Only invoiced sales that arrived from Business Central count. Sales without a customer record count toward the company total but not toward a region or channel.</p>
+        </>
+      ))}
+    </Section>
+  )
+}
+
+function TargetEditor({ month, onSaved }: { month: string; onSaved: () => void }) {
+  const { api } = useApp()
+  const saved = useAsync(() => api.get<TargetRowDto[]>('/rtm/targets', { month }), [month])
+  const [rows, setRows] = useState<{ region: string; channel: string; amount: string }[]>()
+  const [error, setError] = useState<string>()
+  const current = rows ?? (saved.data ?? []).map((r) => ({ region: r.region ?? '', channel: r.channel ?? '', amount: String(r.amount) }))
+  const update = (i: number, patch: Partial<{ region: string; channel: string; amount: string }>) => setRows(current.map((r, j) => (j === i ? { ...r, ...patch } : r)))
+  async function save() {
+    setError(undefined)
+    const body = current.map((r) => ({ region: r.region.trim() || null, channel: r.channel || null, amount: Number(r.amount) }))
+    if (body.some((r) => !Number.isFinite(r.amount) || r.amount < 0)) { setError('Every target needs an amount of 0 or more.'); return }
+    try { await api.put('/rtm/targets', body, { month }); onSaved() } catch (e) { setError(e instanceof Error ? e.message : String(e)) }
+  }
+  if (!saved.data && !rows) return <Loading />
+  return (
+    <div className="card">
+      <p className="muted small">One row per target. Leave the region empty for all regions and the channel empty for all channels. Saving replaces this month’s targets.</p>
+      {error && <ErrorBox message={error} />}
+      <table>
+        <thead><tr><th>Region</th><th>Channel</th><th className="num">Target</th><th /></tr></thead>
+        <tbody>
+          {current.map((r, i) => (
+            <tr key={i}>
+              <td><input aria-label={`Region ${i + 1}`} value={r.region} placeholder="All regions" onChange={(e) => update(i, { region: e.target.value })} /></td>
+              <td>
+                <select aria-label={`Channel ${i + 1}`} value={r.channel} onChange={(e) => update(i, { channel: e.target.value })}>
+                  <option value="">All channels</option>
+                  {channels.filter((c) => c !== 'Unassigned').map((c) => <option key={c} value={c}>{channelLabel[c]}</option>)}
+                </select>
+              </td>
+              <td className="num"><input aria-label={`Target ${i + 1}`} inputMode="decimal" size={12} value={r.amount} onChange={(e) => update(i, { amount: e.target.value })} /></td>
+              <td><button onClick={() => setRows(current.filter((_, j) => j !== i))}>Remove</button></td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+      <p><button onClick={() => setRows([...current, { region: '', channel: '', amount: '' }])}>Add a target</button> <button className="primary" onClick={save}>Save targets</button></p>
+    </div>
   )
 }
 

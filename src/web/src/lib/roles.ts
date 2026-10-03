@@ -27,3 +27,6 @@ export const canManageOrders = (r: Role) => ['AreaManager', 'RegionalManager', '
 
 /** Set the product price list that orders are priced from. */
 export const canSetPrices = (r: Role) => ['NationalSalesManager', 'Executive', 'Admin'].includes(r)
+
+/** Release an order held for credit (mirrors the API). */
+export const canReleaseCredit = (r: Role) => r === 'NationalSalesManager' || r === 'Admin'

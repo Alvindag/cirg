@@ -49,7 +49,9 @@ class _OrderTile extends ConsumerWidget {
         ? ('Not accepted', scheme.error)
         : waiting
             ? ('Waiting to send', Das.warn)
-            : switch (o.status) {
+            : o.creditHold && o.status == 'Placed'
+                ? ('Held for credit review', scheme.error)
+                : switch (o.status) {
                 'Delivered' => ('Delivered', Das.good),
                 'Confirmed' => ('Confirmed', Das.blue),
                 'Cancelled' => ('Cancelled', scheme.error),
@@ -64,6 +66,7 @@ class _OrderTile extends ConsumerWidget {
           if (o.number != null) o.number!,
           if (when != null) DateFormat('d MMM, HH:mm').format(when),
           if (o.status == 'Rejected' && o.rejectReason != null) o.rejectReason!,
+          if (o.creditHold && o.status == 'Placed' && o.holdReason != null) o.holdReason!,
           if (o.status == 'Cancelled' && o.cancelReason != null) 'Cancelled: ${o.cancelReason}',
         ].join(' · ')),
         trailing: Column(mainAxisAlignment: MainAxisAlignment.center, crossAxisAlignment: CrossAxisAlignment.end, children: [

@@ -7,16 +7,20 @@ namespace DasEngage.Api;
 public record OrderLineDto(Guid ProductId, int Quantity);
 public record OrderDto(Guid? Id, Guid CustomerId, List<OrderLineDto>? Lines, string? Notes, DateTime? PlacedAt);
 public record OrderNoteDto(string? Note);
+public record ConfirmDto(string? Note, DateOnly? PromisedDate);
+public record DeliverDto(bool? InFull, string? Note);
 public record PriceDto(Guid ProductId, decimal? Price);
 
 /// <summary>
 /// Order rules, kept in one place so the phone sync and the web use the same ones: the server prices every order from the product list,
 /// a rep orders only for customers in their own territory, repeated products are merged, a retry never saves an order twice.
 /// </summary>
-public class OrderService
+public partial class OrderService
 {
     public const int MaxQuantityPerLine = 1000;
     public const int MaxLines = 100;
+    /// <summary>Delivery is promised this many days after confirmation unless the office sets a date.</summary>
+    public const int DefaultPromiseDays = 2;
 
     private readonly AppDbContext _db;
     private readonly TeamScope _team;
@@ -63,6 +67,8 @@ public class OrderService
             order.Total += total;
         }
 
+        await ApplyCreditRules(order);
+
         var now = DateTime.UtcNow;
         // The rep's own clock is kept (offline orders), but never in the future and never before the app could have existed.
         var placed = d.PlacedAt is { } t ? Utc(t) : now;
@@ -71,6 +77,31 @@ public class OrderService
         _db.Orders.Add(order);
         await _db.SaveChangesAsync();
         return new(id, "accepted", null);
+    }
+}
+
+public partial class OrderService
+{
+    /// <summary>
+    /// An order is taken even when the customer is over their limit or has overdue invoices (the rep is in front of the customer and may be offline),
+    /// but it is held: a senior manager must release it, with a reason, before it can be confirmed. Customers with no limit set are never held for the limit.
+    /// </summary>
+    private async Task ApplyCreditRules(SalesOrder order)
+    {
+        var credit = await _db.CustomerCredits.AsNoTracking().FirstOrDefaultAsync(c => c.CustomerId == order.CustomerId);
+        if (credit is null) return;
+        var reasons = new List<string>();
+        if (credit.Overdue > 0) reasons.Add($"has GHS {credit.Overdue:N2} overdue");
+        if (credit.CreditLimit is > 0)
+        {
+            // Orders taken but not yet delivered are not in the ERP balance yet, so they count too.
+            var open = await _db.Orders.Where(o => o.CustomerId == order.CustomerId && (o.Status == OrderStatus.Placed || o.Status == OrderStatus.Confirmed)).SumAsync(o => (decimal?)o.Total) ?? 0;
+            var exposure = credit.Outstanding + open + order.Total;
+            if (exposure > credit.CreditLimit) reasons.Add($"would owe GHS {exposure:N2} against a limit of GHS {credit.CreditLimit:N2} (GHS {credit.Outstanding:N2} owed, GHS {open:N2} on open orders, GHS {order.Total:N2} on this one)");
+        }
+        if (reasons.Count == 0) return;
+        order.CreditHold = true;
+        order.CreditHoldReason = "The customer " + string.Join(" and ", reasons) + ".";
     }
 }
 
@@ -118,6 +149,9 @@ public static class OrderEndpoints
                 delivered = delivered.Count,
                 cancelled = orders.Count(o => o.Status == OrderStatus.Cancelled),
                 avgHoursToDeliver = delivered.Count == 0 ? (double?)null : Math.Round(delivered.Average(o => (o.DeliveredAt!.Value - o.PlacedAt).TotalHours), 1),
+                service = Service(delivered),
+                lateOpen = orders.Count(o => o.Status == OrderStatus.Confirmed && o.PromisedAt != null && o.PromisedAt < DateTime.UtcNow),
+                regions = await ServiceByRegion(db, delivered),
                 topProducts = live.SelectMany(o => o.Lines).GroupBy(l => new { l.ProductId, l.ProductName })
                     .Select(x => new { x.Key.ProductId, name = x.Key.ProductName, quantity = x.Sum(l => l.Quantity), value = x.Sum(l => l.LineTotal) })
                     .OrderByDescending(x => x.value).Take(5).ToList(),
@@ -137,22 +171,34 @@ public static class OrderEndpoints
             return Results.NoContent();
         }).RequireAuthorization(p => p.RequireRole(PriceEditors));
 
-        g.MapPost("/{id:guid}/confirm", async (Guid id, AppDbContext db, TeamScope team, HttpCurrentUser u) =>
+        g.MapPost("/{id:guid}/confirm", async (Guid id, ConfirmDto? d, AppDbContext db, TeamScope team, HttpCurrentUser u) =>
         {
             var o = await Find(db, team, id);
             if (o is null) return Results.NotFound();
             if (o.Status != OrderStatus.Placed) return Results.BadRequest("Only a placed order can be confirmed.");
-            o.Status = OrderStatus.Confirmed; o.ConfirmedAt = DateTime.UtcNow; o.ConfirmedBy = u.UserId;
+            if (o.CreditHold)
+            {
+                if (u.Role is not (UserRole.NationalSalesManager or UserRole.Admin)) return Results.Json("This order is on credit hold. A National Sales Manager or Admin must release it.", statusCode: 403);
+                if (string.IsNullOrWhiteSpace(d?.Note)) return Results.BadRequest("This order is on credit hold: give the reason for releasing it.");
+                o.CreditReleasedBy = u.UserId; o.CreditReleaseNote = d!.Note!.Trim();
+            }
+            var confirmedAt = DateTime.UtcNow;
+            if (d?.PromisedDate is { } day && day < DateOnly.FromDateTime(confirmedAt)) return Results.BadRequest("The promised date cannot be in the past.");
+            o.Status = OrderStatus.Confirmed; o.ConfirmedAt = confirmedAt; o.ConfirmedBy = u.UserId;
+            o.PromisedAt = d?.PromisedDate is { } pd ? new DateTime(pd.Year, pd.Month, pd.Day, 23, 59, 59, DateTimeKind.Utc) : confirmedAt.AddDays(OrderService.DefaultPromiseDays);
             await db.SaveChangesAsync();
             return Results.Ok(o);
         }).RequireAuthorization(p => p.RequireRole(Approvers));
 
-        g.MapPost("/{id:guid}/deliver", async (Guid id, AppDbContext db, TeamScope team, HttpCurrentUser u) =>
+        g.MapPost("/{id:guid}/deliver", async (Guid id, DeliverDto? d, AppDbContext db, TeamScope team, HttpCurrentUser u) =>
         {
             var o = await Find(db, team, id);
             if (o is null) return Results.NotFound();
             if (o.Status != OrderStatus.Confirmed) return Results.BadRequest("Only a confirmed order can be marked delivered.");
+            var inFull = d?.InFull ?? true;
+            if (!inFull && string.IsNullOrWhiteSpace(d?.Note)) return Results.BadRequest("Say what was short when an order is not delivered in full.");
             o.Status = OrderStatus.Delivered; o.DeliveredAt = DateTime.UtcNow; o.DeliveredBy = u.UserId;
+            o.DeliveredInFull = inFull; o.ShortfallNote = inFull ? null : d!.Note!.Trim();
             await db.SaveChangesAsync();
             return Results.Ok(o);
         }).RequireAuthorization(p => p.RequireRole(Approvers));
@@ -171,6 +217,37 @@ public static class OrderEndpoints
             await db.SaveChangesAsync();
             return Results.Ok(o);
         });
+    }
+
+    /// <summary>On time (delivered by the promised time), in full, and both (OTIF), as a share of delivered orders that carry a promise.</summary>
+    private static object Service(List<SalesOrder> delivered)
+    {
+        var judged = delivered.Where(o => o.PromisedAt != null && o.DeliveredInFull != null).ToList();
+        double? Pct(Func<SalesOrder, bool> f) => judged.Count == 0 ? null : Math.Round(judged.Count(f) * 100.0 / judged.Count, 1);
+        return new
+        {
+            judged = judged.Count,
+            onTimePct = Pct(o => o.DeliveredAt <= o.PromisedAt),
+            inFullPct = Pct(o => o.DeliveredInFull == true),
+            otifPct = Pct(o => o.DeliveredAt <= o.PromisedAt && o.DeliveredInFull == true),
+        };
+    }
+
+    private static async Task<object> ServiceByRegion(AppDbContext db, List<SalesOrder> delivered)
+    {
+        var judged = delivered.Where(o => o.PromisedAt != null && o.DeliveredInFull != null).ToList();
+        if (judged.Count == 0) return new List<object>();
+        var ids = judged.Select(o => o.CustomerId).Distinct().ToList();
+        var terr = await db.Customers.AsNoTracking().Where(c => ids.Contains(c.Id)).Select(c => new { c.Id, c.TerritoryId }).ToDictionaryAsync(c => c.Id, c => c.TerritoryId);
+        var regionOf = await db.Territories.AsNoTracking().ToDictionaryAsync(t => t.Id, t => (t.Region ?? "").Trim());
+        string Region(Guid customer) => terr.TryGetValue(customer, out var t) && t is { } id && regionOf.TryGetValue(id, out var r) && r != "" ? r : "No region";
+        return judged.GroupBy(o => Region(o.CustomerId)).OrderBy(g => g.Key).Select(g => (object)new
+        {
+            region = g.Key, delivered = g.Count(),
+            onTimePct = Math.Round(g.Count(o => o.DeliveredAt <= o.PromisedAt) * 100.0 / g.Count(), 1),
+            inFullPct = Math.Round(g.Count(o => o.DeliveredInFull == true) * 100.0 / g.Count(), 1),
+            otifPct = Math.Round(g.Count(o => o.DeliveredAt <= o.PromisedAt && o.DeliveredInFull == true) * 100.0 / g.Count(), 1),
+        }).ToList();
     }
 
     private static async Task<IQueryable<SalesOrder>> Visible(AppDbContext db, TeamScope team)
