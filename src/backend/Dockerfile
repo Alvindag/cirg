@@ -1,7 +1,7 @@
 # DAS Engage 360 API. Build from the repository root:  docker build -f src/backend/Dockerfile -t das-engage-api .
 # syntax=docker/dockerfile:1
 
-FROM mcr.microsoft.com/dotnet/sdk:8.0 AS build
+FROM mcr.microsoft.com/dotnet/sdk:10.0 AS build
 WORKDIR /src/backend
 # Restore first (cached until a project file changes)
 COPY src/backend/DasEngage.sln ./
