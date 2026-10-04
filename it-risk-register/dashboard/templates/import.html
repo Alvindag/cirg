@@ -1,0 +1,32 @@
+{% extends "base.html" %}
+{% block title %}Import Scan — IT Risk Register{% endblock %}
+{% block content %}
+<h1>Import vulnerability scan</h1>
+<p>Upload a CSV export from any scanner (OpenVAS, Nessus, Qualys, or your own tooling).
+   Required column: <code>asset_identifier</code> (matched against an asset's IP address or exact name).
+   Optional columns: <code>cve_id</code>, <code>title</code>, <code>description</code>, <code>cvss_score</code>, <code>cvss_severity</code>.</p>
+
+<form method="post" enctype="multipart/form-data" class="asset-form">
+    <label>Source name <input name="source" placeholder="OpenVAS" required></label>
+    <label>CSV file <input type="file" name="file" accept=".csv" required></label>
+    <button type="submit">Import and rescore</button>
+</form>
+
+<h2>Recent imports</h2>
+<table>
+    <thead><tr><th>Time</th><th>Source</th><th>File</th><th>Matched</th><th>Unmatched</th></tr></thead>
+    <tbody>
+        {% for i in imports %}
+        <tr>
+            <td>{{ i.ts }}</td>
+            <td>{{ i.source }}</td>
+            <td>{{ i.filename }}</td>
+            <td>{{ i.matched_count }}</td>
+            <td>{{ i.unmatched_count }}</td>
+        </tr>
+        {% else %}
+        <tr><td colspan="5">No imports yet.</td></tr>
+        {% endfor %}
+    </tbody>
+</table>
+{% endblock %}

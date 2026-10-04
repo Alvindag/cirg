@@ -1,0 +1,56 @@
+{% extends "base.html" %}
+{% block title %}{{ 'Edit' if asset else 'Add' }} Asset — IT Risk Register{% endblock %}
+{% block content %}
+<h1>{{ 'Edit' if asset else 'Add' }} asset</h1>
+<form method="post" class="asset-form">
+    <label>Name <input name="name" required value="{{ asset.name if asset else '' }}"></label>
+
+    <label>Type
+        <select name="asset_type" id="asset_type" required>
+            <option value="physical" {{ 'selected' if asset and asset.asset_type == 'physical' }}>Physical</option>
+            <option value="software" {{ 'selected' if asset and asset.asset_type == 'software' }}>Software / logical</option>
+        </select>
+    </label>
+
+    <label>Category
+        <input name="category" required placeholder="server, laptop, application, database, cloud-service…"
+               value="{{ asset.category if asset else '' }}">
+    </label>
+
+    <label>Owner <input name="owner" value="{{ asset.owner if asset else '' }}"></label>
+    <label>Department <input name="department" value="{{ asset.department if asset else '' }}"></label>
+
+    <label>Criticality (business impact if lost/compromised, 1-5)
+        <select name="criticality">
+            {% for n in range(1, 6) %}
+            <option value="{{ n }}" {{ 'selected' if asset and asset.criticality == n }}>{{ n }}</option>
+            {% endfor %}
+        </select>
+    </label>
+
+    <label class="checkbox">
+        <input type="checkbox" name="internet_facing" {{ 'checked' if asset and asset.internet_facing }}>
+        Internet-facing
+    </label>
+
+    <fieldset>
+        <legend>Physical asset fields</legend>
+        <label>Location <input name="location" value="{{ asset.location if asset else '' }}"></label>
+        <label>IP address <input name="ip_address" value="{{ asset.ip_address if asset else '' }}"></label>
+        <label>Serial number <input name="serial_number" value="{{ asset.serial_number if asset else '' }}"></label>
+    </fieldset>
+
+    <fieldset>
+        <legend>Software / logical asset fields (used for NVD vulnerability matching)</legend>
+        <label>Vendor <input name="vendor" value="{{ asset.vendor if asset else '' }}"></label>
+        <label>Product <input name="product" value="{{ asset.product if asset else '' }}"></label>
+        <label>Version <input name="version" value="{{ asset.version if asset else '' }}"></label>
+    </fieldset>
+
+    <label>Install date <input type="date" name="install_date" value="{{ asset.install_date if asset else '' }}"></label>
+    <label>End-of-life date <input type="date" name="end_of_life_date" value="{{ asset.end_of_life_date if asset else '' }}"></label>
+    <label>Notes <textarea name="notes">{{ asset.notes if asset else '' }}</textarea></label>
+
+    <button type="submit">Save</button>
+</form>
+{% endblock %}
