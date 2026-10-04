@@ -1,0 +1,39 @@
+{% extends "base.html" %}
+{% block title %}Endpoint Posture — LAN Compliance Monitor{% endblock %}
+{% block content %}
+<h1>Endpoint Security Posture</h1>
+<p>Latest snapshot per host. Red = requires attention.</p>
+
+<table>
+    <thead>
+        <tr>
+            <th>Host</th><th>OS</th><th>Defender</th><th>Real-time protection</th>
+            <th>Firewall (D/P/Pub)</th><th>BitLocker</th><th>Pending updates</th>
+            <th>Last boot</th><th>Last checked</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for e in endpoints %}
+        <tr class="{{ 'row-warn' if not e.reachable else '' }}">
+            <td>{{ e.hostname }}</td>
+            {% if not e.reachable %}
+            <td colspan="7">Unreachable</td>
+            {% else %}
+            <td>{{ e.os_version or '—' }}</td>
+            <td class="{{ '' if e.defender_enabled else 'cell-bad' }}">{{ 'On' if e.defender_enabled else 'Off' }}</td>
+            <td class="{{ '' if e.realtime_protection else 'cell-bad' }}">{{ 'On' if e.realtime_protection else 'Off' }}</td>
+            <td class="{{ '' if (e.firewall_domain_on and e.firewall_private_on and e.firewall_public_on) else 'cell-bad' }}">
+                {{ 'On' if e.firewall_domain_on else 'Off' }}/{{ 'On' if e.firewall_private_on else 'Off' }}/{{ 'On' if e.firewall_public_on else 'Off' }}
+            </td>
+            <td class="{{ '' if e.bitlocker_on else 'cell-bad' }}">{{ 'On' if e.bitlocker_on else 'Off' }}</td>
+            <td class="{{ 'cell-bad' if (e.pending_updates or 0) > 5 }}">{{ e.pending_updates }}</td>
+            <td>{{ e.last_boot }}</td>
+            {% endif %}
+            <td>{{ e.ts }}</td>
+        </tr>
+        {% else %}
+        <tr><td colspan="9">No endpoint data yet — check WINRM_USERNAME/WINRM_PASSWORD and collector/hosts.txt.</td></tr>
+        {% endfor %}
+    </tbody>
+</table>
+{% endblock %}

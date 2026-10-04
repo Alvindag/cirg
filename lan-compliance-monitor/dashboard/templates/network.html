@@ -1,0 +1,25 @@
+{% extends "base.html" %}
+{% block title %}Network Devices — LAN Compliance Monitor{% endblock %}
+{% block content %}
+<h1>Network Device Inventory</h1>
+<p>Devices seen via periodic LAN sweep. Flagged = new/not yet allow-listed.</p>
+
+<table>
+    <thead><tr><th>Status</th><th>MAC</th><th>IP</th><th>Hostname</th><th>Vendor</th><th>First seen</th><th>Last seen</th></tr></thead>
+    <tbody>
+        {% for d in devices %}
+        <tr class="{{ 'row-warn' if (d.is_flagged and not d.is_known) else '' }}">
+            <td>{{ 'Unrecognized' if (d.is_flagged and not d.is_known) else 'Known' }}</td>
+            <td>{{ d.mac_address }}</td>
+            <td>{{ d.ip_address }}</td>
+            <td>{{ d.hostname or '—' }}</td>
+            <td>{{ d.vendor or '—' }}</td>
+            <td>{{ d.first_seen }}</td>
+            <td>{{ d.last_seen }}</td>
+        </tr>
+        {% else %}
+        <tr><td colspan="7">No devices scanned yet.</td></tr>
+        {% endfor %}
+    </tbody>
+</table>
+{% endblock %}

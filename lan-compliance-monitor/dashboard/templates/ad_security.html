@@ -1,0 +1,41 @@
+{% extends "base.html" %}
+{% block title %}AD Security — LAN Compliance Monitor{% endblock %}
+{% block content %}
+<h1>Active Directory Security Posture</h1>
+
+{% if not snapshot %}
+<p>No AD snapshot yet — check AD_SERVER/AD_BIND_DN/AD_BIND_PASSWORD/AD_BASE_DN.</p>
+{% else %}
+<div class="stat-grid">
+    <div class="stat-card {{ 'warn' if (snapshot.min_password_length or 0) < 12 }}">
+        <div class="stat-value">{{ snapshot.min_password_length }}</div>
+        <div class="stat-label">Min password length</div>
+    </div>
+    <div class="stat-card {{ '' if snapshot.password_complexity else 'warn' }}">
+        <div class="stat-value">{{ 'On' if snapshot.password_complexity else 'Off' }}</div>
+        <div class="stat-label">Password complexity</div>
+    </div>
+    <div class="stat-card {{ 'warn' if snapshot.stale_account_count > 0 }}">
+        <div class="stat-value">{{ snapshot.stale_account_count }}</div>
+        <div class="stat-label">Stale accounts (90d+ inactive, enabled)</div>
+    </div>
+    <div class="stat-card">
+        <div class="stat-value">{{ snapshot.domain_admin_count }}</div>
+        <div class="stat-label">Domain Admins members</div>
+    </div>
+</div>
+<p class="meta">Snapshot taken {{ snapshot.ts }}</p>
+
+<h2>Stale accounts</h2>
+<table>
+    <thead><tr><th>Username</th><th>Last logon</th></tr></thead>
+    <tbody>
+        {% for a in stale_accounts %}
+        <tr><td>{{ a.username }}</td><td>{{ a.last_logon }}</td></tr>
+        {% else %}
+        <tr><td colspan="2">None found.</td></tr>
+        {% endfor %}
+    </tbody>
+</table>
+{% endif %}
+{% endblock %}

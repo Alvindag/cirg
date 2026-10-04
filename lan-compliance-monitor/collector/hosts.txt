@@ -1,0 +1,4 @@
+# One Windows hostname or IP per line — machines the posture_collector
+# will poll via WinRM. Populate from AD (dsquery computer) or your asset list.
+# workstation01.corp.local
+# workstation02.corp.local
