@@ -18,7 +18,14 @@
       <input type="hidden" name="status" value="Completed">
       <button class="btn btn-secondary" type="submit"
               onclick="return confirm('Mark entire onboarding as Completed?')">
-        ✓ Mark Complete
+        {{ icon('circle-check', 15) }} Mark Complete
+      </button>
+    </form>
+    <form method="POST" action="{{ url_for('set_onboarding_status', onb_id=rec.id) }}" style="display:inline;">
+      <input type="hidden" name="status" value="Cancelled">
+      <button class="btn btn-danger" type="submit"
+              onclick="return confirm('Cancel this onboarding? Use this only for a record raised in error. It stays in the list as Cancelled.')">
+        {{ icon('x', 15) }} Cancel
       </button>
     </form>
     {% endif %}
@@ -186,10 +193,10 @@
         {% for item in items %}
         <tr style="{% if item.status=='Complete' %}opacity:0.65;{% elif item.status=='N/A' %}opacity:0.4;{% endif %}">
           <td style="text-align:center;font-size:18px;">
-            {% if item.status == 'Complete' %}✅
-            {% elif item.status == 'N/A' %}➖
-            {% elif item.status == 'In Progress' %}🔄
-            {% else %}⬜{% endif %}
+            {% if item.status == 'Complete' %}<span style="color:var(--success)">{{ icon('circle-check', 18) }}</span>
+            {% elif item.status == 'N/A' %}<span class="text-muted">{{ icon('minus', 18) }}</span>
+            {% elif item.status == 'In Progress' %}<span style="color:var(--blue)">{{ icon('refresh-cw', 18) }}</span>
+            {% else %}<span class="text-muted">{{ icon('square', 18) }}</span>{% endif %}
           </td>
           <td>
             <div class="fw-bold fs-sm {% if item.status=='Complete' %}text-muted{% endif %}" style="{% if item.status=='Complete' %}text-decoration:line-through;{% endif %}">
@@ -207,10 +214,10 @@
             <div style="display:flex;gap:4px;">
               <form method="POST" action="{{ url_for('update_checklist_item', onb_id=rec.id, item_id=item.id) }}" style="display:inline;">
                 <input type="hidden" name="status" value="Complete">
-                <button class="btn btn-xs btn-secondary" style="color:var(--success);border-color:rgba(16,185,129,0.3);" type="submit">✓</button>
+                <button class="btn btn-xs btn-secondary" style="color:var(--success);border-color:rgba(16,185,129,0.3);" type="submit" title="Mark complete">{{ icon('circle-check', 14) }}</button>
               </form>
               <button class="btn btn-xs btn-secondary"
-                      onclick="toggleUpdateForm('upd-{{ item.id }}')">⋯</button>
+                      onclick="toggleUpdateForm('upd-{{ item.id }}')" title="Update status or add a note">{{ icon('pencil', 13) }}</button>
             </div>
             <div id="upd-{{ item.id }}" style="display:none;margin-top:6px;min-width:200px;">
               <form method="POST" action="{{ url_for('update_checklist_item', onb_id=rec.id, item_id=item.id) }}">

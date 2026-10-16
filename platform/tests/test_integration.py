@@ -72,6 +72,14 @@ def test_auto_enrol_then_cert_sync_end_to_end(wired, cs, itam):
     r = integration.run('tester')
     assert r['synced'] >= 1
     assert connectors.onboarding_training_item_done('ONB-INT') is True
+    # ITAM's own progress calculation must count the tick (its checklist word is 'Complete', not 'Completed')
+    import sqlite3 as _s
+    i2 = _s.connect(itam.DB_PATH); i2.row_factory = _s.Row
+    assert i2.execute("SELECT status FROM onboarding_checklist WHERE item_name LIKE '%awareness briefing%' AND notes LIKE '%CERT-DAS-TEST-1%'").fetchone()['status'] == 'Complete'
+    oid = i2.execute("SELECT id FROM onboarding WHERE onb_ref='ONB-INT'").fetchone()['id']
+    assert itam.onboarding_progress(i2, oid) == 100            # the only checklist row is now done -> 100%
+    assert i2.execute("SELECT status FROM onboarding WHERE id=?", (oid,)).fetchone()['status'] == 'Completed'   # record auto-closed
+    i2.close()
     assert integration.run('tester')['synced'] == 0                      # idempotent
     i = sqlite3.connect(itam.DB_PATH)
     note = i.execute("SELECT notes, completed_by FROM onboarding_checklist WHERE item_name LIKE '%awareness briefing%' AND notes LIKE '%CERT-DAS-TEST-1%'").fetchone()

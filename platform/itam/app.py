@@ -145,6 +145,7 @@ def has_perm(perm):
 # ── Inject has_perm into every template automatically ────────────────────────
 # Macros imported from macros.html do not see context-processor values, so expose helpers as Jinja globals too.
 app.jinja_env.globals['days_until'] = lambda d: days_until(d)
+app.jinja_env.globals['onboarding_counts'] = lambda: (len(default_checklist()), len(default_induction('')))
 
 @app.context_processor
 def inject_globals():
@@ -395,6 +396,11 @@ def init_db():
     except Exception:
         pass  # column already exists — that is fine
 
+    try:    # rows written by an early Trust Hub build used the wrong word; ITAM counts 'Complete'
+        db.execute("UPDATE onboarding_checklist SET status='Complete' WHERE status='Completed'"); db.commit()
+    except Exception:
+        pass
+
     # Employee ID: authoritative cross-system identifier (used by the Trust Hub; optional here)
     for ddl in ("ALTER TABLE onboarding ADD COLUMN employee_id TEXT",
                 "ALTER TABLE assets ADD COLUMN assigned_employee_id TEXT"):
@@ -556,11 +562,14 @@ def hub_training_complete():
                       "AND item_name LIKE '%awareness briefing%' ORDER BY id LIMIT 1", (onb['id'],)).fetchone()
     if not item:
         return jsonify({'ok': False, 'error': 'checklist item not found'}), 404
-    if item['status'] == 'Completed':
+    if item['status'] in ('Complete', 'Completed'):
         return jsonify({'ok': True, 'changed': False})
-    db.execute("UPDATE onboarding_checklist SET status='Completed', completed_at=datetime('now'), "
+    # ITAM's checklist vocabulary is 'Complete' (the onboarding record itself uses 'Completed').
+    db.execute("UPDATE onboarding_checklist SET status='Complete', completed_at=datetime('now'), "
                "completed_by='CyberShield (via Trust Hub)', notes=? WHERE id=?",
                (f"Security awareness training passed. Certificate {cert}, score {str(d.get('score', '?'))[:5]}%.", item['id']))
+    if onboarding_progress(db, onb['id']) == 100:       # same auto-close the checklist screen applies
+        db.execute("UPDATE onboarding SET status='Completed', updated_at=datetime('now') WHERE id=?", (onb['id'],))
     db.execute("INSERT INTO audit_log (username,action,detail,ip_address,success) VALUES (?,?,?,?,?)",
                ('hub-integration', 'TRAINING_SYNC', f'{ref}: awareness briefing completed from certificate {cert}', request.remote_addr, 1))
     db.commit()
@@ -2073,15 +2082,17 @@ def default_induction(department):
 
 def onboarding_progress(db, onb_id):
     """Calculate overall % completion across checklist + induction."""
+    # Items marked N/A and induction sessions that were cancelled do not apply to this joiner, so they
+    # are left out of the total: otherwise a record with one N/A item could never reach 100%.
     total = db.execute(
-        "SELECT COUNT(*) FROM onboarding_checklist WHERE onboarding_id=?", (onb_id,)
+        "SELECT COUNT(*) FROM onboarding_checklist WHERE onboarding_id=? AND status!='N/A'", (onb_id,)
     ).fetchone()[0]
     done = db.execute(
         "SELECT COUNT(*) FROM onboarding_checklist WHERE onboarding_id=? AND status='Complete'",
         (onb_id,)
     ).fetchone()[0]
     ind_total = db.execute(
-        "SELECT COUNT(*) FROM onboarding_induction WHERE onboarding_id=?", (onb_id,)
+        "SELECT COUNT(*) FROM onboarding_induction WHERE onboarding_id=? AND status!='Cancelled'", (onb_id,)
     ).fetchone()[0]
     ind_done = db.execute(
         "SELECT COUNT(*) FROM onboarding_induction WHERE onboarding_id=? AND status='Completed'",
@@ -2130,6 +2141,7 @@ def onboarding():
 # ── New onboarding record ─────────────────────────────────────────────────────
 @app.route('/onboarding/new', methods=['GET', 'POST'])
 @login_required
+@require_perm('onboarding')
 def new_onboarding():
     if request.method == 'POST':
         db       = get_db()
@@ -2227,12 +2239,14 @@ def view_onboarding(onb_id):
     for cat in categories:
         items = checklist.get(cat, [])
         done  = sum(1 for i in items if i['status'] == 'Complete')
-        progress[cat] = {'done': done, 'total': len(items),
-                         'pct': round(done / len(items) * 100) if items else 0}
+        total = sum(1 for i in items if i['status'] != 'N/A')
+        progress[cat] = {'done': done, 'total': total,
+                         'pct': round(done / total * 100) if total else (100 if items else 0)}
 
     ind_done  = sum(1 for i in induction if i['status'] == 'Completed')
-    progress['Induction'] = {'done': ind_done, 'total': len(induction),
-                              'pct': round(ind_done / len(induction) * 100) if induction else 0}
+    ind_total = sum(1 for i in induction if i['status'] != 'Cancelled')
+    progress['Induction'] = {'done': ind_done, 'total': ind_total,
+                              'pct': round(ind_done / ind_total * 100) if ind_total else (100 if induction else 0)}
 
     overall = onboarding_progress(db, onb_id)
 
@@ -2245,6 +2259,7 @@ def view_onboarding(onb_id):
 # ── Update a single checklist item ───────────────────────────────────────────
 @app.route('/onboarding/<int:onb_id>/checklist/<int:item_id>/update', methods=['POST'])
 @login_required
+@require_perm('onboarding')
 def update_checklist_item(onb_id, item_id):
     db     = get_db()
     status = request.form.get('status', 'Pending')
@@ -2267,6 +2282,7 @@ def update_checklist_item(onb_id, item_id):
 # ── Update induction session ──────────────────────────────────────────────────
 @app.route('/onboarding/<int:onb_id>/induction/<int:session_id>/update', methods=['POST'])
 @login_required
+@require_perm('onboarding')
 def update_induction_session(onb_id, session_id):
     db     = get_db()
     status = request.form.get('status', 'Scheduled')
@@ -2277,6 +2293,9 @@ def update_induction_session(onb_id, session_id):
                   status=?, scheduled_date=?, scheduled_time=?, notes=?
                   WHERE id=? AND onboarding_id=?""",
                (status, date_, time_, notes, session_id, onb_id))
+    # Same auto-close the checklist applies: finishing the last induction session can complete the record.
+    if onboarding_progress(db, onb_id) == 100:
+        db.execute("UPDATE onboarding SET status='Completed', updated_at=datetime('now') WHERE id=?", (onb_id,))
     db.commit()
     return redirect(url_for('view_onboarding', onb_id=onb_id) + '#induction')
 
@@ -2284,6 +2303,7 @@ def update_induction_session(onb_id, session_id):
 # ── Update onboarding record details ─────────────────────────────────────────
 @app.route('/onboarding/<int:onb_id>/update-details', methods=['POST'])
 @login_required
+@require_perm('onboarding')
 def update_onboarding_details(onb_id):
     db = get_db()
     f  = request.form
@@ -2304,9 +2324,13 @@ def update_onboarding_details(onb_id):
 # ── Mark onboarding complete / cancel ────────────────────────────────────────
 @app.route('/onboarding/<int:onb_id>/set-status', methods=['POST'])
 @login_required
+@require_perm('onboarding')
 def set_onboarding_status(onb_id):
     db     = get_db()
     status = request.form.get('status', 'In Progress')
+    if status not in ('In Progress', 'Completed', 'Cancelled'):
+        flash('Unknown status.', 'danger')
+        return redirect(url_for('view_onboarding', onb_id=onb_id))
     db.execute("UPDATE onboarding SET status=?, updated_at=datetime('now') WHERE id=?",
                (status, onb_id))
     audit(db, 'ONBOARDING_STATUS', f'ONB {onb_id} → {status}')

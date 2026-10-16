@@ -309,7 +309,7 @@ def onboarding_training_item_done(onb_ref):
     r = _rows(c, "SELECT k.status FROM onboarding_checklist k JOIN onboarding o ON o.id=k.onboarding_id "
                  "WHERE o.onb_ref=? AND k.category='IT Security' AND k.item_name LIKE '%awareness briefing%' ORDER BY k.id LIMIT 1", (onb_ref,))
     c.close()
-    return (r[0]['status'] == 'Completed') if r else None
+    return (r[0]['status'] in ('Complete', 'Completed')) if r else None
 
 
 def completed_certificate(name, employee_id=None):

@@ -12,8 +12,8 @@
 </div>
 
 <div class="alert alert-info">
-  ℹ  Once saved, the system will auto-generate <strong>30 checklist items</strong> across IT Accounts,
-  Equipment, Access Rights, HR Documents, IT Security, and Induction — ready for each team to action.
+  {% set _n = onboarding_counts() %}ℹ  Once saved, the system will auto-generate <strong>{{ _n[0] }} checklist items</strong> across Onboarding Form, IT Accounts,
+  Access Rights, Credential Handover, Documentation, HR Documents and IT Security, plus a <strong>{{ _n[1] }}-session induction schedule</strong> — ready for each team to action.
 </div>
 
 <div class="card"><div class="card-body">

@@ -46,6 +46,6 @@ Operations: `python -m hub.cli sync | verify | score | create-user <name> <passw
 ## Tests
 `python -m pytest tests -q` runs the automated test suite (58 tests): regression of both original apps, SSO (replay, audience, tamper, role), MFA (RFC 6238 vector), lockout, CSRF, RBAC, open-redirect, CSV-injection, ledger tamper detection, scoring.
 
-**Manuals:** `docs/DAS-Trust-Hub-Manual.docx` is the full User and Administrator Manual.
+**Manuals:** `docs/DAS-Trust-Hub-Manual.docx` is the full User and Administrator Manual. `docs/ITAM-Onboarding-Guide.docx` is the step-by-step onboarding walkthrough, user guide, half-day training programme and benefits.
 
 See `docs/ASSESSMENT.md` for the gap assessment, what was fixed and what you must still do.
