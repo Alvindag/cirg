@@ -1,4 +1,5 @@
 {% extends 'base.html' %}
+{% from 'icons.html' import icon %}
 {% block title %}Movement Log{% endblock %}
 {% block topbar_title %}Movement Log{% endblock %}
 {% block topbar_sub %}Immutable audit trail — every action on every asset{% endblock %}
@@ -36,6 +37,6 @@
       <td class="fs-sm text-muted">{{ l.notes or '—' }}</td>
     </tr>{% endfor %}</tbody>
   </table></div>
-  {% else %}<div class="empty-state"><div class="icon">📋</div><p>No log entries yet.</p></div>{% endif %}
+  {% else %}<div class="empty-state"><div class="icon">{{ icon('clipboard-list', 15) }} </div><p>No log entries yet.</p></div>{% endif %}
 </div></div>
 {% endblock %}

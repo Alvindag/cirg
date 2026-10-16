@@ -61,3 +61,31 @@ def test_cs_sso_admin(cs):
     c = cs.app.test_client()
     assert c.get('/sso?ticket=' + sso.sign('carol', 'admin', 'cybershield')).status_code == 302
     assert c.get('/admin').status_code == 200
+
+
+def test_itam_pages_render_for_assets_with_warranty_dates(itam):
+    """Regression: macros could not see days_until, so /assets and /assets/<id> returned 500 once an asset had a warranty date."""
+    import sqlite3
+    conn = sqlite3.connect(itam.DB_PATH)
+    conn.execute("INSERT INTO assets (asset_tag,asset_name,asset_type,category,serial_number,location,status,warranty_expiry) "
+                 "VALUES ('W-1','Warranty laptop','Laptop','Hardware','SNW1','HQ','Active — Unassigned','2099-01-01')")
+    conn.execute("INSERT INTO assets (asset_tag,asset_name,asset_type,category,serial_number,location,status,warranty_expiry) "
+                 "VALUES ('W-2','Expired laptop','Laptop','Hardware','SNW2','HQ','Active — Unassigned','2020-01-01')")
+    conn.commit()
+    aid = conn.execute("SELECT id FROM assets WHERE asset_tag='W-2'").fetchone()[0]
+    conn.close()
+    c = itam.app.test_client()
+    c.post('/login', data={'username': 'admin', 'password': 'admin123'})
+    assert c.get('/assets').status_code == 200
+    r = c.get(f'/assets/{aid}')
+    assert r.status_code == 200 and b'Expired' in r.data
+    assert c.get('/').status_code == 200
+
+
+def test_itam_new_layout_has_palette_icons_and_no_emoji_nav(itam):
+    c = itam.app.test_client()
+    c.post('/login', data={'username': 'admin', 'password': 'admin123'})
+    html = c.get('/').get_data(as_text=True)
+    assert 'id="cmdk-back"' in html and 'class="mesh"' in html and '<svg class="ic' in html
+    assert 'js/ui.js' in html and 'Geist' in c.get('/static/css/style.css').get_data(as_text=True)
+    assert c.get('/static/fonts/GeistVF.woff').status_code == 200

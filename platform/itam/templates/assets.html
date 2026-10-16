@@ -1,4 +1,5 @@
 {% extends 'base.html' %}
+{% from 'icons.html' import icon %}
 {% block title %}Asset Register{% endblock %}
 {% block topbar_title %}Asset Register{% endblock %}
 {% block topbar_sub %}{{ total_count }} assets total · Page {{ page }} of {{ total_pages }}{% endblock %}
@@ -8,10 +9,10 @@
 <div class="page-header">
   <div><h1>IT Asset Register</h1><p>{{ total_count }} assets{% if q or status_f or type_f or loc_f or company_f %} (filtered){% endif %}</p></div>
   <div class="page-header-actions">
-    {% if has_perm('write') %}<a href="{{ url_for('new_asset') }}" class="btn btn-primary">➕ Register Asset</a>{% endif %}
+    {% if has_perm('write') %}<a href="{{ url_for('new_asset') }}" class="btn btn-primary">{{ icon('plus', 15) }} Register Asset</a>{% endif %}
     {% if has_perm('bulk') %}
-    <a href="{{ url_for('bulk_upload') }}" class="btn btn-secondary">📥 Bulk Upload</a>
-    <a href="{{ url_for('export_assets') }}" class="btn btn-secondary">📤 Export</a>
+    <a href="{{ url_for('bulk_upload') }}" class="btn btn-secondary">{{ icon('file-up', 15) }} Bulk Upload</a>
+    <a href="{{ url_for('export_assets') }}" class="btn btn-secondary">{{ icon('file-down', 15) }} Export</a>
     {% endif %}
   </div>
 </div>
@@ -110,7 +111,7 @@
         {% endif %}
       </div>
     </div>
-    {% else %}<div class="empty-state" style="padding:40px;"><div class="icon">🖥</div><p>No assets found{% if q %}  matching "{{ q }}"{% endif %}.</p></div>{% endif %}
+    {% else %}<div class="empty-state" style="padding:40px;"><div class="icon">{{ icon('monitor', 15) }} </div><p>No assets found{% if q %}  matching "{{ q }}"{% endif %}.</p></div>{% endif %}
   </div>
 </div>
 {% if has_perm('bulk') %}</form>{% endif %}

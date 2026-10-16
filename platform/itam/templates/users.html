@@ -1,11 +1,12 @@
 {% extends 'base.html' %}
+{% from 'icons.html' import icon %}
 {% block title %}User Management{% endblock %}
 {% block topbar_title %}User Management{% endblock %}
 {% block topbar_sub %}Manage access roles for ITAM — DAS Plc{% endblock %}
 {% block content %}
 <div class="page-header">
   <div><h1>User Management</h1><p>{{ users|length }} users registered</p></div>
-  <a href="{{ url_for('new_user') }}" class="btn btn-primary">➕ Add User</a>
+  <a href="{{ url_for('new_user') }}" class="btn btn-primary">{{ icon('plus', 15) }} Add User</a>
 </div>
 
 <!-- Role explanation -->

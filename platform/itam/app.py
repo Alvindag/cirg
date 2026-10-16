@@ -143,6 +143,9 @@ def has_perm(perm):
     return perm in ROLE_PERMISSIONS.get(current_user.role, [])
 
 # ── Inject has_perm into every template automatically ────────────────────────
+# Macros imported from macros.html do not see context-processor values, so expose helpers as Jinja globals too.
+app.jinja_env.globals['days_until'] = lambda d: days_until(d)
+
 @app.context_processor
 def inject_globals():
     return dict(has_perm=has_perm, days_until=days_until, hub_url=os.environ.get('HUB_URL', '').rstrip('/'))

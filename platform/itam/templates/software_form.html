@@ -1,4 +1,5 @@
 {% extends 'base.html' %}
+{% from 'icons.html' import icon %}
 {% block title %}{{ 'Edit' if sw else 'New' }} Software{% endblock %}
 {% block topbar_title %}{{ 'Edit' if sw else 'Add' }} Software / License{% endblock %}
 {% block content %}
@@ -37,7 +38,7 @@
     <select name="status" style="max-width:200px;"><option {% if sw and sw.status=='Active' %}selected{% endif %}>Active</option><option {% if sw and sw.status=='Expired' %}selected{% endif %}>Expired</option><option {% if sw and sw.status=='Retired' %}selected{% endif %}>Retired</option></select></div>
   <div class="form-group full"><label>Notes</label><textarea name="notes">{{ sw.notes if sw else '' }}</textarea></div>
   <div class="form-actions">
-    <button class="btn btn-primary" type="submit">💾 Save</button>
+    <button class="btn btn-primary" type="submit">{{ icon('save', 15) }} Save</button>
     <a href="{{ url_for('software') }}" class="btn btn-secondary">Cancel</a>
   </div>
 </form></div></div>

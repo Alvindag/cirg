@@ -1,4 +1,5 @@
 {% extends 'base.html' %}
+{% from 'icons.html' import icon %}
 {% from 'macros.html' import status_badge, warranty_badge %}
 {% block title %}{{ full_name }}{% endblock %}
 {% block topbar_title %}{{ full_name }}{% endblock %}
@@ -17,7 +18,7 @@
   <div class="page-header-actions">
     {% if has_perm('assign') %}
     <button onclick="document.getElementById('update-profile-panel').style.display = document.getElementById('update-profile-panel').style.display=='none' ? 'block' : 'none'"
-            class="btn btn-secondary">📍 Update Location / Department</button>
+            class="btn btn-secondary">{{ icon('map-pin', 15) }} Update Location / Department</button>
     {% endif %}
     <a href="{{ url_for('people') }}" class="btn btn-secondary">← All People</a>
   </div>
@@ -27,7 +28,7 @@
 {% if has_perm('assign') %}
 <div id="update-profile-panel" style="display:none;" class="card mb-3">
   <div class="card-header">
-    <span class="card-title">📍 Update Location & Department for {{ full_name }}</span>
+    <span class="card-title">{{ icon('map-pin', 15) }} Update Location & Department for {{ full_name }}</span>
   </div>
   <div class="card-body">
     <div class="alert alert-info" style="margin-bottom:14px;">
@@ -72,7 +73,7 @@
       <div class="form-actions" style="border:none;padding-top:10px;">
         <button class="btn btn-primary" type="submit"
                 onclick="return confirm('Update location/dept for ALL ' + {{ current|length }} + ' asset(s) assigned to {{ full_name }}?')">
-          📍 Apply to All {{ current|length }} Asset{{ 's' if current|length != 1 else '' }}
+          {{ icon('map-pin', 15) }} Apply to All {{ current|length }} Asset{{ 's' if current|length != 1 else '' }}
         </button>
         <button type="button" class="btn btn-secondary"
                 onclick="document.getElementById('update-profile-panel').style.display='none'">
@@ -104,10 +105,10 @@
   <!-- Current Assets -->
   <div class="card">
     <div class="card-header">
-      <span class="card-title">🖥 Currently Assigned Assets ({{ current|length }})</span>
+      <span class="card-title">{{ icon('monitor', 15) }} Currently Assigned Assets ({{ current|length }})</span>
       {% if has_perm('assign') %}
       <button onclick="document.getElementById('assign-panel').style.display = document.getElementById('assign-panel').style.display=='none' ? 'block' : 'none'"
-              class="btn btn-xs btn-primary">➕ Assign Asset to {{ (full_name or username).split()[0] }}</button>
+              class="btn btn-xs btn-primary">{{ icon('plus', 15) }} Assign Asset to {{ (full_name or username).split()[0] }}</button>
       {% endif %}
     </div>
 
@@ -233,7 +234,7 @@
     {% if current and has_perm('assign') %}
     <div class="card mb-2">
       <div class="card-header">
-        <span class="card-title">📦 Full Staff Handover</span>
+        <span class="card-title">{{ icon('package', 15) }} Full Staff Handover</span>
       </div>
       <div class="card-body">
         <p class="fs-sm text-muted" style="margin-bottom:14px;">
@@ -281,7 +282,7 @@
                       style="min-height:70px;"></textarea>
           </div>
           <button class="btn btn-danger" type="submit" style="width:100%;justify-content:center;">
-            📦 Return All {{ current|length }} Asset{{ 's' if current|length != 1 else '' }} to Pool
+            {{ icon('package', 15) }} Return All {{ current|length }} Asset{{ 's' if current|length != 1 else '' }} to Pool
           </button>
         </form>
       </div>
@@ -292,7 +293,7 @@
     {% if repairs %}
     <div class="card">
       <div class="card-header">
-        <span class="card-title">🔧 Repair History</span>
+        <span class="card-title">{{ icon('wrench', 15) }} Repair History</span>
       </div>
       <div class="card-body" style="padding:0;">
         <table>
@@ -321,7 +322,7 @@
 <!-- Full Movement History for this person -->
 <div class="card">
   <div class="card-header">
-    <span class="card-title">📋 Full Assignment History for {{ full_name }} ({{ history|length }} events)</span>
+    <span class="card-title">{{ icon('clipboard-list', 15) }} Full Assignment History for {{ full_name }} ({{ history|length }} events)</span>
   </div>
   <div class="card-body" style="padding:0;">
     {% if history %}

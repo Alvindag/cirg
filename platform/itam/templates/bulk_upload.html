@@ -1,11 +1,12 @@
 {% extends 'base.html' %}
+{% from 'icons.html' import icon %}
 {% block title %}Bulk Upload{% endblock %}
 {% block topbar_title %}Bulk Asset Upload{% endblock %}
 {% block topbar_sub %}Import multiple assets from Excel{% endblock %}
 {% block content %}
 <div class="page-header">
   <div><h1>Bulk Asset Upload</h1><p>Upload an Excel file to register multiple assets at once</p></div>
-  <a href="{{ url_for('download_template') }}" class="btn btn-primary">📋 Download Template</a>
+  <a href="{{ url_for('download_template') }}" class="btn btn-primary">{{ icon('clipboard-list', 15) }} Download Template</a>
 </div>
 
 {% if not has_excel %}
@@ -14,17 +15,17 @@
 
 <div class="grid-2 mb-3">
   <div class="card">
-    <div class="card-header"><span class="card-title">📥 Upload File</span></div>
+    <div class="card-header"><span class="card-title">{{ icon('file-up', 15) }} Upload File</span></div>
     <div class="card-body">
       <form method="POST" enctype="multipart/form-data" id="uploadForm">
         <div class="upload-zone" id="dropZone" onclick="document.getElementById('fileInput').click()">
-          <span class="icon">📊</span>
+          <span class="icon">{{ icon('chart-column', 15) }} </span>
           <div class="fw-bold" id="fileName">Click to select or drag & drop your Excel file here</div>
           <div class="fs-sm text-muted" style="margin-top:6px;">.xlsx files only · Maximum 500 rows · Maximum 10 MB</div>
         </div>
         <input type="file" name="file" id="fileInput" accept=".xlsx,.xls" style="display:none;" onchange="showFileName(this)">
         <div style="margin-top:14px;display:flex;gap:10px;align-items:center;">
-          <button class="btn btn-primary" type="submit" id="uploadBtn" disabled>📥 Upload & Import</button>
+          <button class="btn btn-primary" type="submit" id="uploadBtn" disabled>{{ icon('file-up', 15) }} Upload & Import</button>
           <span class="fs-sm text-muted" id="uploadStatus"></span>
         </div>
       </form>
@@ -32,7 +33,7 @@
   </div>
 
   <div class="card">
-    <div class="card-header"><span class="card-title">📋 How to Use</span></div>
+    <div class="card-header"><span class="card-title">{{ icon('clipboard-list', 15) }} How to Use</span></div>
     <div class="card-body">
       <div style="font-size:13px;line-height:1.8;">
         <div class="mb-2"><strong style="color:var(--accent);">Step 1</strong> — Click <em>Download Template</em> to get the pre-formatted Excel file</div>
@@ -66,7 +67,7 @@
 
 {% if recent %}
 <div class="card">
-  <div class="card-header"><span class="card-title">📜 Recent Uploads</span></div>
+  <div class="card-header"><span class="card-title">{{ icon('scroll-text', 15) }} Recent Uploads</span></div>
   <div class="card-body" style="padding:0;"><div class="table-wrap"><table>
     <thead><tr><th>File</th><th>Uploaded By</th><th>Date</th><th>Total</th><th>Success</th><th>Failed</th></tr></thead>
     <tbody>{% for u in recent %}

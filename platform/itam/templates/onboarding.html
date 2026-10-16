@@ -1,4 +1,5 @@
 {% extends 'base.html' %}
+{% from 'icons.html' import icon %}
 {% block title %}Onboarding{% endblock %}
 {% block topbar_title %}Employee Onboarding{% endblock %}
 {% block topbar_sub %}New joiner workflow — accounts, equipment, induction, HR documents{% endblock %}
@@ -7,7 +8,7 @@
 <div class="page-header">
   <div><h1>Employee Onboarding</h1><p>{{ stats.total }} records total</p></div>
   <div class="page-header-actions">
-    <a href="{{ url_for('new_onboarding') }}" class="btn btn-primary">➕ New Onboarding</a>
+    <a href="{{ url_for('new_onboarding') }}" class="btn btn-primary">{{ icon('plus', 15) }} New Onboarding</a>
   </div>
 </div>
 
@@ -89,8 +90,8 @@
     </table></div>
     {% else %}
     <div class="empty-state">
-      <div class="icon">🧑‍💼</div>
-      <p>No onboarding records yet. Click <strong>➕ New Onboarding</strong> to start.</p>
+      <div class="icon">{{ icon('user-round-plus', 15) }} </div>
+      <p>No onboarding records yet. Click <strong>{{ icon('plus', 15) }} New Onboarding</strong> to start.</p>
     </div>
     {% endif %}
   </div>

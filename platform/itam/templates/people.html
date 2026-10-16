@@ -1,4 +1,5 @@
 {% extends 'base.html' %}
+{% from 'icons.html' import icon %}
 {% block title %}People & Assets{% endblock %}
 {% block topbar_title %}People & Assets{% endblock %}
 {% block topbar_sub %}All staff with assigned assets — {{ total_ppl }} people · {{ total_assigned }} assets{% endblock %}
@@ -88,7 +89,7 @@
 {% else %}
 <div class="card">
   <div class="empty-state">
-    <div class="icon">👤</div>
+    <div class="icon">{{ icon('user-round', 15) }} </div>
     <p>{% if q %}No staff found matching "{{ q }}".{% else %}No assets are currently assigned to any staff member.{% endif %}</p>
   </div>
 </div>

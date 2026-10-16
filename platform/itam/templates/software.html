@@ -1,11 +1,12 @@
 {% extends 'base.html' %}
+{% from 'icons.html' import icon %}
 {% block title %}Software & Licenses{% endblock %}
 {% block topbar_title %}Software & License Register{% endblock %}
 {% block topbar_sub %}Applications, OS licenses, seat counts & expiry tracking{% endblock %}
 {% block content %}
 <div class="page-header">
   <div><h1>Software & Licenses</h1><p>{{ software|length }} records</p></div>
-  <a href="{{ url_for('new_software') }}" class="btn btn-primary">➕ Add Software</a>
+  <a href="{{ url_for('new_software') }}" class="btn btn-primary">{{ icon('plus', 15) }} Add Software</a>
 </div>
 <div class="stat-grid mb-2" style="grid-template-columns:repeat(4,1fr);">
   <div class="stat-card"><div class="stat-val blue">{{ stats.total }}</div><div class="stat-label">Total Licenses</div></div>
@@ -35,6 +36,6 @@
       <td><a href="{{ url_for('edit_software', sw_id=s.id) }}" class="btn btn-xs btn-secondary">Edit</a></td>
     </tr>{% endfor %}</tbody>
   </table></div>
-  {% else %}<div class="empty-state"><div class="icon">💿</div><p>No software records yet.</p></div>{% endif %}
+  {% else %}<div class="empty-state"><div class="icon">{{ icon('disc-3', 15) }} </div><p>No software records yet.</p></div>{% endif %}
 </div></div>
 {% endblock %}

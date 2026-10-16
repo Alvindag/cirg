@@ -1,4 +1,5 @@
 {% extends 'base.html' %}
+{% from 'icons.html' import icon %}
 {% block title %}Repair Tracker{% endblock %}
 {% block topbar_title %}Repair Tracker{% endblock %}
 {% block topbar_sub %}All asset repairs — open, in progress & closed{% endblock %}
@@ -50,6 +51,6 @@
     </tr>{% endif %}
     {% endfor %}</tbody>
   </table></div>
-  {% else %}<div class="empty-state"><div class="icon">🛠</div><p>No repair records yet. Log repairs from individual asset pages.</p></div>{% endif %}
+  {% else %}<div class="empty-state"><div class="icon">{{ icon('wrench', 15) }} </div><p>No repair records yet. Log repairs from individual asset pages.</p></div>{% endif %}
 </div></div>
 {% endblock %}

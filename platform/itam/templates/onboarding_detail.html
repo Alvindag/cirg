@@ -1,4 +1,5 @@
 {% extends 'base.html' %}
+{% from 'icons.html' import icon %}
 {% block title %}{{ rec.onb_ref }}{% endblock %}
 {% block topbar_title %}{{ rec.full_name }}{% endblock %}
 {% block topbar_sub %}{{ rec.onb_ref }} · {{ rec.job_title }} · {{ rec.department }} · {{ rec.location }}{% endblock %}
@@ -46,13 +47,8 @@
       {% for cat, p in progress.items() %}
       <div style="background:var(--card2);border:1px solid var(--border);border-radius:6px;padding:10px;">
         <div class="fs-sm fw-bold" style="margin-bottom:4px;">
-          {% if cat=='IT Accounts' %}🔑
-          {% elif cat=='Equipment' %}🖥
-          {% elif cat=='Access Rights' %}🔐
-          {% elif cat=='HR Documents' %}📄
-          {% elif cat=='IT Security' %}🛡
-          {% elif cat=='Induction' %}📅
-          {% endif %} {{ cat }}
+          {% set _ci = {'IT Accounts':'key-round','Equipment':'monitor','Access Rights':'lock','HR Documents':'file-text','IT Security':'shield-check','Induction':'calendar','Onboarding Form':'clipboard-list','Credential Handover':'key-round','Documentation':'folder'} %}
+          {% if _ci.get(cat) %}{{ icon(_ci.get(cat), 14) }}{% endif %} {{ cat }}
         </div>
         <div style="display:flex;align-items:center;gap:6px;">
           <div class="progress-bar-wrap" style="flex:1;height:6px;">
@@ -71,7 +67,7 @@
   <!-- Staff Details -->
   <div class="card">
     <div class="card-header">
-      <span class="card-title">👤 New Joiner Details</span>
+      <span class="card-title">{{ icon('user-round', 15) }} New Joiner Details</span>
       <button onclick="document.getElementById('edit-details').style.display=document.getElementById('edit-details').style.display=='none'?'block':'none'"
               class="btn btn-xs btn-secondary">Edit</button>
     </div>
@@ -103,7 +99,7 @@
           <div class="form-group full"><label>Notes</label><textarea name="notes">{{ rec.notes or '' }}</textarea></div>
         </div>
         <div class="form-actions" style="border:none;padding-top:8px;">
-          <button class="btn btn-primary btn-sm" type="submit">💾 Save</button>
+          <button class="btn btn-primary btn-sm" type="submit">{{ icon('save', 15) }} Save</button>
           <button type="button" class="btn btn-secondary btn-sm"
                   onclick="document.getElementById('edit-details').style.display='none'">Cancel</button>
         </div>
@@ -114,7 +110,7 @@
   <!-- Assigned Equipment from ITAM -->
   <div class="card">
     <div class="card-header">
-      <span class="card-title">🖥 Equipment Assigned in ITAM</span>
+      <span class="card-title">{{ icon('monitor', 15) }} Equipment Assigned in ITAM</span>
       {% if rec.ad_username %}
       <a href="{{ url_for('person_profile', username=rec.ad_username) }}"
          class="btn btn-xs btn-secondary">Open Profile →</a>
@@ -151,13 +147,13 @@
 
 <!-- ── CHECKLIST SECTIONS ───────────────────────────────────────────────── -->
 {% set cat_icons = {
-  'Onboarding Form':    '📋',
-  'IT Accounts':        '🔑',
-  'Access Rights':      '🔐',
-  'Credential Handover':'🗝',
-  'Documentation':      '📁',
-  'HR Documents':       '📄',
-  'IT Security':        '🛡'
+  'Onboarding Form':    'clipboard-list',
+  'IT Accounts':        'key-round',
+  'Access Rights':      'lock',
+  'Credential Handover':'key-round',
+  'Documentation':      'folder',
+  'HR Documents':       'file-text',
+  'IT Security':        'shield-check'
 } %}
 {% set cat_owners = {
   'Onboarding Form':    'HR → IT',
@@ -174,7 +170,7 @@
 {% set p = progress[cat] %}
 <div class="card mb-2">
   <div class="card-header">
-    <span class="card-title">{{ cat_icons[cat] }} {{ cat }}
+    <span class="card-title">{% if cat_icons.get(cat) %}{{ icon(cat_icons.get(cat), 15) }}{% endif %} {{ cat }}
       <span class="fs-sm text-muted" style="font-weight:400;margin-left:8px;">— {{ cat_owners[cat] }}</span>
     </span>
     <span style="font-size:13px;font-weight:700;color:{% if p.pct==100 %}var(--success){% elif p.pct>=50 %}var(--warning){% else %}var(--critical){% endif %};">
@@ -242,7 +238,7 @@
 <!-- ── INDUCTION SCHEDULE ──────────────────────────────────────────────────── -->
 <div class="card mb-3" id="induction">
   <div class="card-header">
-    <span class="card-title">📅 Induction Schedule
+    <span class="card-title">{{ icon('calendar', 15) }} Induction Schedule
       <span class="fs-sm text-muted" style="font-weight:400;margin-left:8px;">— HR + Line Manager</span>
     </span>
     <span style="font-size:13px;font-weight:700;color:{% if progress.Induction.pct==100 %}var(--success){% elif progress.Induction.pct>=50 %}var(--warning){% else %}var(--critical){% endif %};">
@@ -258,7 +254,7 @@
         {% for s in induction %}
         <tr style="{% if s.status=='Completed' %}opacity:0.65;{% endif %}">
           <td style="text-align:center;font-size:16px;">
-            {% if s.status=='Completed' %}✅{% elif s.status=='In Progress' %}🔄{% else %}📅{% endif %}
+            {% if s.status=='Completed' %}<span style="color:var(--success)">{{ icon('circle-check', 18) }}</span>{% elif s.status=='In Progress' %}{{ icon('refresh-cw', 18) }}{% else %}{{ icon('calendar', 18) }}{% endif %}
           </td>
           <td class="fw-bold fs-sm {% if s.status=='Completed' %}text-muted{% endif %}"
               style="{% if s.status=='Completed' %}text-decoration:line-through;{% endif %}">
