@@ -6,6 +6,7 @@
 <td>{{ '✔' if u.mfa_enabled else '—' }}</td><td class="m">{{ u.last_login or 'never' }}</td><td>{{ 'Locked' if u.locked_until > now else ('Active' if u.is_active else 'Disabled') }}</td>
 <td><form class="inline" method="post"><input type="hidden" name="csrf_token" value="{{ csrf_token }}"><input type="hidden" name="uid" value="{{ u.id }}">
 {% if u.locked_until > now %}<button name="act" value="unlock" class="btn sm sec">Unlock</button>{% endif %}
+{% if u.mfa_enabled %}<button name="act" value="reset_mfa" class="btn sm sec">Reset MFA</button>{% endif %}
 {% if u.is_active %}<button name="act" value="disable" class="btn sm sec">Disable</button>{% else %}<button name="act" value="enable" class="btn sm">Enable</button>{% endif %}</form></td></tr>{% endfor %}</tbody></table></div>
 <div class="card"><h2>Add user</h2><form method="post" class="grid g4"><input type="hidden" name="csrf_token" value="{{ csrf_token }}"><input type="hidden" name="act" value="create">
 <div><label>Username</label><input name="username" required></div><div><label>Full name</label><input name="full_name"></div>

@@ -153,6 +153,24 @@ def close_case(user, ref):
     return 'ok'
 
 
+def cancel_case(user, ref, reason):
+    """Withdraw a case raised in error. HR or admin only, while open; the reason is required and sealed in the ledger."""
+    c = get(ref, user)
+    if not c or c['status'] != 'open':
+        return 'not_found'
+    if user['role'] not in ('hr', 'admin'):
+        return 'forbidden'
+    reason = (reason or '').strip()
+    if len(reason) < 10:
+        return 'reason_required'
+    conn = db.connect()
+    conn.execute('BEGIN IMMEDIATE')
+    conn.execute("UPDATE lifecycle_cases SET status='cancelled', closed_at=datetime('now') WHERE ref=?", (ref,))
+    ledger.append(conn, 'hub', user['username'], 'LEAVER_CANCEL', f'{ref}: {reason[:200]}')
+    conn.commit(); conn.close()
+    return 'ok'
+
+
 # ── Active Directory (on-premise) ───────────────────────────────────────────
 def _need(user, ref, roles):
     c = get(ref, user)

@@ -168,3 +168,16 @@ def test_api_bearer_token(app, monkeypatch):
     r = c.get('/api/v1/summary', headers={'Authorization': 'Bearer ' + 't' * 40})
     assert r.status_code == 200 and 'score' in r.json
     assert c.get('/api/v1/summary', headers={'Authorization': 'Bearer wrong'}).status_code == 401
+
+
+def test_admin_can_reset_a_users_mfa(app, admin):
+    auth.create_user('lostphone', PW, 'it_manager', must_change=False)
+    conn = db.connect()
+    conn.execute("UPDATE users SET mfa_enabled=1, totp_secret='ABCDEFGHIJKLMNOP' WHERE username='lostphone'")
+    uid = conn.execute("SELECT id FROM users WHERE username='lostphone'").fetchone()[0]; conn.commit(); conn.close()
+    admin.post('/users', data={'act': 'reset_mfa', 'uid': uid, 'csrf_token': csrf(admin)})
+    conn = db.connect(); row = conn.execute("SELECT mfa_enabled, totp_secret FROM users WHERE username='lostphone'").fetchone(); conn.close()
+    assert row['mfa_enabled'] == 0 and row['totp_secret'] is None
+    assert any(r['action'] == 'USER_MFA_RESET' for r in ledger.recent(20))
+    viewer = _login(app, 'viewer1')[0]                       # a non-admin cannot do it
+    assert viewer.post('/users', data={'act': 'reset_mfa', 'uid': uid, 'csrf_token': csrf(viewer)}).status_code in (403, 302)

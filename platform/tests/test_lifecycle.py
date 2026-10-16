@@ -100,3 +100,19 @@ def test_joiners_view(app, itam):
     j = [x for x in connectors.joiners() if x['name'] == 'New Starter'][0]
     assert j['training'] == 'not_enrolled' and j['late']
     assert controls.evaluate()[0][[x['id'] for x in controls.evaluate()[0]].index('AC-15')]['status'] == 'fail'
+
+
+def test_withdraw_case_hr_only_with_reason_and_sealed(app):
+    from hub import ledger
+    mgr = mk(app, 'mgr_wd', 'line_manager')
+    hr = mk(app, 'hr_wd', 'hr')
+    ref = start(mgr, 'Wrong Person').headers['Location'].rsplit('/', 1)[1]
+    assert 'Only HR' in mgr.post(f'/lifecycle/{ref}/cancel', data={'reason': 'raised in error by me', 'csrf_token': csrf(mgr)}, follow_redirects=True).get_data(as_text=True)
+    assert 'at least 10' in hr.post(f'/lifecycle/{ref}/cancel', data={'reason': 'oops', 'csrf_token': csrf(hr)}, follow_redirects=True).get_data(as_text=True)
+    assert 'withdrawn' in hr.post(f'/lifecycle/{ref}/cancel', data={'reason': 'Raised for the wrong employee', 'csrf_token': csrf(hr)}, follow_redirects=True).get_data(as_text=True).lower()
+    assert lifecycle.get(ref)['status'] == 'cancelled'
+    assert any(r['action'] == 'LEAVER_CANCEL' and ref in r['detail'] for r in ledger.recent(30))
+    assert hr.post(f'/lifecycle/{ref}/cancel', data={'reason': 'Raised for the wrong employee', 'csrf_token': csrf(hr)}).status_code == 404   # no longer open
+    # a withdrawn case must not count as an at-risk leaver
+    by = {i['id']: i for i in controls.evaluate()[0]}
+    assert ref not in by['AC-16']['evidence']

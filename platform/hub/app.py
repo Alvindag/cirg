@@ -460,6 +460,17 @@ def create_app():
         flash('Identity confirmed.' if ok else 'Name and employee ID are required.', 'success' if ok else 'danger')
         return redirect(url_for('identity_review'))
 
+    @app.post('/lifecycle/<ref>/cancel')
+    @need('lifecycle')
+    def leaver_cancel(ref):
+        r = lifecycle.cancel_case(g.user, ref, request.form.get('reason', ''))
+        if r == 'not_found':
+            abort(404)
+        msg = {'ok': ('Case withdrawn.', 'success'), 'forbidden': ('Only HR or an administrator can withdraw a case.', 'danger'),
+               'reason_required': ('Give a reason of at least 10 characters.', 'danger')}[r]
+        flash(*msg)
+        return redirect(url_for('leaver_case', ref=ref) if r != 'ok' else url_for('lifecycle_home'))
+
     @app.post('/lifecycle/<ref>/close')
     @need('lifecycle')
     def leaver_close(ref):
@@ -502,6 +513,11 @@ def create_app():
                     else:
                         conn.execute('UPDATE users SET is_active=? WHERE id=?', (1 if act == 'enable' else 0, uid))
                     conn.commit(); audit('USER_' + act.upper(), f'id={uid}')
+            elif act == 'reset_mfa':
+                uid = int(request.form.get('uid', 0))
+                conn.execute('UPDATE users SET mfa_enabled=0, totp_secret=NULL WHERE id=?', (uid,))
+                conn.commit(); audit('USER_MFA_RESET', f'id={uid}')
+                flash('MFA reset. The user can set it up again from their Account page.', 'success')
             elif act == 'role':
                 uid, role = int(request.form.get('uid', 0)), request.form.get('role')
                 if role in auth.ROLES and not (uid == g.user['id'] and role != 'admin'):

@@ -39,7 +39,7 @@ Controls: **AC-15** (joiners enrolled within 7 days) and **AC-16** (leavers: ass
 Hub is the front door and read-only integrator. ITAM and CyberShield keep their own databases and logins; the Hub reaches them by a signed SSO ticket and read-only SQL. Shared identity is by Hub username with role mapping; people are matched by normalised name (ITAM has no employee-ID join key). **Recommended next step:** add `employee_id` to ITAM assets and onboarding so matching is exact.
 
 ## What is automated vs what needs people
-Automated controls (14) are computed from live data. Manual controls (12) need an owner and evidence: incident response plan (link your CIRG reports), risk register, backup restore test, data-protection registration and breach notification, disposal records, patching, management review. They score **zero until attested**, by design.
+Automated controls (17) are computed from live data. Manual controls (12) need an owner and evidence: incident response plan (link your CIRG reports), risk register, backup restore test, data-protection registration and breach notification, disposal records, patching, management review. They score **zero until attested**, by design.
 
 ## Before go-live
 1. Change all default passwords; rotate the SMTP password and any key that was in the shared `.env`.

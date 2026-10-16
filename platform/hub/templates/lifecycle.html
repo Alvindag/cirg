@@ -4,7 +4,7 @@
 <h2>Offboarding · Leavers</h2><div class="card"><table><thead><tr><th>Case</th><th>Person</th><th>Last day</th><th>Progress</th><th>Status</th></tr></thead><tbody>
 {% for c in cases %}<tr><td><a href="{{ url_for('leaver_case', ref=c.ref) }}"><b>{{ c.ref }}</b></a></td><td>{{ c.person_name }}<div class="note">{{ c.department }}</div></td><td>{{ c.last_day }}</td>
 <td>{{ c.steps|length - c.open_steps }}/{{ c.steps|length }}{% if c.overdue_steps %} · <span style="color:var(--bad)">{{ c.overdue_steps }} overdue</span>{% endif %}</td>
-<td>{% if c.status=='closed' %}{{ pill('pass') }} Closed{% elif c.at_risk %}<span class="pill fail">At risk</span>{% else %}<span class="pill in_progress">Open</span>{% endif %}</td></tr>
+<td>{% if c.status=='closed' %}{{ pill('pass') }} Closed{% elif c.status=='cancelled' %}<span class="pill na">Withdrawn</span>{% elif c.at_risk %}<span class="pill fail">At risk</span>{% else %}<span class="pill in_progress">Open</span>{% endif %}</td></tr>
 {% else %}<tr><td colspan="5">No leaver cases{% if not can('lifecycle_all') %} raised by you{% endif %}.</td></tr>{% endfor %}</tbody></table></div>
 {% if can('lifecycle_all') %}<div class="row" style="margin-top:18px"><h2 style="margin:0">Onboarding · Joiners (from ITAM)</h2>
 {% if can('integrate') %}<form class="right row" method="post" action="{{ url_for('lifecycle_integrate') }}"><input type="hidden" name="csrf_token" value="{{ csrf_token }}"><button class="btn sec sm" name="preview" value="1">Preview (no changes)</button><button class="btn sec sm">Run now</button></form>{% endif %}</div>
