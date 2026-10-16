@@ -48,3 +48,4 @@ platform/itam/uploads/*
 !platform/itam/uploads/.gitkeep
 platform/**/*.db
 platform/**/.secret_key
+DAS-Trust-Hub.zip
