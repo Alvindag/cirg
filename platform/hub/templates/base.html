@@ -1,7 +1,9 @@
 <!doctype html>
 <html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <title>{% block title %}DAS Trust Hub{% endblock %}</title>
+<meta name="color-scheme" content="dark">
 <link rel="stylesheet" href="{{ url_for('static', filename='hub.css') }}"></head><body>
+<div class="mesh" aria-hidden="true"><i></i><i></i><i></i></div>
 {% if me %}
 <header class="top"><div class="bar">
   <a class="brand" href="{{ url_for('dashboard') }}">DAS <b>Trust Hub</b></a>

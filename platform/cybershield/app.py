@@ -790,12 +790,12 @@ def admin_required(f):
 LOGIN_PAGE_HTML = """<!DOCTYPE html><html><head><title>CyberShield Admin Login</title>
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <style>
-body{font-family:Arial,sans-serif;background:#0d1117;display:flex;align-items:center;justify-content:center;min-height:100vh;margin:0}
-.box{background:#161b22;border:1px solid #30363d;border-radius:12px;padding:2.5rem;width:340px}
-h2{color:#e6a817;margin:0 0 1.5rem;font-size:1.2rem;letter-spacing:2px}
-label{color:#8b949e;font-size:13px;display:block;margin-bottom:4px}
-input{width:100%;padding:8px 10px;background:#0d1117;border:1px solid #30363d;border-radius:6px;color:#e6edf3;font-size:14px;box-sizing:border-box;margin-bottom:1rem}
-button{width:100%;padding:10px;background:#e6a817;border:none;border-radius:6px;font-weight:bold;font-size:14px;cursor:pointer;color:#0d1117}
+body{font-family:system-ui,-apple-system,'Segoe UI',sans-serif;background:radial-gradient(60% 50% at 20% 10%,rgba(79,70,229,.25),transparent),radial-gradient(50% 40% at 90% 90%,rgba(45,212,191,.15),transparent),#09090b;display:flex;align-items:center;justify-content:center;min-height:100vh;margin:0}
+.box{background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.12);border-radius:16px;backdrop-filter:blur(12px);padding:2.5rem;width:340px}
+h2{color:#c7d2fe;margin:0 0 1.5rem;font-size:1.2rem;letter-spacing:2px}
+label{color:#d4d4d8;font-size:13px;display:block;margin-bottom:4px}
+input{width:100%;padding:8px 10px;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.14);border-radius:10px;color:#e6edf3;font-size:14px;box-sizing:border-box;margin-bottom:1rem}
+button{width:100%;padding:10px;background:#6366f1;border:none;border-radius:6px;font-weight:bold;font-size:14px;cursor:pointer;color:#fff}
 .err{color:#f85149;font-size:13px;margin-bottom:1rem;background:#2d0e0e;padding:8px 10px;border-radius:6px;border-left:3px solid #f85149}
 .brand{color:#e6edf3;font-size:11px;text-align:center;margin-top:1.5rem;opacity:.5}
 </style></head><body><div class="box">
@@ -812,15 +812,15 @@ button{width:100%;padding:10px;background:#e6a817;border:none;border-radius:6px;
 CHANGE_PAGE_HTML = """<!DOCTYPE html><html><head><title>Change Password</title>
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <style>
-body{font-family:Arial,sans-serif;background:#0d1117;display:flex;align-items:center;justify-content:center;min-height:100vh;margin:0}
-.box{background:#161b22;border:1px solid #30363d;border-radius:12px;padding:2.5rem;width:380px}
-h2{color:#e6a817;margin:0 0 0.5rem;font-size:1.1rem;letter-spacing:1px}
-p{color:#8b949e;font-size:13px;margin:0 0 1.5rem}
-label{color:#8b949e;font-size:13px;display:block;margin-bottom:4px}
-input{width:100%;padding:8px 10px;background:#0d1117;border:1px solid #30363d;border-radius:6px;color:#e6edf3;font-size:14px;box-sizing:border-box;margin-bottom:1rem}
-button{width:100%;padding:10px;background:#e6a817;border:none;border-radius:6px;font-weight:bold;font-size:14px;cursor:pointer;color:#0d1117}
+body{font-family:system-ui,-apple-system,'Segoe UI',sans-serif;background:radial-gradient(60% 50% at 20% 10%,rgba(79,70,229,.25),transparent),radial-gradient(50% 40% at 90% 90%,rgba(45,212,191,.15),transparent),#09090b;display:flex;align-items:center;justify-content:center;min-height:100vh;margin:0}
+.box{background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.12);border-radius:16px;backdrop-filter:blur(12px);padding:2.5rem;width:380px}
+h2{color:#c7d2fe;margin:0 0 0.5rem;font-size:1.1rem;letter-spacing:1px}
+p{color:#d4d4d8;font-size:13px;margin:0 0 1.5rem}
+label{color:#d4d4d8;font-size:13px;display:block;margin-bottom:4px}
+input{width:100%;padding:8px 10px;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.14);border-radius:10px;color:#e6edf3;font-size:14px;box-sizing:border-box;margin-bottom:1rem}
+button{width:100%;padding:10px;background:#6366f1;border:none;border-radius:6px;font-weight:bold;font-size:14px;cursor:pointer;color:#fff}
 .err{color:#f85149;font-size:13px;margin-bottom:1rem;background:#2d0e0e;padding:8px 10px;border-radius:6px;border-left:3px solid #f85149}
-ul{color:#8b949e;font-size:12px;margin:0 0 1rem;padding-left:1.2rem}
+ul{color:#d4d4d8;font-size:12px;margin:0 0 1rem;padding-left:1.2rem}
 </style></head><body><div class="box">
 <h2>Set New Admin Password</h2>
 <p>Your default password must be changed before you can access the admin panel.</p>
