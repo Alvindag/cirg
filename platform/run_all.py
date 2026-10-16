@@ -23,6 +23,9 @@ if data:
     env.setdefault('CYBERSHIELD_DB_PATH', os.path.join(data, 'cybershield.db'))
     env.setdefault('HUB_DB_PATH', os.path.join(data, 'hub.db'))
 env.setdefault('SSO_SECRET', secrets.token_hex(32))     # shared by all three; regenerated each run
+env.setdefault('INTEGRATION_TOKEN', secrets.token_hex(32))  # joiner auto-enrolment + certificate sync
+env.setdefault('ITAM_INTERNAL_URL', 'http://127.0.0.1:5057')
+env.setdefault('CYBERSHIELD_INTERNAL_URL', 'http://127.0.0.1:5076')
 env.setdefault('HUB_AUTO_SYNC_SECONDS', '300')
 boot = ("import importlib.util,sys,os;p=sys.argv[1];s=importlib.util.spec_from_file_location('a',p);m=importlib.util.module_from_spec(s);"
         "sys.modules['a']=m;s.loader.exec_module(m);m.init_db() if hasattr(m,'init_db') else None;"

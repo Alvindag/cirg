@@ -8,7 +8,7 @@ cannot be inflated by leaving things unassessed.
 This is an evidence-based internal readiness assessment, not a certification or legal opinion.
 """
 from datetime import date, datetime
-from . import connectors, db, ledger
+from . import connectors, db, ledger, lifecycle
 
 FRAMEWORKS = {
     'iso27001': 'ISO/IEC 27001:2022 Annex A',
@@ -180,6 +180,32 @@ def c_privileged(ctx):
                 'Least privilege: keep administrator accounts to the minimum needed.', 'Reduce administrators; use it_manager/it_staff roles.')
 
 
+def c_joiners(ctx):
+    due = [j for j in ctx['joiners'] if j['days_since_start'] is not None and j['days_since_start'] > 7]
+    if not due:
+        return _res(NA, 'no joiners past 7 days', 'No new starters are due for training yet.', '')
+    late = [j for j in due if j['late']]
+    p = _pct(len(due) - len(late), len(due))
+    return _res(_band(p, 95, 80), f'{len(late)} of {len(due)} joiners not enrolled in security training within 7 days',
+                ('Not enrolled: ' + ', '.join(j['name'] for j in late[:5])) if late else 'Every joiner is enrolled in CyberShield.',
+                'Enrol each joiner in CyberShield on their first day.')
+
+
+def c_leavers(ctx):
+    cs = [c for c in ctx['leavers'] if c['status'] == 'open']
+    closed = [c for c in ctx['leavers'] if c['status'] == 'closed']
+    if not ctx['leavers']:
+        return _res(UNASSESSED, 'no leaver cases recorded', 'Either nobody has left, or leavers are not being run through the Hub.', 'Raise a leaver case for every departure.')
+    risky = [c for c in cs if c['at_risk']]
+    held = sum(len(c['assets_held'] or []) for c in cs if c['past_last_day'])
+    if risky:
+        return _res(FAIL, f'{len(risky)} leaver(s) past their last day with assets or steps outstanding ({held} assets)',
+                    'Leavers: ' + ', '.join(c['ref'] for c in risky[:5]), 'Recover assets and disable access immediately.')
+    late = sum(c['overdue_steps'] for c in cs)
+    return _res(PASS if not late else PARTIAL, f'{len(closed)} closed, {len(cs)} open; {late} overdue steps',
+                'Leaver cases track asset return and access removal to completion.', 'Clear overdue leaver steps.' if late else '')
+
+
 # ── Catalogue ───────────────────────────────────────────────────────────────
 # (id, title, weight, evaluator, mappings)
 AUTO = [
@@ -209,6 +235,10 @@ AUTO = [
      {'iso27001': ['A.5.17', 'A.8.5'], 'nist_csf': ['PR.AA-01'], 'cis': ['4.7', '5.2']}),
     ('AC-13', 'Dormant accounts are disabled', 2, c_dormant,
      {'iso27001': ['A.5.18'], 'nist_csf': ['PR.AA-05'], 'cis': ['5.3']}),
+    ('AC-15', 'New joiners are enrolled in security training promptly', 2, c_joiners,
+     {'iso27001': ['A.6.1', 'A.6.3'], 'nist_csf': ['PR.AT-01', 'GV.RR-04'], 'cis': ['14.1', '6.1']}),
+    ('AC-16', 'Leavers: assets returned and access removed on time', 3, c_leavers,
+     {'iso27001': ['A.6.5', 'A.5.11', 'A.5.18'], 'nist_csf': ['PR.AA-05', 'ID.AM-08'], 'cis': ['6.2', '5.3']}),
     ('AC-14', 'Administrator accounts are minimised (least privilege)', 1, c_privileged,
      {'iso27001': ['A.8.2'], 'nist_csf': ['PR.AA-05'], 'cis': ['5.4', '6.8']}),
 ]
@@ -271,6 +301,7 @@ def context():
     conn.close()
     return {'assets': connectors.asset_stats(), 'training': connectors.training_stats(),
             'people': connectors.people(), 'ledger': ledger.verify(), 'hub_users': hub_users,
+            'joiners': connectors.joiners(), 'leavers': lifecycle.cases(),
             'itam_hygiene': connectors.itam_account_hygiene(), 'cs_hygiene': connectors.cs_account_hygiene()}
 
 

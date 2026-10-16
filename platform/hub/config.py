@@ -28,5 +28,14 @@ def cybershield_url():
     return env('CYBERSHIELD_URL', 'http://localhost:5076')
 
 
+def itam_internal_url():
+    """URL the Hub server itself uses to reach ITAM (may differ from the browser-facing URL)."""
+    return env('ITAM_INTERNAL_URL') or itam_url()
+
+
+def cybershield_internal_url():
+    return env('CYBERSHIELD_INTERNAL_URL') or cybershield_url()
+
+
 # Training is treated as current for this many days after completion (annual refresher).
 TRAINING_VALID_DAYS = int(env('TRAINING_VALID_DAYS', '365'))

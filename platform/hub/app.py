@@ -10,7 +10,7 @@ from werkzeug.security import generate_password_hash
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from common import sso                       # noqa: E402
-from hub import auth, config, connectors, controls, db, ledger   # noqa: E402
+from hub import auth, config, connectors, controls, db, integration, ledger, lifecycle   # noqa: E402
 
 IDLE_SECONDS = 30 * 60
 
@@ -186,8 +186,10 @@ def create_app():
 
     # ── dashboard & joint views ─────────────────────────────────────────
     @app.get('/')
-    @need('view')
+    @need()
     def dashboard():
+        if not auth.can(g.user['role'], 'view'):
+            return redirect(url_for('lifecycle_home'))
         ctx = controls.context()
         items, summ = controls.evaluate(ctx)
         exposed = [p for p in ctx['people'] if p['exposed']]
@@ -327,6 +329,73 @@ def create_app():
         return Response(out.getvalue(), mimetype='text/csv',
                         headers={'Content-Disposition': f'attachment; filename=ledger-{date.today()}.csv'})
 
+    # ── joiners & leavers ───────────────────────────────────────────────
+    @app.get('/lifecycle')
+    @need('lifecycle')
+    def lifecycle_home():
+        mine = lifecycle.cases(g.user)
+        joiners = connectors.joiners() if auth.can(g.user['role'], 'lifecycle_all') else []
+        return render_template('lifecycle.html', cases=mine, joiners=joiners, automation=integration.enabled())
+
+    @app.post('/lifecycle/integrate')
+    @need('integrate')
+    def lifecycle_integrate():
+        if not integration.enabled():
+            flash('Automation is off: set the same INTEGRATION_TOKEN (32+ characters) for the Hub, ITAM and CyberShield.', 'warn')
+        else:
+            r = integration.run(g.user['username'])
+            flash(f"Auto-enrolled {r['enrolled']} joiner(s); synced {r['synced']} certificate(s) to ITAM"
+                  + (f"; {r['errors']} could not be reached." if r['errors'] else '.'), 'danger' if r['errors'] else 'success')
+        return redirect(url_for('lifecycle_home'))
+
+    @app.route('/lifecycle/new', methods=['GET', 'POST'])
+    @need('lifecycle_start')
+    def leaver_new():
+        conn = db.connect()
+        managers = [r['username'] for r in conn.execute("SELECT username FROM users WHERE is_active=1 AND role IN ('line_manager','hr','admin') ORDER BY username")]
+        conn.close()
+        if request.method == 'POST':
+            f = request.form
+            mgr = g.user['username'] if g.user['role'] == 'line_manager' else f.get('manager', '')
+            try:
+                ok = (f.get('person', '').strip() and f.get('reason') in lifecycle.REASONS and mgr in managers
+                      and datetime.strptime(f.get('last_day', ''), '%Y-%m-%d'))
+            except ValueError:
+                ok = False
+            if not ok:
+                flash('Name, last working day (YYYY-MM-DD), reason and manager are required.', 'danger')
+            else:
+                ref = lifecycle.create_case(g.user['username'], f['person'].strip(), f.get('employee_id', '').strip(),
+                                            f.get('department', '').strip(), f.get('job_title', '').strip(), mgr, f['last_day'], f['reason'])
+                flash(f'Leaver case {ref} opened.', 'success')
+                return redirect(url_for('leaver_case', ref=ref))
+        return render_template('leaver_new.html', managers=managers, reasons=lifecycle.REASONS, today=date.today().isoformat())
+
+    @app.get('/lifecycle/<ref>')
+    @need('lifecycle')
+    def leaver_case(ref):
+        c = lifecycle.get(ref, g.user)
+        if not c:
+            abort(404)                       # also hides cases the user may not see
+        return render_template('leaver_case.html', c=c, can_step=lambda s: lifecycle.can_complete(g.user, c, s))
+
+    @app.post('/lifecycle/<ref>/step/<int:sid>')
+    @need('lifecycle')
+    def leaver_step(ref, sid):
+        r = lifecycle.complete_step(g.user, ref, sid, request.form.get('note', ''))
+        if r == 'not_found':
+            abort(404)
+        flash('Step recorded and sealed in the audit ledger.' if r == 'ok' else 'You cannot complete that step.', 'success' if r == 'ok' else 'danger')
+        return redirect(url_for('leaver_case', ref=ref))
+
+    @app.post('/lifecycle/<ref>/close')
+    @need('lifecycle')
+    def leaver_close(ref):
+        r = lifecycle.close_case(g.user, ref)
+        msg = {'ok': ('Case closed.', 'success'), 'open_steps': ('Complete every step (assets must be back in ITAM) before closing.', 'danger')}.get(r, ('Only HR can close a case.', 'danger'))
+        flash(*msg)
+        return redirect(url_for('leaver_case', ref=ref))
+
     # ── users ───────────────────────────────────────────────────────────
     @app.route('/users', methods=['GET', 'POST'])
     @need('manage_users')
@@ -443,6 +512,7 @@ def _start_sync_thread(every):
             time.sleep(max(every, 30))
             try:
                 ledger.sync()
+                integration.run('auto-sync')
             except Exception as e:   # never let the loop die
                 print('auto-sync failed:', e, flush=True)
     threading.Thread(target=loop, daemon=True).start()

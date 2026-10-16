@@ -20,6 +20,19 @@ Scope: source review of `app.py` in each product plus the bundled databases. Thi
 | 12 | Separate, mutable audit logs; no integrity protection | Both | Medium | **Fixed** through the Hub ledger |
 | 13 | No link between "holds a laptop" and "completed security training" | Both | Gap | **Fixed**: AC-09 and the exposure view |
 
+## Joiner / leaver lifecycle
+| Stage | Behaviour |
+|---|---|
+| HR creates a joiner in ITAM | Hub auto-enrols them in CyberShield (5-day deadline, line-manager notice) |
+| Joiner takes the course | CyberShield resumes the pre-created record rather than duplicating it |
+| Joiner passes | Certificate number and score are written to the ITAM "security awareness briefing" checklist item |
+| HR or line manager opens a leaver case | Nine-step checklist with owners and due dates relative to the last working day |
+| Assets | Verified live from ITAM; the step completes only when ITAM shows nothing assigned |
+| Case closure | HR only, and only when every step is done |
+
+Controls: **AC-15** (joiners enrolled within 7 days) and **AC-16** (leavers: assets returned and access removed on time). Privacy: leaver cases hold name, department, last day and reason only; managers see only their own cases; unrelated cases return 404.
+**Not automated yet:** actually disabling the leaver's AD/Entra/M365 accounts (a manual IT step), and cancelling a leaver's open training.
+
 ## Integration design
 Hub is the front door and read-only integrator. ITAM and CyberShield keep their own databases and logins; the Hub reaches them by a signed SSO ticket and read-only SQL. Shared identity is by Hub username with role mapping; people are matched by normalised name (ITAM has no employee-ID join key). **Recommended next step:** add `employee_id` to ITAM assets and onboarding so matching is exact.
 

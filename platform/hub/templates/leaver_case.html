@@ -1,0 +1,11 @@
+{% extends 'base.html' %}{% from '_macros.html' import pill %}{% block title %}{{ c.ref }} · DAS Trust Hub{% endblock %}
+{% block body %}<p><a href="{{ url_for('lifecycle_home') }}">← Joiners &amp; leavers</a></p>
+<h1>{{ c.ref }} · {{ c.person_name }}</h1><p class="sub">{{ c.department }}{% if c.job_title %} · {{ c.job_title }}{% endif %} · last day <b>{{ c.last_day }}</b> · {{ c.reason }} · manager {{ c.manager_username }} · {{ 'Closed' if c.status=='closed' else 'Open' }}</p>
+{% if c.at_risk %}<div class="flash danger">Past the last day with {% if c.assets_held %}{{ c.assets_held|length }} asset(s) still assigned in ITAM{% else %}overdue steps{% endif %}. Recover assets and remove access now.</div>{% endif %}
+<div class="card"><table><thead><tr><th>#</th><th>Step</th><th>Owner</th><th>Due</th><th>Status</th></tr></thead><tbody>
+{% for s in c.steps %}<tr><td>{{ s.seq }}</td><td>{{ s.title }}{% if s.note %}<div class="note">{{ s.note }}</div>{% endif %}</td><td><span class="tag">{{ s.owner_role }}</span></td><td class="{{ 'bad' if s.overdue }}">{{ s.due_date }}</td>
+<td>{% if s.done %}{{ pill('pass') }} <span class="note">{{ s.done_by or 'verified' }} {{ (s.done_at or '')[:10] }}</span>
+{% elif s.auto_key %}<span class="pill in_progress">Waiting on ITAM</span>
+{% elif can_step(s) %}<form method="post" action="{{ url_for('leaver_step', ref=c.ref, sid=s.id) }}"><input type="hidden" name="csrf_token" value="{{ csrf_token }}"><input name="note" placeholder="Note (optional)" style="width:160px"> <button class="btn sm">Done</button></form>
+{% else %}<span class="note">{{ 'overdue' if s.overdue else 'pending' }}</span>{% endif %}</td></tr>{% endfor %}</tbody></table></div>
+{% if c.status == 'open' and me['role'] in ('hr','admin') %}<form method="post" action="{{ url_for('leaver_close', ref=c.ref) }}" style="margin-top:14px"><input type="hidden" name="csrf_token" value="{{ csrf_token }}"><button class="btn">Close case</button> <span class="note">Requires every step complete.</span></form>{% endif %}{% endblock %}

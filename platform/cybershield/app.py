@@ -41,7 +41,7 @@ def _get_csrf_token():
 
 app.jinja_env.globals['csrf_token'] = _get_csrf_token
 
-_CSRF_EXEMPT_ENDPOINTS = {'admin_login'}  # no session/token exists yet at login
+_CSRF_EXEMPT_ENDPOINTS = {'admin_login', 'hub_enrol'}  # hub_enrol authenticates with its own bearer token  # no session/token exists yet at login
 
 @app.before_request
 def _enforce_csrf():
@@ -191,6 +191,7 @@ def init_db():
         'ALTER TABLE trainees ADD COLUMN hr_email TEXT',
         'ALTER TABLE trainees ADD COLUMN expiry_notified INTEGER DEFAULT 0',
         'ALTER TABLE trainees ADD COLUMN must_change_pw INTEGER DEFAULT 0',
+        'ALTER TABLE trainees ADD COLUMN hub_enrolled INTEGER DEFAULT 0',
         'ALTER TABLE trainees ADD COLUMN warning_sent INTEGER DEFAULT 0',
         # Structured notification cadence (v3.1)
         'ALTER TABLE trainees ADD COLUMN assignment_notified INTEGER DEFAULT 0',
@@ -928,6 +929,45 @@ def sso_login():
     session['admin_user'] = 'hub:' + claims['sub']
     return redirect('/admin')
 
+def _integration_token_ok():
+    import hmac as _hmac
+    want = _os.environ.get('INTEGRATION_TOKEN', '')
+    hdr = request.headers.get('Authorization', '')
+    got = hdr[7:] if hdr.startswith('Bearer ') else ''
+    return len(want) >= 32 and _hmac.compare_digest(want, got)
+
+@app.route('/api/hub/enrol', methods=['POST'])
+def hub_enrol():
+    """Trust Hub auto-enrolment. Idempotent: returns the existing record if the person already has
+    an open, or still-valid completed, record for the track. Disabled unless INTEGRATION_TOKEN is set."""
+    if not _integration_token_ok():
+        return jsonify({'ok': False, 'error': 'unauthorised'}), 401
+    d = request.get_json(silent=True) or {}
+    name = str(d.get('name', '')).strip()[:120]
+    if not name:
+        return jsonify({'ok': False, 'error': 'name required'}), 400
+    track = d.get('track', 'onboarding')
+    if track not in ('onboarding', 'refresher', 'ethics'):
+        return jsonify({'ok': False, 'error': 'bad track'}), 400
+    emp_id = str(d.get('employee_id', '')).strip()[:40]
+    dept = str(d.get('department', '')).strip()[:80]
+    conn = get_db()
+    row = conn.execute("SELECT * FROM trainees WHERE track=? AND LOWER(name)=LOWER(?) ORDER BY id DESC LIMIT 1", (track, name)).fetchone()
+    if row:
+        fresh = (row['completed_at'] is None) or (datetime.now() - datetime.fromisoformat(row['completed_at'])).days <= 365
+        if fresh:
+            conn.close()
+            return jsonify({'ok': True, 'created': False, 'id': row['id'], 'completed': bool(row['completed_at'])})
+    started = datetime.now()
+    cur = conn.execute('''INSERT INTO trainees (name, employee_id, department, track, started_at, deadline_at,
+                          line_manager_email, hr_email, hub_enrolled) VALUES (?,?,?,?,?,?,?,?,1)''',
+                       (name, emp_id, dept, track, started.isoformat(), (started + timedelta(days=5)).isoformat(),
+                        get_manager_email(dept), GLOBAL_HR_EMAIL))
+    tid = cur.lastrowid
+    conn.commit(); conn.close()
+    threading.Thread(target=notify_assignment, args=(tid,), daemon=True).start()
+    return jsonify({'ok': True, 'created': True, 'id': tid, 'deadline': (started + timedelta(days=5)).isoformat()})
+
 @app.route('/admin/logout')
 def admin_logout():
     session.pop('admin_logged_in', None)
@@ -1005,6 +1045,18 @@ def start_training():
     # Auto-lookup manager from dept_managers table — no manual input needed
     lm_email = get_manager_email(dept)
     conn = get_db()
+    # A record pre-created by the Trust Hub (auto-enrolment) is resumed, not duplicated.
+    pre = conn.execute(
+        "SELECT * FROM trainees WHERE hub_enrolled=1 AND completed_at IS NULL AND track=? AND LOWER(name)=LOWER(?) ORDER BY id DESC LIMIT 1",
+        (track, name)).fetchone()
+    if pre:
+        conn.close()
+        session['trainee_id'], session['trainee_name'], session['track'] = pre['id'], pre['name'], track
+        if track == 'refresher':
+            return redirect(url_for('module', module_id='r1'))
+        if track == 'ethics':
+            return redirect(url_for('module', module_id='e1'))
+        return redirect(url_for('module', module_id='1'))
     cur  = conn.execute(
         '''INSERT INTO trainees
            (name, employee_id, department, track, started_at, deadline_at, line_manager_email, hr_email)

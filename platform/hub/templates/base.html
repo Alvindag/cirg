@@ -7,9 +7,10 @@
   <a class="brand" href="{{ url_for('dashboard') }}">DAS <b>Trust Hub</b></a>
   <nav>
     {% set ep = request.endpoint %}
-    <a href="{{ url_for('dashboard') }}" class="{{ 'on' if ep=='dashboard' }}">Overview</a>
+    {% if can('view') %}<a href="{{ url_for('dashboard') }}" class="{{ 'on' if ep=='dashboard' }}">Overview</a>
     <a href="{{ url_for('exposure') }}" class="{{ 'on' if ep=='exposure' }}">People &amp; assets</a>
-    <a href="{{ url_for('compliance') }}" class="{{ 'on' if ep in ('compliance','control') }}">Compliance</a>
+    <a href="{{ url_for('compliance') }}" class="{{ 'on' if ep in ('compliance','control') }}">Compliance</a>{% endif %}
+    {% if can('lifecycle') %}<a href="{{ url_for('lifecycle_home') }}" class="{{ 'on' if ep and ep.startswith(('lifecycle','leaver')) }}">Joiners &amp; leavers</a>{% endif %}
     {% if can('ledger') %}<a href="{{ url_for('ledger_view') }}" class="{{ 'on' if ep=='ledger_view' }}">Audit ledger</a>{% endif %}
     {% if can('manage_users') %}<a href="{{ url_for('users') }}" class="{{ 'on' if ep=='users' }}">Users</a>{% endif %}
     {% if can('launch') %}<a href="{{ url_for('launch', target='itam') }}">ITAM ↗</a><a href="{{ url_for('launch', target='cybershield') }}">CyberShield ↗</a>{% endif %}

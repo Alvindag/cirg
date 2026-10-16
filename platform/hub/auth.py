@@ -3,14 +3,15 @@ import base64, hashlib, hmac, secrets, struct, time
 from werkzeug.security import check_password_hash, generate_password_hash
 from . import db
 
-ROLES = ['admin', 'auditor', 'it_manager', 'it_staff', 'hr', 'readonly']
+ROLES = ['admin', 'auditor', 'it_manager', 'it_staff', 'hr', 'line_manager', 'readonly']
 PERMS = {
-    'admin':      {'view', 'launch', 'sync', 'attest', 'export', 'manage_users', 'ledger'},
-    'auditor':    {'view', 'launch', 'export', 'ledger'},
-    'it_manager': {'view', 'launch', 'sync', 'attest', 'export', 'ledger'},
-    'it_staff':   {'view', 'launch'},
-    'hr':         {'view', 'launch'},
-    'readonly':   {'view'},
+    'admin':        {'view', 'launch', 'sync', 'attest', 'export', 'manage_users', 'ledger', 'lifecycle', 'lifecycle_all', 'lifecycle_start', 'integrate'},
+    'auditor':      {'view', 'launch', 'export', 'ledger', 'lifecycle', 'lifecycle_all'},
+    'it_manager':   {'view', 'launch', 'sync', 'attest', 'export', 'ledger', 'lifecycle', 'lifecycle_all', 'integrate'},
+    'it_staff':     {'view', 'launch', 'lifecycle', 'lifecycle_all'},
+    'hr':           {'view', 'launch', 'lifecycle', 'lifecycle_all', 'lifecycle_start', 'integrate'},
+    'line_manager': {'lifecycle', 'lifecycle_start'},   # sees only the cases they raised
+    'readonly':     {'view'},
 }
 MAX_FAILS, LOCK_SECONDS = 5, 15 * 60
 COMMON = {'password', 'password123', 'admin123', 'welcome123', 'qwerty123456', 'letmein12345',

@@ -229,3 +229,61 @@ def people():
         p['asset_count'] = len(p['assets'])
     rows.sort(key=lambda p: (not p['exposed'], rank.get(p['training'], 9) * -1, p['name'].lower()))
     return rows
+
+
+def assets_held(name):
+    """Tags of assets ITAM currently shows as assigned to this person (name match)."""
+    key = norm_name(name)
+    c = itam()
+    if c is None or not key:
+        return None
+    held = [r['asset_tag'] for r in _rows(c, "SELECT asset_tag, assigned_to_name, assigned_to FROM assets WHERE status='Active — Assigned'")
+            if norm_name(r['assigned_to_name'] or r['assigned_to']) == key]
+    c.close()
+    return held
+
+
+def joiners():
+    """New starters from ITAM onboarding with their CyberShield training status."""
+    c = itam()
+    if c is None:
+        return []
+    rows = _rows(c, "SELECT onb_ref, full_name, department, job_title, start_date, status FROM onboarding ORDER BY start_date DESC")
+    c.close()
+    rank = {'completed': 0, 'in_progress': 1, 'expired': 2, 'overdue': 3}
+    train = {}
+    for r in training_records() or []:
+        k, st = norm_name(r['name']), training_status(r)
+        if k not in train or rank[st] < rank[train[k]]:
+            train[k] = st
+    out = []
+    for r in rows:
+        start = _parse(r['start_date'])
+        days = (datetime.now() - start).days if start else None
+        t = train.get(norm_name(r['full_name']), 'not_enrolled')
+        out.append({'ref': r['onb_ref'], 'name': r['full_name'], 'department': r['department'], 'title': r['job_title'],
+                    'start': r['start_date'], 'itam_status': r['status'], 'training': t, 'days_since_start': days,
+                    'late': t == 'not_enrolled' and days is not None and days > 7})
+    return out
+
+
+def onboarding_training_item_done(onb_ref):
+    """True if the ITAM onboarding checklist's security-awareness item is already Completed."""
+    c = itam()
+    if c is None:
+        return None
+    r = _rows(c, "SELECT k.status FROM onboarding_checklist k JOIN onboarding o ON o.id=k.onboarding_id "
+                 "WHERE o.onb_ref=? AND k.category='IT Security' AND k.item_name LIKE '%awareness briefing%' ORDER BY k.id LIMIT 1", (onb_ref,))
+    c.close()
+    return (r[0]['status'] == 'Completed') if r else None
+
+
+def completed_certificate(name):
+    """Most recent valid completed training record for a person: {'cert_ref','score'} or None."""
+    key = norm_name(name)
+    best = None
+    for r in training_records() or []:
+        if norm_name(r['name']) == key and training_status(r) == 'completed' and r.get('cert_ref'):
+            if best is None or (r['completed_at'] or '') > (best['completed_at'] or ''):
+                best = r
+    return {'cert_ref': best['cert_ref'], 'score': best['score']} if best else None

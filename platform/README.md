@@ -14,7 +14,8 @@ One platform over two existing systems, with **nothing in them removed or rework
 - **People × assets × training.** Joins ITAM custody with CyberShield results, so you can see who holds company devices without current security training (control AC-09). No system could answer this alone.
 - **Tamper-evident audit ledger.** ITAM's `audit_log`, CyberShield's `compliance_log` and the Hub's own events are sealed into a SHA-256 hash chain. Editing or deleting a row later, in the ledger or in either source database, is detected by *Verify*.
 - **Compliance engine.** 26 controls (14 computed from live data, 12 attested with evidence) mapped to ISO/IEC 27001:2022 Annex A, NIST CSF 2.0, CIS Controls v8 and Ghana Acts 843/1038. Unattested controls score zero; expired reviews downgrade. Printable report, CSV export, score history, remediation backlog ranked by impact.
-- **Read-only integration.** The Hub opens both application databases with SQLite `mode=ro`; it cannot alter source records.
+- **Joiners and leavers.** New starters in ITAM onboarding are **auto-enrolled in CyberShield**; when they pass and receive their certificate, the Hub **ticks the matching ITAM onboarding checklist item** (certificate number and score recorded). Leavers get a case with an HR, manager and IT checklist: asset return is **verified from ITAM and cannot be ticked by hand**, then account/mailbox/system access removal and device wipe. HR and line managers can start a case; a manager sees only the cases they raised; each step can only be completed by its owner role. Overdue leavers who still hold assets show as at-risk and fail control AC-16.
+- **Controlled integration.** The Hub reads both application databases read-only (SQLite `mode=ro`). The only writes into the apps are two token-protected, idempotent endpoints (`/api/hub/enrol` in CyberShield, `/api/hub/onboarding/training-complete` in ITAM), disabled unless `INTEGRATION_TOKEN` is set. Every automated action is sealed in the audit ledger.
 
 ## Run it on your LAN (Windows or Linux)
 
@@ -39,6 +40,6 @@ Production: `cp .env.example .env`, fill it in, `docker compose up -d --build`, 
 Operations: `python -m hub.cli sync | verify | score | create-user <name> <password> <role>`; set `HUB_AUTO_SYNC_SECONDS` to seal logs automatically; `GET /api/v1/summary` (bearer `HUB_API_TOKEN`) for monitoring.
 
 ## Tests
-`python -m pytest tests -q` runs 26 tests: regression of both original apps, SSO (replay, audience, tamper, role), MFA (RFC 6238 vector), lockout, CSRF, RBAC, open-redirect, CSV-injection, ledger tamper detection, scoring.
+`python -m pytest tests -q` runs 37 tests: regression of both original apps, SSO (replay, audience, tamper, role), MFA (RFC 6238 vector), lockout, CSRF, RBAC, open-redirect, CSV-injection, ledger tamper detection, scoring.
 
 See `docs/ASSESSMENT.md` for the gap assessment, what was fixed and what you must still do.

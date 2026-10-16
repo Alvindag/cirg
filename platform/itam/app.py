@@ -526,6 +526,35 @@ def _security_headers(resp):
     resp.headers.setdefault('Referrer-Policy', 'same-origin')
     return resp
 
+# ── Trust Hub integration: certificate sync (token-protected; disabled unless INTEGRATION_TOKEN is set) ──
+@app.route('/api/hub/onboarding/training-complete', methods=['POST'])
+def hub_training_complete():
+    import hmac
+    want = os.environ.get('INTEGRATION_TOKEN', '')
+    hdr = request.headers.get('Authorization', '')
+    if len(want) < 32 or not hdr.startswith('Bearer ') or not hmac.compare_digest(want, hdr[7:]):
+        return jsonify({'ok': False, 'error': 'unauthorised'}), 401
+    d = request.get_json(silent=True) or {}
+    ref = str(d.get('onb_ref', ''))[:40]
+    cert = str(d.get('cert_ref', ''))[:60]
+    db = get_db()
+    onb = db.execute("SELECT id FROM onboarding WHERE onb_ref=?", (ref,)).fetchone()
+    if not onb:
+        return jsonify({'ok': False, 'error': 'unknown onboarding'}), 404
+    item = db.execute("SELECT id, status FROM onboarding_checklist WHERE onboarding_id=? AND category='IT Security' "
+                      "AND item_name LIKE '%awareness briefing%' ORDER BY id LIMIT 1", (onb['id'],)).fetchone()
+    if not item:
+        return jsonify({'ok': False, 'error': 'checklist item not found'}), 404
+    if item['status'] == 'Completed':
+        return jsonify({'ok': True, 'changed': False})
+    db.execute("UPDATE onboarding_checklist SET status='Completed', completed_at=datetime('now'), "
+               "completed_by='CyberShield (via Trust Hub)', notes=? WHERE id=?",
+               (f"Security awareness training passed. Certificate {cert}, score {str(d.get('score', '?'))[:5]}%.", item['id']))
+    db.execute("INSERT INTO audit_log (username,action,detail,ip_address,success) VALUES (?,?,?,?,?)",
+               ('hub-integration', 'TRAINING_SYNC', f'{ref}: awareness briefing completed from certificate {cert}', request.remote_addr, 1))
+    db.commit()
+    return jsonify({'ok': True, 'changed': True})
+
 # ── Hub single sign-on (inactive unless SSO_SECRET is configured) ─────────────
 _SSO_ROLE_MAP = {'admin': 'admin', 'it_manager': 'it_manager', 'it_staff': 'it_staff',
                  'hr': 'hr', 'auditor': 'readonly', 'readonly': 'readonly'}
