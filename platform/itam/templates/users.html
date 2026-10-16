@@ -1,0 +1,53 @@
+{% extends 'base.html' %}
+{% from 'icons.html' import icon %}
+{% block title %}User Management{% endblock %}
+{% block topbar_title %}User Management{% endblock %}
+{% block topbar_sub %}Manage access roles for ITAM — DAS Plc{% endblock %}
+{% block content %}
+<div class="page-header">
+  <div><h1>User Management</h1><p>{{ users|length }} users registered</p></div>
+  <a href="{{ url_for('new_user') }}" class="btn btn-primary">{{ icon('plus', 15) }} Add User</a>
+</div>
+
+<!-- Role explanation -->
+<div class="card mb-2">
+  <div class="card-header"><span class="card-title">Role Permissions</span></div>
+  <div class="card-body" style="padding:12px 18px;">
+    <div style="display:grid;grid-template-columns:repeat(5,1fr);gap:12px;">
+      {% for role, perms in [
+        ('admin',      ['Read','Write','Assign','Repair','Delete','Manage Users','Bulk Upload','Onboarding']),
+        ('it_manager', ['Read','Write','Assign','Repair','Bulk Upload','Onboarding']),
+        ('it_staff',   ['Read','Write','Assign','Repair','Onboarding']),
+        ('hr',         ['Onboarding — full access','View People & Assets','No IT module access']),
+        ('readonly',   ['Read only — view all IT modules'])
+      ] %}
+      <div style="background:var(--card2);border:1px solid var(--border);border-radius:6px;padding:12px;">
+        <div class="fw-bold fs-sm mb-1"><span class="badge role-{{ role }}">{{ role | replace('_',' ') | title }}</span></div>
+        {% for p in perms %}<div class="fs-sm text-muted">✓ {{ p }}</div>{% endfor %}
+      </div>{% endfor %}
+    </div>
+  </div>
+</div>
+
+<div class="card"><div class="card-body" style="padding:0;"><div class="table-wrap"><table>
+  <thead><tr><th>Username</th><th>Full Name</th><th>Role</th><th>Department</th><th>Company</th><th>Last Login</th><th>Status</th><th></th></tr></thead>
+  <tbody>{% for u in users %}
+  <tr style="{% if not u.is_active %}opacity:0.5;{% endif %}">
+    <td class="mono fs-sm fw-bold">{{ u.username }}</td>
+    <td class="fw-bold">{{ u.full_name or '—' }}</td>
+    <td><span class="badge role-{{ u.role }}">{{ u.role | replace('_',' ') | title }}</span></td>
+    <td class="fs-sm text-muted">{{ u.department or '—' }}</td>
+    <td class="fs-sm text-muted">{{ (u.company or '—')[:25] }}</td>
+    <td class="fs-sm text-muted">{{ (u.last_login or 'Never')[:16] }}</td>
+    <td><span class="badge badge-{% if u.is_active %}active{% else %}retired{% endif %}">{% if u.is_active %}Active{% else %}Inactive{% endif %}</span></td>
+    <td>
+      {% if u.username != current_user.username %}
+      <form method="POST" action="{{ url_for('toggle_user', user_id=u.id) }}" style="display:inline;">
+        <button class="btn btn-xs {% if u.is_active %}btn-warn{% else %}btn-secondary{% endif %}" type="submit">
+          {% if u.is_active %}Deactivate{% else %}Activate{% endif %}
+        </button>
+      </form>{% endif %}
+    </td>
+  </tr>{% endfor %}</tbody>
+</table></div></div></div>
+{% endblock %}

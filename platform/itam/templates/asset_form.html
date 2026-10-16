@@ -1,0 +1,211 @@
+{% extends 'base.html' %}
+{% from 'icons.html' import icon %}
+{% block title %}{{ 'Edit' if asset else 'Register' }} Asset{% endblock %}
+{% block topbar_title %}{{ 'Edit Asset' if asset else 'Register New Asset' }}{% endblock %}
+{% block content %}
+<div class="page-header">
+  <div><h1>{{ 'Edit Asset' if asset else 'Register New Asset' }}</h1>
+  {% if asset %}<p>{{ asset.asset_tag }}</p>{% endif %}</div>
+  <a href="{{ url_for('assets') }}" class="btn btn-secondary">← Back</a>
+</div>
+
+{% if not asset %}
+<div class="alert alert-info">
+  ℹ  Fields marked <strong>*</strong> are required. Serial Number is checked for duplicates in real time as you type.
+</div>
+{% endif %}
+
+<div class="card"><div class="card-body">
+<form method="POST" id="assetForm" novalidate>
+  <div class="form-section"><div class="form-section-title">Asset Identity</div>
+  <div class="form-grid">
+    <div class="form-group">
+      <label>Asset Name *</label>
+      <input name="asset_name" id="asset_name"
+             value="{{ form.asset_name if form else '' }}"
+             required maxlength="120" placeholder="e.g. Dell Latitude 5540 — Finance">
+      <div class="field-error" id="err_name"></div>
+    </div>
+    <div class="form-group">
+      <label>Asset Type *</label>
+      <select name="asset_type" id="asset_type" required>
+        <option value="">— Select Type —</option>
+        {% for t in hw_types %}
+        <option {% if form and form.get('asset_type','')==t %}selected{% endif %}>{{ t }}</option>
+        {% endfor %}
+      </select>
+      <div class="field-error" id="err_type"></div>
+    </div>
+    <div class="form-group"><label>Brand / Manufacturer</label>
+      <input name="brand" value="{{ form.brand if form else '' }}" placeholder="e.g. Dell, HP, Cisco"></div>
+    <div class="form-group"><label>Model</label>
+      <input name="model" value="{{ form.model if form else '' }}" placeholder="e.g. Latitude 5540"></div>
+    <div class="form-group">
+      <label>Serial Number</label>
+      <input name="serial_number" id="serial_number"
+             value="{{ form.serial_number if form else '' }}"
+             placeholder="Device serial number"
+             oninput="checkSerial(this.value)">
+      <div class="dup-warn" id="dup_warn">
+        ⚠  Duplicate serial detected — this serial is already registered as <strong id="dup_tag"></strong> (<span id="dup_name"></span>). A new registration will be blocked.
+      </div>
+      <div class="field-error" id="err_serial"></div>
+    </div>
+    <div class="form-group"><label>Condition</label>
+      <select name="condition">
+        {% for c in conditions %}
+        <option {% if form and form.get('condition','')==c %}selected{% elif not form and c=='Good' %}selected{% endif %}>{{ c }}</option>
+        {% endfor %}
+      </select>
+    </div>
+  </div></div>
+
+  <div class="form-section"><div class="form-section-title">Location & Assignment</div>
+  <div class="form-grid">
+    <div class="form-group">
+      <label>Company *</label>
+      <select name="company" required>
+        <option value="">— Select Company —</option>
+        {% for c in companies %}
+        <option {% if form and form.get('company','')==c %}selected{% endif %}>{{ c }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    <div class="form-group">
+      <label>Site / Location *</label>
+      <select name="location" required>
+        <option value="">— Select Site —</option>
+        {% for l in locations %}
+        <option {% if form and form.get('location','')==l %}selected{% endif %}>{{ l }}</option>
+        {% endfor %}
+      </select>
+      <div class="fs-sm text-muted" style="margin-top:4px;">NIA=Head Office · TA-F1/F2=Factories · TAMALE/KUMASI/TAKRODI=Branches</div>
+    </div>
+    <div class="form-group">
+      <label>Department *</label>
+      <select name="department" required>
+        <option value="">— Select Department —</option>
+        {% for d in departments %}
+        <option {% if form and form.get('department','')==d %}selected{% endif %}>{{ d }}</option>
+        {% endfor %}
+      </select>
+    </div>
+  </div></div>
+
+  <div class="form-section"><div class="form-section-title">Procurement Details</div>
+  <div class="form-grid">
+    <div class="form-group"><label>Purchase Date</label>
+      <input type="date" name="purchase_date" id="purchase_date"
+             value="{{ form.purchase_date if form else '' }}"
+             onchange="validateDates()"></div>
+    <div class="form-group"><label>Purchase Cost (GHS)</label>
+      <input type="number" step="0.01" min="0" name="purchase_cost"
+             value="{{ form.purchase_cost if form else '' }}"
+             oninput="validateCost(this)">
+      <div class="field-error" id="err_cost"></div>
+    </div>
+    <div class="form-group"><label>Supplier</label>
+      <input name="supplier" value="{{ form.supplier if form else '' }}"></div>
+    <div class="form-group"><label>Warranty Expiry</label>
+      <input type="date" name="warranty_expiry" id="warranty_expiry"
+             value="{{ form.warranty_expiry if form else '' }}"
+             onchange="validateDates()">
+      <div class="field-error" id="err_warranty"></div>
+    </div>
+    <div class="form-group"><label>PO Number</label>
+      <input name="po_number" value="{{ form.po_number if form else '' }}"></div>
+    <div class="form-group"><label>Invoice Number</label>
+      <input name="invoice_number" value="{{ form.invoice_number if form else '' }}"></div>
+  </div></div>
+
+  <div class="form-group full mb-2"><label>Description</label>
+    <textarea name="description">{{ form.description if form else '' }}</textarea></div>
+  <div class="form-group full mb-2"><label>Notes</label>
+    <textarea name="notes">{{ form.notes if form else '' }}</textarea></div>
+
+  <div class="form-actions">
+    <button class="btn btn-primary" type="submit" id="submitBtn">
+      {{ icon('save', 15) }} {{ 'Save Changes' if asset else 'Register Asset' }}
+    </button>
+    <a href="{{ url_for('assets') }}" class="btn btn-secondary">Cancel</a>
+  </div>
+</form>
+</div></div>
+
+<script>
+// ── Serial duplicate check ────────────────────────────────────────────────
+let serialTimer;
+function checkSerial(val) {
+  clearTimeout(serialTimer);
+  if (!val || val.trim().length < 3) {
+    document.getElementById('dup_warn').classList.remove('show');
+    return;
+  }
+  serialTimer = setTimeout(() => {
+    const excludeId = '{{ asset.id if asset else "" }}';
+    fetch(`/api/check-serial?serial=${encodeURIComponent(val.trim())}&exclude_id=${excludeId}`)
+      .then(r => r.json())
+      .then(data => {
+        const warn = document.getElementById('dup_warn');
+        if (data.duplicate) {
+          document.getElementById('dup_tag').textContent  = data.asset_tag;
+          document.getElementById('dup_name').textContent = data.asset_name;
+          warn.classList.add('show');
+          document.getElementById('serial_number').classList.add('invalid');
+        } else {
+          warn.classList.remove('show');
+          document.getElementById('serial_number').classList.remove('invalid');
+          document.getElementById('serial_number').classList.add('valid');
+        }
+      });
+  }, 500);
+}
+
+// ── Date validation ───────────────────────────────────────────────────────
+function validateDates() {
+  const pd  = document.getElementById('purchase_date').value;
+  const we  = document.getElementById('warranty_expiry').value;
+  const err = document.getElementById('err_warranty');
+  if (pd && we && we < pd) {
+    err.textContent = 'Warranty expiry cannot be before purchase date.';
+    document.getElementById('warranty_expiry').classList.add('invalid');
+  } else {
+    err.textContent = '';
+    document.getElementById('warranty_expiry').classList.remove('invalid');
+  }
+}
+
+// ── Cost validation ───────────────────────────────────────────────────────
+function validateCost(el) {
+  const err = document.getElementById('err_cost');
+  const v   = parseFloat(el.value);
+  if (el.value && (isNaN(v) || v < 0)) {
+    err.textContent = 'Must be a positive number.';
+    el.classList.add('invalid');
+  } else if (v > 10000000) {
+    err.textContent = 'Value seems too high — please verify.';
+    el.classList.add('invalid');
+  } else {
+    err.textContent = '';
+    el.classList.remove('invalid');
+  }
+}
+
+// ── Form submit validation ────────────────────────────────────────────────
+document.getElementById('assetForm').addEventListener('submit', function(e) {
+  let valid = true;
+  const name  = document.getElementById('asset_name').value.trim();
+  const atype = document.getElementById('asset_type').value;
+  if (!name)  { document.getElementById('err_name').textContent  = 'Asset name is required.'; valid = false; }
+  else         { document.getElementById('err_name').textContent  = ''; }
+  if (!atype) { document.getElementById('err_type').textContent  = 'Asset type is required.'; valid = false; }
+  else         { document.getElementById('err_type').textContent  = ''; }
+  // Block if duplicate serial is showing
+  if (document.getElementById('dup_warn').classList.contains('show')) {
+    document.getElementById('err_serial').textContent = 'Resolve duplicate serial before saving.';
+    valid = false;
+  }
+  if (!valid) e.preventDefault();
+});
+</script>
+{% endblock %}

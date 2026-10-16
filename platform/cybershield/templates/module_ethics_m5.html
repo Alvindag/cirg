@@ -1,0 +1,149 @@
+{% extends "base_trainer.html" %}
+{% block content %}
+<div class="module-header">
+  <div class="module-tag">MODULE 5 OF 6 · BUSINESS ETHICS</div>
+  <div class="module-title"><span>Your Rights</span> & Responsibilities as a DAS Employee</div>
+  <div class="module-desc">Understand what DAS Plc commits to you as an employee — and what you owe to your colleagues and the organisation in return.</div>
+</div>
+
+<div class="slide-container">
+
+  <!-- Slide 1 -->
+  <div class="slide active" id="slide-1">
+    <div class="info-card">
+      <h3>⚖️ Labour Act 651 — Your Rights at DAS Plc</h3>
+      <p>DAS Plc is committed to full compliance with <strong>Ghana's Labour Act 651</strong>. This means:</p>
+    </div>
+    <div class="info-card" style="border-color:var(--teal)">
+      <table class="data-table">
+        <tbody>
+          <tr><td>✔</td><td>Your employment contract reflects your correct terms and conditions</td></tr>
+          <tr><td>✔</td><td>You are entitled to fair pay and agreed benefits</td></tr>
+          <tr><td>✔</td><td>You are entitled to annual leave, maternity/paternity provisions, and sick leave as stipulated in Labour Act 651</td></tr>
+          <tr><td>✔</td><td>You cannot be dismissed without due process</td></tr>
+          <tr><td>✔</td><td>You have the right to join a lawful trade union</td></tr>
+        </tbody>
+      </table>
+      <p style="margin-top:12px;font-size:13px;color:var(--text2)">If you believe your rights under Labour Act 651 are being violated, raise it with the Head of Human Resources or the confidential hotline.</p>
+    </div>
+  </div>
+
+  <!-- Slide 2 -->
+  <div class="slide" id="slide-2">
+    <div class="info-card">
+      <h3>🚫 Harassment — Zero Tolerance</h3>
+      <p>Harassment includes any <strong>unwanted behaviour</strong> that a person finds intimidating, upsetting, embarrassing, humiliating, or offensive. This includes racial, sexual, and any other form of harassment.</p>
+    </div>
+    <div class="info-card" style="border-color:var(--red)">
+      <h3 style="color:var(--red)">⚠ DAS Plc's Position</h3>
+      <p>Harassment — in any form — is <strong>unacceptable and will not be countenanced under any circumstances</strong>.</p>
+      <ul>
+        <li>If you experience harassment, raise it with the <strong>Head of Human Resources</strong> who will arrange an impartial investigation without delay</li>
+        <li>If you witness harassment, you are expected to <strong>report it</strong></li>
+        <li>Any <strong>threat</strong> of harassment should also be reported — you do not have to wait for an incident to occur</li>
+      </ul>
+    </div>
+    <div class="info-card" style="border-color:var(--teal)">
+      <h3 style="color:var(--teal)">🛡 Protection Against Retaliation</h3>
+      <p>DAS Plc will protect employees who raise genuine concerns about harassment. Retaliation against anyone who reports harassment is itself a disciplinary offence.</p>
+    </div>
+  </div>
+
+  <!-- Slide 3 -->
+  <div class="slide" id="slide-3">
+    <div class="info-card">
+      <h3>🌍 Equal Opportunity at DAS Plc</h3>
+      <p>DAS Plc values all employees for their contribution. Advancement within DAS Plc will be based <strong>solely</strong> on:</p>
+      <ul>
+        <li><strong>Performance</strong> — what you deliver</li>
+        <li><strong>Ability</strong> — what you are capable of</li>
+        <li><strong>Aptitude</strong> — your potential to grow</li>
+      </ul>
+      <p style="margin-top:12px">Decisions will <strong>never</strong> be influenced by gender, ethnicity, religion, disability, age, nationality, or any other characteristic unrelated to the job.</p>
+    </div>
+    <div class="info-card" style="border-color:var(--amber)">
+      <h3 style="color:var(--amber)">📌 Health & Safety</h3>
+      <p>DAS Plc places the <strong>highest priority</strong> on protecting health and safety — particularly for employees working in high-risk production environments at DAS Plc.</p>
+      <ul>
+        <li>Risks are continuously evaluated, mitigated, and managed</li>
+        <li>Safety procedures must be <strong>followed without exception</strong></li>
+        <li>Leaders must model the highest safety standards</li>
+        <li>Health and safety is the <strong>first consideration</strong> in everything DAS Plc does</li>
+      </ul>
+      <p style="margin-top:10px;font-size:13px;color:var(--text2)">Report any unsafe condition to your supervisor or Health & Safety officer immediately.</p>
+    </div>
+  </div>
+
+  <!-- Slide 4 — Corporate Citizenship -->
+  <div class="slide" id="slide-4">
+    <div class="info-card">
+      <h3>🌱 DAS Plc as a Good Corporate Citizen</h3>
+      <p>DAS Plc operates in communities across Ghana. We take our responsibility to those communities seriously.</p>
+    </div>
+    <div class="info-card" style="border-color:var(--teal)">
+      <h3 style="color:var(--teal)">Environment</h3>
+      <ul>
+        <li>DAS Plc targets annual reductions in <strong>carbon intensity, waste, water use, vehicle emissions, and energy consumption</strong></li>
+        <li>Every employee has a role — avoid waste, follow waste disposal procedures, report environmental violations</li>
+      </ul>
+    </div>
+    <div class="info-card" style="border-color:var(--teal)">
+      <h3 style="color:var(--teal)">Community & CSR</h3>
+      <ul>
+        <li>DAS Plc supports charitable social initiatives through fund-raising, community project sponsorship, and voluntary work</li>
+        <li>Our operations are conducted with <strong>respect and consideration for local communities</strong></li>
+        <li>We minimise disturbance to communities surrounding our production sites</li>
+      </ul>
+    </div>
+    <div class="info-card" style="border-color:var(--amber)">
+      <h3 style="color:var(--amber)">Pre-Employment Screening</h3>
+      <p>DAS Plc applies rigorous pre-employment screening to protect its employees, customers, and the integrity of its pharmaceutical products. This is a requirement of the business — not optional.</p>
+    </div>
+  </div>
+
+</div>
+
+<div class="slide-nav">
+  <button class="btn-nav" id="btn-prev" onclick="prevSlide()" disabled>← Previous</button>
+  <div class="slide-dots" id="slide-dots"></div>
+  <button class="btn-nav" id="btn-next" onclick="nextSlide()">Next →</button>
+</div>
+<button class="btn-complete" id="btn-complete" style="display:none"
+  onclick="completeModule('e5', '/module/e6')">
+  Continue to Module 6 →
+</button>
+{% endblock %}
+{% block scripts %}
+<script>
+const TOTAL = 4; let cur = 1;
+function buildDots() {
+  const d = document.getElementById('slide-dots');
+  for (let i = 1; i <= TOTAL; i++) {
+    const dot = document.createElement('div');
+    dot.className = 'slide-dot' + (i === 1 ? ' active' : '');
+    dot.onclick = () => goSlide(i); d.appendChild(dot);
+  }
+}
+function goSlide(n) {
+  document.getElementById('slide-' + cur).classList.remove('active');
+  document.querySelectorAll('.slide-dot')[cur-1].classList.remove('active');
+  cur = n;
+  document.getElementById('slide-' + cur).classList.add('active');
+  document.querySelectorAll('.slide-dot')[cur-1].classList.add('active');
+  document.getElementById('btn-prev').disabled = cur === 1;
+  document.getElementById('btn-next').style.display = cur === TOTAL ? 'none' : '';
+  document.getElementById('btn-complete').style.display = cur === TOTAL ? 'block' : 'none';
+  const speech = {
+    1: "Labour Act 651 protects you. DAS Plc is committed to full compliance. Know your rights.",
+    2: "Harassment has zero tolerance at DAS Plc. If you experience it or see it, report it to HR. You will be protected.",
+    3: "Advancement at DAS Plc is based on performance, ability, and aptitude — nothing else. And safety is never optional.",
+    4: "We are part of the communities we operate in. Environmental responsibility and CSR are not optional extras — they are part of how we do business."
+  };
+  AlvinAvatar.speak(speech[cur] || '');
+}
+function nextSlide() { if (cur < TOTAL) goSlide(cur + 1); }
+function prevSlide() { if (cur > 1) goSlide(cur - 1); }
+buildDots();
+AlvinAvatar.speak("Labour Act 651 protects you. DAS Plc is committed to full compliance. Know your rights.");
+</script>
+{% endblock %}

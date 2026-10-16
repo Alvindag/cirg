@@ -1,0 +1,11 @@
+{% extends 'base.html' %}{% block title %}New leaver case · DAS Trust Hub{% endblock %}
+{% block body %}<p><a href="{{ url_for('lifecycle_home') }}">← Onboarding &amp; offboarding</a></p><h1>Start offboarding · leaver case</h1>
+<p class="sub">Creates the offboarding checklist: handover, HR clearance, asset return (verified from ITAM), account and access removal, device wipe. Keep notes factual and minimal.</p>
+<div class="card" style="max-width:640px"><form method="post"><input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+<label>Full name (as in ITAM)</label><input name="person" required><label>Employee ID (recommended: exact matching across ITAM, CyberShield and AD)</label><input name="employee_id">
+<label>AD username (sAMAccountName), if known</label><input name="ad_username" placeholder="e.g. ydarko">
+<label>Department</label><input name="department"><label>Job title</label><input name="job_title">
+<label>Last working day</label><input type="date" name="last_day" min="{{ today }}" required>
+<label>Reason</label><select name="reason">{% for r in reasons %}<option>{{ r }}</option>{% endfor %}</select>
+{% if me['role'] != 'line_manager' %}<label>Responsible line manager (Hub user)</label><select name="manager">{% for m in managers %}<option>{{ m }}</option>{% endfor %}</select>{% endif %}
+<p><button class="btn">Open case</button></p></form></div>{% endblock %}

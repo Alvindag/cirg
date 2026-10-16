@@ -1,0 +1,378 @@
+{% extends "base_trainer.html" %}
+{% block content %}
+<div class="module-header">
+  <div class="module-tag">MODULE 7 OF 7 · ONBOARDING</div>
+  <div class="module-title">Outlook Phishing <span>Reporting Drill</span></div>
+  <div class="module-desc">A focused, practical follow-up to Module 2: exactly how to identify, report, and react to phishing in Outlook — with a hands-on practice assessment.</div>
+</div>
+
+<div class="slide-container">
+
+  <!-- Slide 1: Why this matters -->
+  <div class="slide active" id="slide-1">
+    <div class="info-card">
+      <h3>🎯 Why a Dedicated Reporting Drill?</h3>
+      <p>You already learned to spot phishing in Module 2. This module drills the part most staff get wrong under pressure: <strong style="color:var(--amber)">knowing exactly which button to press, in the moment, without hesitating.</strong></p>
+      <p style="margin-top:12px">By the end of this module you will be able to:</p>
+      <ul>
+        <li>Run through a quick mental checklist to identify a phishing email in seconds</li>
+        <li>Find and use Outlook's built-in <strong>Report Message</strong> tool from memory — desktop or web</li>
+        <li>Follow the exact step-by-step sequence, every time, without missing a step</li>
+        <li>React correctly if you realise <em>after the fact</em> that you clicked something you shouldn't have</li>
+      </ul>
+      <p style="margin-top:12px">This module ends with a short <strong>practice assessment</strong> — not the final exam — that tests all three skills: <strong style="color:var(--teal)">Identify</strong>, <strong style="color:var(--teal)">Report</strong>, and <strong style="color:var(--teal)">React</strong>.</p>
+    </div>
+  </div>
+
+  <!-- Slide 2: How to identify — quick-check reference -->
+  <div class="slide" id="slide-2">
+    <div class="info-card">
+      <h3>🔎 How to Identify a Phishing Email — The 10-Second Check</h3>
+      <p style="margin-bottom:14px">Before you open, click, or reply to anything, run through this checklist. It takes 10 seconds and catches almost every phishing attempt.</p>
+    </div>
+    <div id="identify-checklist"></div>
+  </div>
+
+  <!-- Slide 3: How to report — Outlook visuals -->
+  <div class="slide" id="slide-3">
+    <div class="info-card">
+      <h3>📋 How to Report a Phishing Email in Outlook</h3>
+      <p>Outlook has a <strong>built-in Report tool</strong> — you never need to forward, save, or screenshot anything. Here is exactly where to find it.</p>
+    </div>
+
+    <div class="info-card" style="border-color:var(--teal)">
+      <h3 style="color:var(--teal)">🖥 Outlook Desktop — Home Ribbon</h3>
+      <p style="margin-bottom:10px">Select the email once (don't open it), then look at the <strong>Home</strong> tab of the ribbon at the top of the window:</p>
+      <div class="outlook-window">
+        <div class="outlook-titlebar"><span class="ol-badge">O</span> Inbox — Outlook</div>
+        <div class="outlook-ribbon">
+          <div class="ribbon-btn"><div class="ribbon-ico">🗑️</div>Delete</div>
+          <div class="ribbon-btn"><div class="ribbon-ico">📁</div>Archive</div>
+          <div class="ribbon-btn"><div class="ribbon-ico">↩️</div>Reply</div>
+          <div class="ribbon-btn highlight"><div class="ribbon-ico">🚩</div>Report</div>
+          <div class="ribbon-btn"><div class="ribbon-ico">📌</div>Move</div>
+        </div>
+        <div class="outlook-body">
+          <div class="ol-email-row"><span>⚠️ URGENT: Your M365 Account Will Be Suspended</span><span style="color:#8a6d1a;font-size:11px">selected</span></div>
+        </div>
+        <div class="outlook-caption">The <strong>Report</strong> button sits in the Home ribbon, usually near Delete/Archive. Some setups show it as <strong>"Report Message"</strong>.</div>
+      </div>
+    </div>
+
+    <div class="info-card" style="border-color:var(--teal)">
+      <h3 style="color:var(--teal)">🌐 Outlook Web App (OWA) — "…" More Actions</h3>
+      <p style="margin-bottom:10px">No ribbon in the browser version? Right-click the email, or use the <strong>"…"</strong> menu above the reading pane:</p>
+      <div class="ol-dropdown">
+        <div class="ol-dropdown-item">↩️ Reply</div>
+        <div class="ol-dropdown-item">➡️ Forward</div>
+        <div class="ol-dropdown-item selected">🚩 Report</div>
+        <div class="ol-dropdown-item">🗑️ Delete</div>
+      </div>
+    </div>
+
+    <div class="info-card" style="border-color:var(--amber)">
+      <h3 style="color:var(--amber)">📝 Then Choose "Phishing" — Not Just "Junk"</h3>
+      <p style="margin-bottom:10px">Clicking Report opens one more choice. This is the step people get wrong — <strong>Junk just hides it from you; Phishing alerts Microsoft and DAS Plc IT.</strong></p>
+      <div class="ol-dropdown">
+        <div class="ol-dropdown-item">📥 Junk</div>
+        <div class="ol-dropdown-item selected">🎣 Phishing</div>
+        <div class="ol-dropdown-item">✅ Not Junk</div>
+      </div>
+    </div>
+
+    <div class="info-card" style="border-color:var(--green)">
+      <h3 style="color:var(--green)">✅ Confirm the Report</h3>
+      <div class="ol-dialog">
+        <div class="ol-dialog-head">Report Phishing?</div>
+        <div class="ol-dialog-body">This message will be reported to Microsoft and removed from your inbox. Reporting phishing helps protect everyone at DAS Plc.</div>
+        <div class="ol-dialog-actions">
+          <span class="ol-btn secondary">Cancel</span>
+          <span class="ol-btn primary">Report</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Slide 4: Step-by-step visual -->
+  <div class="slide" id="slide-4">
+    <div class="info-card">
+      <h3>👣 What To Do — Step-by-Step</h3>
+      <p style="margin-bottom:6px">Memorise this sequence. It works the same way whether you're on desktop or web.</p>
+    </div>
+    <div class="info-card">
+      <div class="step-visual-row">
+        <div class="step-visual-icon">🛑<span class="step-visual-num">1</span></div>
+        <div class="step-visual-body">
+          <div class="step-visual-title">STOP — don't click anything inside it</div>
+          <div class="step-visual-text">No links, no attachments, no "unsubscribe". Just select the email in the list — do not open it if you can help it.</div>
+        </div>
+      </div>
+      <div class="step-visual-row">
+        <div class="step-visual-icon">🖱️<span class="step-visual-num">2</span></div>
+        <div class="step-visual-body">
+          <div class="step-visual-title">SELECT the email once</div>
+          <div class="step-visual-text">A single click in the message list is enough. You do not need to open it to report it.</div>
+        </div>
+      </div>
+      <div class="step-visual-row">
+        <div class="step-visual-icon">🚩<span class="step-visual-num">3</span></div>
+        <div class="step-visual-body">
+          <div class="step-visual-title">Click "Report" (ribbon) or "…" → Report (web)</div>
+          <div class="step-visual-text">Exactly where you saw on the previous screen. Same icon every time — train your eye to spot the little flag/megaphone icon.</div>
+        </div>
+      </div>
+      <div class="step-visual-row">
+        <div class="step-visual-icon">🎣<span class="step-visual-num">4</span></div>
+        <div class="step-visual-body">
+          <div class="step-visual-title">Choose "Phishing" — not "Junk"</div>
+          <div class="step-visual-text">Junk only filters your own inbox. Phishing notifies Microsoft's security team and flags it in DAS Plc's ISMS Phishing Intelligence log.</div>
+        </div>
+      </div>
+      <div class="step-visual-row">
+        <div class="step-visual-icon">✅<span class="step-visual-num">5</span></div>
+        <div class="step-visual-body">
+          <div class="step-visual-title">Confirm in the dialog box</div>
+          <div class="step-visual-text">Click "Report" to confirm. Outlook removes the email from your inbox automatically.</div>
+        </div>
+      </div>
+      <div class="step-visual-row">
+        <div class="step-visual-icon">📞<span class="step-visual-num">6</span></div>
+        <div class="step-visual-body">
+          <div class="step-visual-title">If it looked targeted at you specifically, also call IT — Ext. 204</div>
+          <div class="step-visual-text">Emails using your real name, job title, or referencing an actual DAS Plc system deserve a phone call too — it speeds up the investigation.</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Slide 5: Practice assessment -->
+  <div class="slide" id="slide-5">
+    <div class="info-card">
+      <h3>🧪 Practice Assessment — Identify, Report, React</h3>
+      <p>Three short challenges. This is a <strong>practice run</strong> — it doesn't count toward your certificate, but it will show you exactly where to focus before the final assessment.</p>
+    </div>
+    <div id="practice-container"></div>
+  </div>
+
+  <!-- Slide 6: Wrap-up -->
+  <div class="slide" id="slide-6">
+    <div class="result-card">
+      <div class="practice-score-pill" id="practice-score-pill">🎯 Practice score: —</div>
+      <h3 style="font-family:var(--font-head);font-size:26px;margin:16px 0 8px;color:var(--text)">Drill Complete</h3>
+      <p style="color:var(--text2);font-size:15px;max-width:520px;margin:0 auto 6px">
+        Identify. Select. Report → Phishing. Confirm. Call IT if it's targeted. That's the whole sequence —
+        the more you practise it, the faster it becomes automatic.
+      </p>
+      <p style="color:var(--text2);font-size:13px;margin-top:14px">Remember: <strong style="color:var(--amber)">IThelpdesk@dasplcgh.com</strong> · <strong style="color:var(--amber)">Ext. 204</strong></p>
+    </div>
+  </div>
+
+</div>
+
+<div class="nav-buttons">
+  <button class="btn-nav" id="btn-prev" onclick="prevSlide()" disabled>← BACK</button>
+  <span style="flex:1"></span>
+  <span style="font-size:14px;color:var(--text2);align-self:center" id="slide-counter">Slide 1 of 6</span>
+  <button class="btn-nav-primary" id="btn-next" onclick="nextSlide()">NEXT →</button>
+</div>
+
+{% endblock %}
+{% block scripts %}
+<script>
+let current = 1;
+const total = 6;
+
+const msgs = [
+  "This module drills exactly what to do the moment you spot phishing — no hesitation, no wrong buttons.",
+  "Run through this checklist in your head every time an email feels slightly off.",
+  "Same Report button, every time. Let's find it in both versions of Outlook.",
+  "Six steps, always in the same order. Let's lock this sequence into memory.",
+  "Now let's test it — Identify, Report, and React. Take your time.",
+  "Well done — you've completed the reporting drill!"
+];
+
+const IDENTIFY_ITEMS = [
+  {icon:'📛', text:'Sender domain — does it actually end in @dasplcgh.com?'},
+  {icon:'⏱️', text:'Urgency — "act now", "24 hours", "suspended"?'},
+  {icon:'👋', text:'Generic greeting — "Dear Employee" instead of your real name?'},
+  {icon:'🔗', text:'Hover the link — does the real URL match what\'s displayed?'},
+  {icon:'🔑', text:'Asking for your password or login — IT never does this by email?'},
+  {icon:'📎', text:'Unexpected attachment — especially .exe, .zip, .docm?'},
+  {icon:'🌙', text:'Sent at an unusual hour — 3am "IT" emails?'},
+  {icon:'🖼️', text:'Off-brand look — wrong logo, odd fonts, poor formatting?'},
+];
+
+function renderIdentifyChecklist() {
+  const c = document.getElementById('identify-checklist');
+  if (c.dataset.rendered) return;
+  c.dataset.rendered = '1';
+  c.innerHTML = '<div class="info-card">' + IDENTIFY_ITEMS.map((it,i) =>
+    `<div class="step-box" style="margin-bottom:${i===IDENTIFY_ITEMS.length-1?'0':'10px'}">
+       <div class="step-num">${it.icon}</div>
+       <div class="step-content"><div class="step-detail" style="font-size:16px;color:var(--text)">${it.text}</div></div>
+     </div>`
+  ).join('') + '</div><div style="background:rgba(0,196,232,0.06);border:1px solid rgba(0,196,232,0.25);border-radius:10px;padding:14px 16px;margin-top:14px;font-size:14px;color:var(--text2)">💡 <strong style="color:var(--teal)">Any ONE of these</strong> is a reason to stop and report. Real phishing emails usually trip 3 or more.</div>';
+}
+
+/* ══════ Practice assessment ══════ */
+let practiceScore = 0;
+let practiceStep = 0; // 0=identify, 1=report, 2=react, 3=done
+
+function renderPractice() {
+  const c = document.getElementById('practice-container');
+  if (c.dataset.rendered) return;
+  c.dataset.rendered = '1';
+  practiceStep = 0; practiceScore = 0;
+  renderPracticeIdentify();
+}
+
+function partHeader(label) {
+  return `<div class="practice-part-badge">PART ${label}</div>`;
+}
+
+function renderPracticeIdentify() {
+  const c = document.getElementById('practice-container');
+  c.innerHTML = `
+    <div class="info-card">
+      ${partHeader('1 OF 3 — IDENTIFY')}
+      <h3>Which of these is phishing?</h3>
+    </div>
+    <div class="email-client">
+      <div class="email-header-bar"><div class="email-app-name">⊞ DAS Plc — Outlook</div></div>
+      <div class="email-layout">
+        <div class="email-inbox-list">
+          <div class="email-item" onclick="practiceIdentifyChoice(this,false)"><div class="from">Business Central</div><div class="subject">PO-2026-0512 approved</div></div>
+          <div class="email-item" onclick="practiceIdentifyChoice(this,true)"><div class="from">HR Support Team</div><div class="subject">Action Required: Confirm Payroll Details Today</div></div>
+          <div class="email-item" onclick="practiceIdentifyChoice(this,false)"><div class="from">IT Governance</div><div class="subject">Reminder: Q3 policy acknowledgement</div></div>
+        </div>
+        <div class="email-pane" id="practice-email-pane"><p style="color:var(--text2);padding:10px 0">← Click an email</p></div>
+      </div>
+    </div>
+    <div class="consequence-box" id="practice-identify-result"></div>
+    <button class="btn-nav-primary" id="practice-identify-next" style="margin-top:14px;display:none" onclick="renderPracticeReport()">CONTINUE TO PART 2 →</button>
+  `;
+}
+
+function practiceIdentifyChoice(el, isPhish) {
+  document.getElementById('practice-email-pane').innerHTML = isPhish
+    ? `<div class="email-full-from">From: <span class="addr">hr-support@dasplc-payroll-verify.com</span></div>
+       <div class="email-full-subject">Action Required: Confirm Payroll Details Today</div>
+       <div class="email-full-body">Click below within 2 hours to confirm your bank details or your salary payment will be delayed.<br><a class="sms-link" href="#">🔴 CONFIRM PAYROLL DETAILS</a></div>`
+    : `<div class="email-full-from">From: <span class="addr">${el.querySelector('.from').textContent.toLowerCase().replace(/\s+/g,'.')}@dasplcgh.com</span></div>
+       <div class="email-full-subject">${el.querySelector('.subject').textContent}</div>
+       <div class="email-full-body">Routine internal notification. Nothing requested, no links to click.</div>`;
+  document.querySelectorAll('#practice-container .email-item').forEach(i => i.onclick = null);
+  const result = document.getElementById('practice-identify-result');
+  if (isPhish) {
+    practiceScore++;
+    result.className = 'consequence-box good show';
+    result.innerHTML = '✅ <strong>Correct.</strong> Domain "dasplc-payroll-verify.com" is not @dasplcgh.com, and it pressures you to act "today" — classic phishing.';
+    AlvinAvatar.react('correct');
+  } else {
+    result.className = 'consequence-box bad show';
+    result.innerHTML = '❌ <strong>Not quite.</strong> The phishing email was "Action Required: Confirm Payroll Details Today" — sent from a domain that only looks similar to dasplcgh.com.';
+    AlvinAvatar.react('wrong');
+  }
+  document.getElementById('practice-identify-next').style.display = 'inline-block';
+}
+
+function renderPracticeReport() {
+  const c = document.getElementById('practice-container');
+  c.innerHTML = `
+    <div class="info-card">
+      ${partHeader('2 OF 3 — REPORT')}
+      <h3>You've selected the phishing email. Which button reports it correctly?</h3>
+    </div>
+    <div class="outlook-window">
+      <div class="outlook-titlebar"><span class="ol-badge">O</span> Inbox — Outlook</div>
+      <div class="outlook-ribbon">
+        <div class="ribbon-btn" style="cursor:pointer" onclick="practiceReportChoice(this,false,'Delete just hides it from you — Microsoft and DAS Plc IT never find out, and other staff stay exposed.')"><div class="ribbon-ico">🗑️</div>Delete</div>
+        <div class="ribbon-btn" style="cursor:pointer" onclick="practiceReportChoice(this,false,'Replying can confirm to the attacker that your address is active — and does not report anything.')"><div class="ribbon-ico">↩️</div>Reply</div>
+        <div class="ribbon-btn" style="cursor:pointer" onclick="practiceReportChoice(this,true,'')"><div class="ribbon-ico">🚩</div>Report</div>
+        <div class="ribbon-btn" style="cursor:pointer" onclick="practiceReportChoice(this,false,'Archive just moves it out of sight — it is not reported to anyone.')"><div class="ribbon-ico">📁</div>Archive</div>
+      </div>
+      <div class="outlook-body"><div class="ol-email-row"><span>⚠️ Confirm Payroll Details Today</span><span style="color:#8a6d1a;font-size:11px">selected</span></div></div>
+    </div>
+    <div class="consequence-box" id="practice-report-result"></div>
+    <button class="btn-nav-primary" id="practice-report-next" style="margin-top:14px;display:none" onclick="renderPracticeReact()">CONTINUE TO PART 3 →</button>
+  `;
+}
+
+function practiceReportChoice(el, correct, why) {
+  document.querySelectorAll('#practice-container .ribbon-btn').forEach(b => b.onclick = null);
+  const result = document.getElementById('practice-report-result');
+  if (correct) {
+    el.classList.add('highlight');
+    practiceScore++;
+    result.className = 'consequence-box good show';
+    result.innerHTML = '✅ <strong>Correct.</strong> Report is the only action that notifies Microsoft and logs it in DAS Plc\'s Phishing Intelligence system — and the next screen lets you choose "Phishing" specifically.';
+    AlvinAvatar.react('correct');
+  } else {
+    result.className = 'consequence-box bad show';
+    result.innerHTML = `❌ <strong>Not the best choice.</strong> ${why} The correct button is <strong>Report</strong> → then choose "Phishing".`;
+    AlvinAvatar.react('wrong');
+  }
+  document.getElementById('practice-report-next').style.display = 'inline-block';
+}
+
+function renderPracticeReact() {
+  const c = document.getElementById('practice-container');
+  c.innerHTML = `
+    <div class="info-card">
+      ${partHeader('3 OF 3 — REACT')}
+      <h3>You clicked a link before realising it was phishing. It's been about 2 minutes. What do you do RIGHT NOW?</h3>
+    </div>
+    <div class="choice-grid">
+      <button class="choice-btn" onclick="practiceReactChoice(this,false)"><span class="choice-letter">A</span>Close the browser tab and carry on working</button>
+      <button class="choice-btn" onclick="practiceReactChoice(this,true)"><span class="choice-letter">B</span>Disconnect from the network (Wi-Fi/ethernet) and call IT on Ext. 204 immediately</button>
+      <button class="choice-btn" onclick="practiceReactChoice(this,false)"><span class="choice-letter">C</span>Message a colleague on WhatsApp to warn them first</button>
+      <button class="choice-btn" onclick="practiceReactChoice(this,false)"><span class="choice-letter">D</span>Change your password whenever you get a chance later today</button>
+    </div>
+    <div class="consequence-box" id="practice-react-result"></div>
+    <button class="btn-nav-primary" id="practice-react-next" style="margin-top:14px;display:none" onclick="finishPractice()">SEE MY PRACTICE RESULT →</button>
+  `;
+}
+
+function practiceReactChoice(btn, correct) {
+  document.querySelectorAll('#practice-container .choice-btn').forEach(b => b.disabled = true);
+  const result = document.getElementById('practice-react-result');
+  if (correct) {
+    btn.classList.add('correct');
+    practiceScore++;
+    result.className = 'consequence-box good show';
+    result.innerHTML = '✅ <strong>Correct.</strong> Disconnecting limits further damage immediately, and IT needs to know within minutes, not hours — speed matters more than anything else here.';
+    AlvinAvatar.react('celebrate');
+  } else {
+    btn.classList.add('wrong');
+    result.className = 'consequence-box bad show';
+    result.innerHTML = '❌ <strong>Too slow or too risky.</strong> The correct reaction is to disconnect from the network and call IT on Ext. 204 immediately — every minute matters once a link has been clicked.';
+    AlvinAvatar.react('wrong');
+  }
+  document.getElementById('practice-react-next').style.display = 'inline-block';
+}
+
+function finishPractice() {
+  practiceStep = 3;
+  document.getElementById('practice-score-pill').textContent = `🎯 Practice score: ${practiceScore} / 3`;
+  nextSlide();
+}
+
+function updateSlide() {
+  document.querySelectorAll('.slide').forEach((s,i) => s.classList.toggle('active', i+1===current));
+  document.getElementById('slide-counter').textContent = `Slide ${current} of ${total}`;
+  document.getElementById('btn-prev').disabled = current === 1;
+  document.getElementById('btn-next').textContent = current === total ? 'COMPLETE MODULE →' : 'NEXT →';
+  document.getElementById('btn-next').style.display = (current === 5) ? 'none' : 'inline-block';
+  AlvinAvatar.speak(msgs[current-1]||'', 'alvin-speech');
+  if (current === 2) renderIdentifyChecklist();
+  if (current === 5) renderPractice();
+}
+
+function nextSlide() {
+  if (current < total) { current++; updateSlide(); }
+  else { completeModule('m7', '/quiz'); }
+}
+function prevSlide() { if (current > 1) { current--; updateSlide(); } }
+updateSlide();
+</script>
+{% endblock %}

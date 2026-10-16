@@ -1,0 +1,38 @@
+{% macro status_badge(status) %}
+{% if status and 'Unassigned' not in status and 'Assigned' in status %}
+  <span class="badge badge-assigned">{{ status }}</span>
+{% elif status and 'Unassigned' in status %}
+  <span class="badge badge-unassigned">{{ status }}</span>
+{% elif status and 'Repair' in status %}
+  <span class="badge badge-repair">{{ status }}</span>
+{% elif status and 'Retired' in status %}
+  <span class="badge badge-retired">{{ status }}</span>
+{% elif status and 'Disposed' in status %}
+  <span class="badge badge-disposed">{{ status }}</span>
+{% elif status and ('Lost' in status or 'Stolen' in status) %}
+  <span class="badge badge-lost">{{ status }}</span>
+{% elif status and 'Storage' in status %}
+  <span class="badge badge-storage">{{ status }}</span>
+{% else %}
+  <span class="badge">{{ status or '—' }}</span>
+{% endif %}
+{% endmacro %}
+
+{% macro warranty_badge(asset) %}
+{% if asset.warranty_expiry %}
+  {% set d = days_until(asset.warranty_expiry) %}
+  {% if d is not none and d < 0 %}
+    <span class="warranty-expired">⚠ Expired ({{ d | abs }}d ago)</span>
+  {% elif d is not none and d <= 7 %}
+    <span class="warranty-expired">⚡ {{ d }}d left</span>
+  {% elif d is not none and d <= 30 %}
+    <span class="warranty-warn">⚡ {{ d }}d left</span>
+  {% elif d is not none %}
+    <span class="warranty-ok">✓ {{ d }}d left</span>
+  {% else %}
+    <span class="text-muted">{{ asset.warranty_expiry }}</span>
+  {% endif %}
+{% else %}
+  <span class="text-muted">—</span>
+{% endif %}
+{% endmacro %}

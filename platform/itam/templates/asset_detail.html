@@ -1,0 +1,171 @@
+{% extends 'base.html' %}
+{% from 'icons.html' import icon %}
+{% from 'macros.html' import status_badge, warranty_badge %}
+{% block title %}{{ asset.asset_tag }}{% endblock %}
+{% block topbar_title %}{{ asset.asset_name }}{% endblock %}
+{% block topbar_sub %}{{ asset.asset_tag }} · {{ asset.asset_type }} · {{ asset.company or 'DAS Plc' }}{% endblock %}
+{% block content %}
+<div class="page-header">
+  <div>
+    <h1>{{ asset.asset_name }}</h1>
+    <p>{{ asset.asset_tag }} · {{ asset.asset_type }}
+      {% if asset.brand %} · {{ asset.brand }} {{ asset.model }}{% endif %}
+    </p>
+  </div>
+  <div class="page-header-actions">
+    <a href="{{ url_for('asset_tag', asset_id=asset.id) }}" class="btn btn-secondary" target="_blank">{{ icon('tag', 15) }} Print Tag</a>
+    <a href="{{ url_for('edit_asset', asset_id=asset.id) }}" class="btn btn-secondary">{{ icon('pencil', 15) }} Edit</a>
+    <a href="{{ url_for('assets') }}" class="btn btn-secondary">← Back</a>
+  </div>
+</div>
+
+<div class="grid-2 mb-3">
+  <!-- Asset Details -->
+  <div class="card">
+    <div class="card-header">
+      <span class="card-title">Asset Details</span>
+      {{ status_badge(asset.status) }}
+    </div>
+    <div class="card-body">
+      <div class="detail-row"><span class="detail-label">Asset Tag</span><span class="detail-val mono text-accent fw-bold">{{ asset.asset_tag }}</span></div>
+      <div class="detail-row"><span class="detail-label">Type</span><span class="detail-val">{{ asset.asset_type }}</span></div>
+      <div class="detail-row"><span class="detail-label">Brand / Model</span><span class="detail-val">{{ asset.brand or '—' }} {{ asset.model or '' }}</span></div>
+      <div class="detail-row"><span class="detail-label">Serial Number</span><span class="detail-val mono">{{ asset.serial_number or '—' }}</span></div>
+      <div class="detail-row"><span class="detail-label">Condition</span><span class="detail-val"><span class="badge badge-{{ asset.condition|lower }}">{{ asset.condition }}</span></span></div>
+      <div class="detail-row"><span class="detail-label">Company</span><span class="detail-val">{{ asset.company or '—' }}</span></div>
+      <div class="detail-row"><span class="detail-label">Location</span><span class="detail-val">{{ asset.location or '—' }}</span></div>
+      <div class="detail-row"><span class="detail-label">Department</span><span class="detail-val">{{ asset.department or '—' }}</span></div>
+      <div class="detail-row"><span class="detail-label">Assigned To</span>
+        <span class="detail-val {% if asset.assigned_to_name %}text-accent fw-bold{% else %}text-muted{% endif %}">{{ asset.assigned_to_name or 'Unassigned' }}</span></div>
+      <div class="detail-row"><span class="detail-label">Warranty</span><span class="detail-val">{{ warranty_badge(asset) }}
+        {% if asset.warranty_expiry %} — {{ asset.warranty_expiry }}{% endif %}</span></div>
+      <div class="detail-row"><span class="detail-label">Registered</span><span class="detail-val fs-sm text-muted">{{ asset.created_at[:10] }} by {{ asset.created_by }}</span></div>
+      {% if asset.description %}<div class="detail-row"><span class="detail-label">Description</span><span class="detail-val fs-sm">{{ asset.description }}</span></div>{% endif %}
+      {% if asset.notes %}<div class="detail-row"><span class="detail-label">Notes</span><span class="detail-val fs-sm text-muted">{{ asset.notes }}</span></div>{% endif %}
+    </div>
+  </div>
+
+  <!-- Procurement + Actions -->
+  <div>
+    <div class="card mb-2">
+      <div class="card-header"><span class="card-title">Procurement</span></div>
+      <div class="card-body">
+        <div class="detail-row"><span class="detail-label">Purchase Date</span><span class="detail-val">{{ asset.purchase_date or '—' }}</span></div>
+        <div class="detail-row"><span class="detail-label">Purchase Cost</span><span class="detail-val">{% if asset.purchase_cost %}GHS {{ '%.2f'|format(asset.purchase_cost) }}{% else %}—{% endif %}</span></div>
+        <div class="detail-row"><span class="detail-label">Supplier</span><span class="detail-val">{{ asset.supplier or '—' }}</span></div>
+        <div class="detail-row"><span class="detail-label">PO Number</span><span class="detail-val mono fs-sm">{{ asset.po_number or '—' }}</span></div>
+        <div class="detail-row"><span class="detail-label">Invoice</span><span class="detail-val mono fs-sm">{{ asset.invoice_number or '—' }}</span></div>
+      </div>
+    </div>
+
+    <!-- ASSIGN / REASSIGN -->
+    {% if asset.status not in ['Under Repair','Retired','Disposed','Lost / Stolen'] %}
+    <div class="card mb-2">
+      <div class="card-header"><span class="card-title">{{ '🔄 Reassign' if asset.assigned_to else '👤 Assign Asset' }}</span></div>
+      <div class="card-body">
+        <form method="POST" action="{{ url_for('assign_asset', asset_id=asset.id) }}">
+          <div class="form-grid" style="grid-template-columns:1fr 1fr;">
+            <div class="form-group"><label>Username / Staff ID</label><input name="assigned_to" placeholder="e.g. jdoe" required></div>
+            <div class="form-group"><label>Full Name</label><input name="assigned_to_name" placeholder="e.g. John Doe" required></div>
+            <div class="form-group"><label>Employee ID (recommended)</label><input name="assigned_employee_id" placeholder="e.g. DASPH000586"></div>
+            <div class="form-group"><label>Location</label>
+              <select name="location">{% for l in ['NIA — HQ','TA-F1','TA-F2','TAMELE','KUMASI','TAKRODI','Off-Site / Remote'] %}<option {% if asset.location==l %}selected{% endif %}>{{ l }}</option>{% endfor %}</select></div>
+            <div class="form-group"><label>Department</label>
+              <select name="department">{% for d in ['Information Technology','Finance & Accounts','Human Resources','Production','Quality Assurance','Procurement','Sales & Marketing','Warehouse & Logistics','Administration','Executive Management'] %}<option {% if asset.department==d %}selected{% endif %}>{{ d }}</option>{% endfor %}</select></div>
+            <div class="form-group full"><label>Notes</label><input name="notes" placeholder="Reason for assignment / handover notes"></div>
+          </div>
+          <div class="form-actions" style="border:none;padding-top:10px;">
+            <button class="btn btn-primary" type="submit">{{ '🔄 Reassign' if asset.assigned_to else '✓ Assign' }}</button>
+          </div>
+        </form>
+        {% if asset.assigned_to %}
+        <form method="POST" action="{{ url_for('unassign_asset', asset_id=asset.id) }}" style="margin-top:8px;">
+          <input name="notes" placeholder="Reason for return to pool" style="margin-bottom:8px;">
+          <button class="btn btn-warn btn-sm" type="submit" onclick="return confirm('Return asset to unassigned pool?')">↩ Return to Pool</button>
+        </form>{% endif %}
+      </div>
+    </div>{% endif %}
+
+    <!-- STATUS UPDATE -->
+    <div class="card mb-2">
+      <div class="card-header"><span class="card-title">Update Status</span></div>
+      <div class="card-body">
+        <form method="POST" action="{{ url_for('update_status', asset_id=asset.id) }}">
+          <div class="form-grid" style="grid-template-columns:1fr;">
+            <div class="form-group"><label>New Status</label>
+              <select name="status">{% for s in ['Active — Assigned','Active — Unassigned','In Storage','Retired','Disposed','Lost / Stolen'] %}<option {% if asset.status==s %}selected{% endif %}>{{ s }}</option>{% endfor %}</select></div>
+            <div class="form-group"><label>Notes</label><input name="notes" placeholder="Reason for status change"></div>
+          </div>
+          <button class="btn btn-secondary btn-sm" type="submit" style="margin-top:8px;">Update Status</button>
+        </form>
+      </div>
+    </div>
+
+    <!-- LOG REPAIR -->
+    <div class="card">
+      <div class="card-header"><span class="card-title">{{ icon('wrench', 15) }} Log Repair</span></div>
+      <div class="card-body">
+        <form method="POST" action="{{ url_for('new_repair', asset_id=asset.id) }}">
+          <div class="form-grid" style="grid-template-columns:1fr 1fr;">
+            <div class="form-group full"><label>Fault Description *</label><textarea name="fault_description" style="min-height:60px;" required placeholder="Describe the fault…"></textarea></div>
+            <div class="form-group"><label>Repair Type</label><select name="repair_type"><option>Internal</option><option>External Vendor</option><option>Warranty Claim</option></select></div>
+            <div class="form-group"><label>Vendor / Technician</label><input name="vendor" placeholder="Repair centre name"></div>
+            <div class="form-group"><label>Vendor Contact</label><input name="vendor_contact"></div>
+            <div class="form-group"><label>Date Sent</label><input type="date" name="sent_date"></div>
+            <div class="form-group"><label>Expected Return</label><input type="date" name="expected_return"></div>
+            <div class="form-group"><label>Est. Cost (GHS)</label><input type="number" step="0.01" name="repair_cost"></div>
+            <div class="form-group"><label>Technician</label><input name="technician"></div>
+          </div>
+          <button class="btn btn-warn btn-sm" type="submit" style="margin-top:10px;">{{ icon('wrench', 15) }} Send for Repair</button>
+        </form>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Repair History -->
+{% if repairs %}
+<div class="card mb-3">
+  <div class="card-header"><span class="card-title">{{ icon('wrench', 15) }} Repair History ({{ repairs|length }})</span></div>
+  <div class="card-body" style="padding:0;"><div class="table-wrap"><table>
+    <thead><tr><th>Ref</th><th>Fault</th><th>Type</th><th>Vendor</th><th>Sent</th><th>Returned</th><th>Cost</th><th>Status</th><th>Outcome</th></tr></thead>
+    <tbody>{% for r in repairs %}
+    <tr>
+      <td class="mono fs-sm text-accent">{{ r.repair_ref }}</td>
+      <td class="fs-sm">{{ r.fault_description[:40] }}{% if r.fault_description|length>40 %}…{% endif %}</td>
+      <td class="fs-sm text-muted">{{ r.repair_type }}</td>
+      <td class="fs-sm text-muted">{{ r.vendor or '—' }}</td>
+      <td class="fs-sm">{{ r.sent_date or '—' }}</td>
+      <td class="fs-sm">{{ r.actual_return or '—' }}</td>
+      <td class="fs-sm">{% if r.repair_cost %}GHS {{ '%.0f'|format(r.repair_cost) }}{% else %}—{% endif %}</td>
+      <td><span class="badge badge-{{ r.status|lower|replace(' ','') }}">{{ r.status }}</span></td>
+      <td class="fs-sm text-muted">{{ r.outcome or '—' }}</td>
+    </tr>{% endfor %}</tbody>
+  </table></div></div>
+</div>{% endif %}
+
+<!-- Movement History -->
+<div class="card">
+  <div class="card-header"><span class="card-title">{{ icon('clipboard-list', 15) }} Movement History ({{ history|length }} events)</span></div>
+  <div class="card-body" style="padding:0;">
+    {% if history %}
+    <div class="table-wrap"><table>
+      <thead><tr><th>Date / Time</th><th>Action</th><th>From</th><th>To</th><th>Location Change</th><th>Status Change</th><th>By</th><th>Notes</th></tr></thead>
+      <tbody>{% for h in history %}
+      <tr>
+        <td class="mono fs-sm text-muted">{{ h.created_at[:16] }}</td>
+        <td class="fw-bold fs-sm {% if 'Assign' in h.action %}log-action-assign{% elif 'Repair' in h.action %}log-action-repair{% elif 'Register' in h.action %}log-action-register{% elif 'Unassign' in h.action %}log-action-unassign{% else %}log-action-status{% endif %}">{{ h.action }}</td>
+        <td class="fs-sm text-muted">{{ h.from_user or '—' }}</td>
+        <td class="fs-sm">{{ h.to_user or '—' }}</td>
+        <td class="fs-sm text-muted">{% if h.from_location != h.to_location and h.to_location %}{{ h.from_location or '—' }} → {{ h.to_location }}{% else %}—{% endif %}</td>
+        <td class="fs-sm">{% if h.from_status != h.to_status and h.to_status %}
+          <span class="text-muted">{{ h.from_status or '—' }}</span> → <span class="text-accent">{{ h.to_status }}</span>
+        {% else %}—{% endif %}</td>
+        <td class="fs-sm text-muted">{{ h.performed_by }}</td>
+        <td class="fs-sm text-muted">{{ h.notes or '—' }}</td>
+      </tr>{% endfor %}</tbody>
+    </table></div>
+    {% else %}<div class="empty-state" style="padding:20px;"><p>No history yet.</p></div>{% endif %}
+  </div>
+</div>
+{% endblock %}

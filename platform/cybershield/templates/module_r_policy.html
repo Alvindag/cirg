@@ -1,0 +1,185 @@
+{% extends "base_trainer.html" %}
+{% block content %}
+<div class="module-header">
+  <div class="module-tag">MODULE R3 OF 3 · ANNUAL REFRESHER</div>
+  <div class="module-title">Policy <span>Updates 2026</span></div>
+  <div class="module-desc">What has changed in DAS Plc IT Security Policy since your last training. Three key updates every employee must know — and act on.</div>
+</div>
+
+<div class="slide-container">
+
+  <!-- Slide 1: USB GPO -->
+  <div class="slide active" id="slide-1">
+    <div class="info-card">
+      <h3>🔒 Update 1: USB Port Restriction GPO (NC-2026-0004)</h3>
+      <p>Following <strong>Audit Finding NC-2026-0004</strong>, a Group Policy Object (GPO) has been deployed across all DAS Plc workstations to block unauthorised USB devices at the operating system level.</p>
+      <ul>
+        <li>Personal USB drives are now <strong>blocked at the OS level</strong> on all 200+ workstations</li>
+        <li>Only IT-approved, whitelisted USB devices will work</li>
+        <li>Covers all DAS Plc workstations</li>
+        <li>Violation by attempting to circumvent the GPO is a <strong>disciplinary matter</strong></li>
+      </ul>
+      <div style="background:rgba(0,196,232,0.06);border:1px solid rgba(0,196,232,0.25);border-radius:10px;padding:16px;margin-top:14px;font-size:15px">
+        💡 <strong>If you have a legitimate business need</strong> to use a specific USB device, submit a formal request to IT (Ext. 204 or IThelpdesk@dasplcgh.com) with your line manager's written approval. Exceptions require documented justification and are logged in the ISMS system.
+      </div>
+      <div style="background:rgba(232,160,32,0.08);border:1px solid rgba(232,160,32,0.25);border-radius:10px;padding:14px;margin-top:10px;font-size:15px">
+        📁 <strong>Approved file transfer alternatives:</strong>
+        <ul style="margin-top:8px">
+          <li>DAS Plc SharePoint (Microsoft 365)</li>
+          <li>OneDrive for Business</li>
+          <li>Internal network share: <code style="background:rgba(0,0,0,0.3);padding:2px 6px;border-radius:4px">\\DASDC01\shared</code></li>
+          <li>Business Central document attachments (for ERP-related files)</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+
+  <!-- Slide 2: MFA mandatory -->
+  <div class="slide" id="slide-2">
+    <div class="info-card">
+      <h3>🔐 Update 2: MFA Mandatory for All M365 Accounts (R-2026-0001)</h3>
+      <p>Following <strong>Risk Register item R-2026-0001</strong> (No MFA — Critical Risk Score: 25), Multi-Factor Authentication is now <strong>mandatory</strong> for all Microsoft 365 accounts at DAS Plc.</p>
+      <ul>
+        <li>All staff must enrol in MFA using the <strong>Microsoft Authenticator app</strong> on their mobile phone</li>
+        <li>Setup takes approximately <strong>5 minutes</strong> — IT sent setup instructions by email</li>
+        <li>M365 access will be <strong>blocked</strong> for accounts not enrolled after the compliance deadline</li>
+        <li>Covers: Outlook, Teams, SharePoint, OneDrive, Business Central — all M365 services</li>
+        <li>If you have not yet enrolled, contact IT <strong>immediately</strong> on Ext. 204</li>
+      </ul>
+      <div style="background:rgba(42,10,10,0.7);border:1px solid rgba(239,68,68,0.4);border-radius:10px;padding:16px;margin-top:14px">
+        <div style="font-family:var(--font-head);font-size:17px;color:var(--red);margin-bottom:8px">🚨 CRITICAL: Unexpected MFA Push = Live Attack</div>
+        <div style="font-size:15px;color:#f8a0a0;line-height:1.7">
+          If you receive an MFA approval request that YOU did not initiate — <strong>DENY IT immediately</strong>, then change your password and call IT on <strong>Ext. 204</strong>.<br>
+          This means someone has your password right now and is attempting to log into your account.
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Slide 3: Incident reporting timeline -->
+  <div class="slide" id="slide-3">
+    <div class="info-card">
+      <h3>📢 Update 3: Incident Reporting Timeline</h3>
+      <p>DAS Plc IT Security Policy has been updated to align with <strong>NIST SP 800-61</strong> and Ghana Cybersecurity Authority guidelines. New reporting requirements effective immediately:</p>
+      <table class="data-table" style="margin-top:14px">
+        <thead>
+          <tr><th>Incident Type</th><th>Report Within</th><th>Contact</th></tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>All suspected security incidents</td>
+            <td><strong style="color:var(--amber)">24 hours</strong></td>
+            <td>Assistant IT Manager — Ext. 204</td>
+          </tr>
+          <tr>
+            <td>Active attack / ransomware in progress</td>
+            <td><strong style="color:var(--red)">IMMEDIATELY</strong></td>
+            <td>IT + Line Manager + MD</td>
+          </tr>
+          <tr>
+            <td>Data breach / personal data exposure</td>
+            <td><strong style="color:var(--red)">IMMEDIATELY</strong></td>
+            <td>IT + Ghana DPA Data Controller</td>
+          </tr>
+          <tr>
+            <td>Lost or stolen device (laptop, phone, USB)</td>
+            <td><strong style="color:var(--red)">Within 1 hour</strong></td>
+            <td>Assistant IT Manager — Ext. 204</td>
+          </tr>
+          <tr>
+            <td>Suspicious email, call, or visitor</td>
+            <td><strong style="color:var(--yellow)">Same day</strong></td>
+            <td>Assistant IT Manager — Ext. 204</td>
+          </tr>
+          <tr>
+            <td>Accidental click on phishing link</td>
+            <td><strong style="color:var(--red)">IMMEDIATELY — do NOT wait</strong></td>
+            <td>IT — Ext. 204 — disconnect network first</td>
+          </tr>
+        </tbody>
+      </table>
+      <p style="margin-top:14px;font-size:14px;color:var(--text2)">
+        ⚠️ All incidents are formally documented using <strong>CIRG</strong> (Cyber Incident Report Generator) and digital evidence stored in <strong>CFEMS</strong>. <strong>Do not delete</strong> any logs, emails, or files related to a suspected incident before IT has reviewed them — this preserves the forensic chain of evidence.
+      </p>
+    </div>
+  </div>
+
+  <!-- Slide 4: Quick reference + complete -->
+  <div class="slide" id="slide-4">
+    <div class="info-card" style="border-color:var(--green)">
+      <h3 style="color:var(--green)">🎉 Refresher Modules Complete!</h3>
+      <p>You have completed all 3 annual refresher modules. You are now ready for the <strong>Annual Refresher Assessment</strong>.</p>
+      <p style="margin-top:10px;font-size:15px;color:var(--text2)">The assessment has <strong>10 questions</strong> covering all refresher modules. You need <strong>70% or above</strong> (7/10) to receive your Annual Cybersecurity Refresher Certificate.</p>
+    </div>
+    <div class="info-card">
+      <h3>📞 Quick Reference — DAS Plc IT Security Contacts</h3>
+      <table class="data-table">
+        <tbody>
+          <tr>
+            <td><strong>Asst. IT Manager</strong></td>
+            <td>Alvin Dagbui</td>
+            <td><span class="badge badge-orange">Ext. 204</span></td>
+            <td>alvin.dagbui@dasplcgh.com</td>
+          </tr>
+          <tr>
+            <td><strong>IT Manager</strong></td>
+            <td>Samuel Akushie</td>
+            <td><span class="badge badge-teal">Ext. 115</span></td>
+            <td>samuel.akushie@dasplcgh.com</td>
+          </tr>
+          <tr>
+            <td><strong>IT Helpdesk</strong></td>
+            <td colspan="3">IThelpdesk@dasplcgh.com &nbsp;|&nbsp; servicedesk@dasplcgh.com</td>
+          </tr>
+          <tr>
+            <td><strong>Report phishing</strong></td>
+            <td colspan="3">Use Outlook "Report Message" button → Phishing, OR forward to IThelpdesk@dasplcgh.com</td>
+          </tr>
+          <tr>
+            <td><strong>Password reset</strong></td>
+            <td colspan="3">Call Ext. 204 only — never by email request</td>
+          </tr>
+          <tr>
+            <td><strong>Emergency (out of hours)</strong></td>
+            <td colspan="3">Contact your Line Manager → then IT as soon as available</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+</div>
+
+<div class="nav-buttons">
+  <button class="btn-nav" id="btn-prev" onclick="prevSlide()" disabled>← BACK</button>
+  <span style="flex:1"></span>
+  <span style="font-size:14px;color:var(--text2);align-self:center" id="slide-counter">Slide 1 of 4</span>
+  <button class="btn-nav-primary" id="btn-next" onclick="nextSlide()">NEXT →</button>
+</div>
+
+{% endblock %}
+{% block scripts %}
+<script>
+let current = 1;
+const total = 4;
+const msgs = [
+  "USB restrictions are now live across all DAS Plc workstations — directly responding to the NC-2026-0004 audit finding.",
+  "MFA is our most important new control in 2026. An unexpected MFA push means a live attack — DENY and call me on Ext. 204.",
+  "Know the reporting timelines by heart. Speed of response is the single biggest factor in limiting damage from any incident.",
+  "You're fully updated on all 2026 policy changes. Let's confirm your knowledge with the final assessment — you've got this!"
+];
+function updateSlide() {
+  document.querySelectorAll('.slide').forEach((s,i) => s.classList.toggle('active', i+1===current));
+  document.getElementById('slide-counter').textContent = `Slide ${current} of ${total}`;
+  document.getElementById('btn-prev').disabled = current === 1;
+  document.getElementById('btn-next').textContent = current === total ? 'GO TO FINAL ASSESSMENT →' : 'NEXT →';
+  AlvinAvatar.speak(msgs[current-1]||'', 'alvin-speech');
+}
+function nextSlide() {
+  if (current < total) { current++; updateSlide(); }
+  else { completeModule('r3', '/quiz'); }
+}
+function prevSlide() { if (current > 1) { current--; updateSlide(); } }
+updateSlide();
+</script>
+{% endblock %}

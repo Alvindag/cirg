@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Compliance Audit Log — CyberShield Admin</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+  <style>
+    body { background: var(--bg, #0D1B2A); color: var(--text, #e0e8f0); font-family: var(--font-body, Arial, sans-serif); }
+    .page-wrap { max-width: 1200px; margin: 0 auto; padding: 32px 24px; }
+    .page-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 28px; flex-wrap: wrap; gap: 12px; }
+    .page-title { font-size: 22px; font-weight: 700; color: #fff; letter-spacing: 1px; }
+    .page-sub { font-size: 13px; color: #8899AA; margin-top: 4px; }
+    .back-btn { background: rgba(46,196,182,0.1); border: 1px solid rgba(46,196,182,0.3); color: #2EC4B6; padding: 8px 16px; border-radius: 6px; text-decoration: none; font-size: 13px; }
+    .back-btn:hover { background: rgba(46,196,182,0.2); }
+    .log-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+    .log-table th { background: #162232; color: #8899AA; padding: 10px 14px; text-align: left; font-size: 11px; text-transform: uppercase; letter-spacing: 1px; border-bottom: 1px solid #1e3450; }
+    .log-table td { padding: 10px 14px; border-bottom: 1px solid #1a2a3a; vertical-align: top; }
+    .log-table tr:hover td { background: rgba(46,196,182,0.03); }
+    .badge { display: inline-block; padding: 2px 8px; border-radius: 4px; font-size: 11px; font-weight: 600; letter-spacing: 0.5px; }
+    .badge-reset { background: rgba(46,196,182,0.15); color: #2EC4B6; border: 1px solid rgba(46,196,182,0.3); }
+    .badge-expiry { background: rgba(230,57,70,0.15); color: #E63946; border: 1px solid rgba(230,57,70,0.3); }
+    .badge-warning { background: rgba(244,162,97,0.15); color: #F4A261; border: 1px solid rgba(244,162,97,0.3); }
+    .badge-other { background: rgba(136,153,170,0.15); color: #8899AA; border: 1px solid rgba(136,153,170,0.3); }
+    .empty-state { text-align: center; padding: 60px 20px; color: #8899AA; }
+    .reason-text { color: #C8D6E5; font-size: 12px; }
+    .email-list { font-size: 11px; color: #8899AA; }
+  </style>
+</head>
+<body>
+  <div class="page-wrap">
+    <div class="page-header">
+      <div>
+        <div class="page-title">&#128196; Compliance Audit Log</div>
+        <div class="page-sub">All system-generated and admin-actioned compliance events — Dannex Ayrton Starwin Plc</div>
+      </div>
+      <a href="/admin" class="back-btn">&#8592; Back to Dashboard</a>
+    </div>
+
+    <table class="log-table">
+      <thead>
+        <tr>
+          <th>#</th>
+          <th>Date &amp; Time</th>
+          <th>Employee</th>
+          <th>Department</th>
+          <th>Track</th>
+          <th>Action</th>
+          <th>Reason</th>
+          <th>Actioned By</th>
+          <th>New Deadline</th>
+          <th>Emails Sent</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for log in logs %}
+        <tr>
+          <td style="color:#8899AA">{{ log.id }}</td>
+          <td style="font-size:12px;color:#8899AA;white-space:nowrap">
+            {{ log.actioned_at[:16].replace('T',' ') if log.actioned_at else '—' }}
+          </td>
+          <td>
+            <strong>{{ log.name or 'Unknown' }}</strong>
+            {% if log.employee_id %}<br><span style="font-size:11px;color:#8899AA">{{ log.employee_id }}</span>{% endif %}
+          </td>
+          <td style="font-size:12px;color:#8899AA">{{ log.department or '—' }}</td>
+          <td style="font-size:12px">
+            {% if log.track == 'refresher' %}<span style="color:#2EC4B6">Refresher</span>
+            {% elif log.track == 'ethics' %}<span style="color:#F4A261">IS Policy</span>
+            {% else %}<span style="color:#F4A261">Onboarding</span>{% endif %}
+          </td>
+          <td>
+            {% if log.action == 'DEADLINE_RESET' %}
+              <span class="badge badge-reset">&#128260; Reset</span>
+            {% elif log.action == 'AUTO_EXPIRY_ALERT' %}
+              <span class="badge badge-expiry">&#9888; Expired</span>
+            {% elif log.action == 'AUTO_WARNING' %}
+              <span class="badge badge-warning">&#9201; Warning</span>
+            {% else %}
+              <span class="badge badge-other">{{ log.action }}</span>
+            {% endif %}
+          </td>
+          <td class="reason-text">{{ log.reason or '—' }}</td>
+          <td style="font-size:12px;color:#C8D6E5">{{ log.actioned_by or 'system' }}</td>
+          <td style="font-size:12px;color:#2EC4B6;white-space:nowrap">
+            {{ log.new_deadline[:10] if log.new_deadline else '—' }}
+          </td>
+          <td class="email-list">
+            {% if log.emails_sent %}
+              {% set emails = log.emails_sent | from_json %}
+              {% for e in emails %}<div>{{ e }}</div>{% endfor %}
+            {% else %}—{% endif %}
+          </td>
+        </tr>
+        {% else %}
+        <tr><td colspan="10" class="empty-state">No compliance events recorded yet.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</body>
+</html>

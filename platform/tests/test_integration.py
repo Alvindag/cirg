@@ -1,0 +1,147 @@
+import sqlite3, pytest
+from hub import connectors, integration, ledger
+from tests.conftest import csrf
+from tests.test_lifecycle import mk
+
+TOKEN = 'i' * 48
+
+
+@pytest.fixture(scope='module')
+def wired(itam, cs, app, monkeypatch_module):
+    monkeypatch_module.setenv('INTEGRATION_TOKEN', TOKEN)
+    clients = {'http://itam.test': itam.app.test_client(), 'http://cs.test': cs.app.test_client()}
+    monkeypatch_module.setenv('ITAM_INTERNAL_URL', 'http://itam.test')
+    monkeypatch_module.setenv('CYBERSHIELD_INTERNAL_URL', 'http://cs.test')
+
+    def fake_post(base, path, payload):
+        r = clients[base].post(path, json=payload, headers={'Authorization': 'Bearer ' + integration.token()})
+        return r.status_code, (r.get_json(silent=True) or {})
+    monkeypatch_module.setattr(integration, '_post', fake_post)
+    i = sqlite3.connect(itam.DB_PATH)
+    i.execute("INSERT INTO onboarding (onb_ref,full_name,job_title,department,location,start_date,status) VALUES ('ONB-INT','Efua Quaye','Analyst','Finance','HQ','2026-10-10','In Progress')")
+    oid = i.execute("SELECT id FROM onboarding WHERE onb_ref='ONB-INT'").fetchone()[0]
+    i.execute("INSERT INTO onboarding_checklist (onboarding_id,category,item_name,status) VALUES (?, 'IT Security','Phishing and email security awareness briefing','Pending')", (oid,))
+    i.commit(); i.close()
+    return clients
+
+
+@pytest.fixture(scope='module')
+def monkeypatch_module():
+    from _pytest.monkeypatch import MonkeyPatch
+    m = MonkeyPatch(); yield m; m.undo()
+
+
+def trainees(cs):
+    c = sqlite3.connect(cs.DB); c.row_factory = sqlite3.Row
+    rows = c.execute("SELECT * FROM trainees WHERE LOWER(name)='efua quaye'").fetchall(); c.close(); return rows
+
+
+def test_endpoints_reject_without_token(itam, cs, monkeypatch):
+    monkeypatch.setenv('INTEGRATION_TOKEN', TOKEN)
+    assert cs.app.test_client().post('/api/hub/enrol', json={'name': 'X'}).status_code == 401
+    assert cs.app.test_client().post('/api/hub/enrol', json={'name': 'X'}, headers={'Authorization': 'Bearer wrong' + 'x' * 40}).status_code == 401
+    assert itam.app.test_client().post('/api/hub/onboarding/training-complete', json={}).status_code == 401
+    monkeypatch.delenv('INTEGRATION_TOKEN')
+    assert cs.app.test_client().post('/api/hub/enrol', json={'name': 'X'}, headers={'Authorization': 'Bearer ' + TOKEN}).status_code == 401  # disabled when unset
+
+
+def test_disabled_without_token(monkeypatch):
+    monkeypatch.delenv('INTEGRATION_TOKEN', raising=False)
+    assert integration.run()['enabled'] is False
+
+
+def test_auto_enrol_then_cert_sync_end_to_end(wired, cs, itam):
+    assert connectors.joiners() and [j for j in connectors.joiners() if j['name'] == 'Efua Quaye'][0]['training'] == 'not_enrolled'
+    r = integration.run('tester')
+    assert r['enrolled'] >= 1 and r['errors'] == 0           # other tests may have added joiners too
+    rows = trainees(cs)
+    assert len(rows) == 1 and rows[0]['hub_enrolled'] == 1 and rows[0]['deadline_at']
+    assert integration.run('tester')['enrolled'] == 0                    # idempotent: no duplicate
+    assert len(trainees(cs)) == 1
+    # the joiner opens the course and is resumed on the pre-created record, not given a second one
+    c = cs.app.test_client(); c.get('/')
+    with c.session_transaction() as s:
+        tok = s.get('csrf_token')
+    c.post('/start', data={'name': 'efua quaye', 'employee_id': 'E9', 'department': 'Finance', 'track': 'onboarding', 'csrf_token': tok})
+    assert len(trainees(cs)) == 1
+    # joiner passes: CyberShield stamps the certificate
+    db = sqlite3.connect(cs.DB)
+    db.execute("UPDATE trainees SET completed_at=datetime('now'), score=92, cert_ref='CERT-DAS-TEST-1' WHERE LOWER(name)='efua quaye'")
+    db.commit(); db.close()
+    assert connectors.onboarding_training_item_done('ONB-INT') is False
+    r = integration.run('tester')
+    assert r['synced'] >= 1
+    assert connectors.onboarding_training_item_done('ONB-INT') is True
+    # ITAM's own progress calculation must count the tick (its checklist word is 'Complete', not 'Completed')
+    import sqlite3 as _s
+    i2 = _s.connect(itam.DB_PATH); i2.row_factory = _s.Row
+    assert i2.execute("SELECT status FROM onboarding_checklist WHERE item_name LIKE '%awareness briefing%' AND notes LIKE '%CERT-DAS-TEST-1%'").fetchone()['status'] == 'Complete'
+    oid = i2.execute("SELECT id FROM onboarding WHERE onb_ref='ONB-INT'").fetchone()['id']
+    assert itam.onboarding_progress(i2, oid) == 100            # the only checklist row is now done -> 100%
+    assert i2.execute("SELECT status FROM onboarding WHERE id=?", (oid,)).fetchone()['status'] == 'Completed'   # record auto-closed
+    i2.close()
+    assert integration.run('tester')['synced'] == 0                      # idempotent
+    i = sqlite3.connect(itam.DB_PATH)
+    note = i.execute("SELECT notes, completed_by FROM onboarding_checklist WHERE item_name LIKE '%awareness briefing%' AND notes LIKE '%CERT-DAS-TEST-1%'").fetchone()
+    assert note and 'CyberShield' in note[1]
+    assert i.execute("SELECT COUNT(*) FROM audit_log WHERE action='TRAINING_SYNC'").fetchone()[0] == 1
+    i.close()
+    acts = [r['action'] for r in ledger.recent(50)]
+    assert 'AUTO_ENROL' in acts and 'CERT_SYNC' in acts
+    assert ledger.verify()['ok']
+
+
+def test_hub_button_permissions(app, wired):
+    hr = mk(app, 'hr_int', 'hr')
+    assert 'Enrolled' in hr.post('/lifecycle/integrate', data={'csrf_token': csrf(hr)}, follow_redirects=True).get_data(as_text=True)
+    mgr = mk(app, 'mgr_int', 'line_manager')
+    assert mgr.post('/lifecycle/integrate', data={'csrf_token': csrf(mgr)}).status_code == 403
+
+
+def test_dry_run_reports_but_changes_nothing(wired, cs, itam):
+    i = sqlite3.connect(itam.DB_PATH)
+    i.execute("INSERT INTO onboarding (onb_ref,full_name,job_title,department,location,start_date,status,employee_id) VALUES ('ONB-DRY','Dry Runner','Analyst','IT','HQ','2026-10-10','In Progress','E777')")
+    i.commit(); i.close()
+    before = sqlite3.connect(cs.DB).execute('SELECT COUNT(*) FROM trainees').fetchone()[0]
+    r = integration.run('tester', dry_run=True)
+    assert r['dry_run'] and any('Dry Runner' in p for p in r['plan'])
+    assert sqlite3.connect(cs.DB).execute('SELECT COUNT(*) FROM trainees').fetchone()[0] == before
+    assert integration.run('tester')['enrolled'] >= 1                    # a real run does enrol (employee ID passed through)
+    assert sqlite3.connect(cs.DB).execute("SELECT employee_id FROM trainees WHERE name='Dry Runner'").fetchone()[0] == 'E777'
+
+
+def test_leaver_training_cancelled_on_last_day_and_excluded_from_stats(wired, cs, app):
+    from hub import lifecycle
+    db_ = sqlite3.connect(cs.DB)
+    db_.execute("INSERT INTO trainees (name,employee_id,department,track,started_at,deadline_at) VALUES ('Leaving Lena','E888','IT','onboarding','2026-01-01T10:00:00','2026-01-06T10:00:00')")
+    db_.execute("INSERT INTO trainees (name,employee_id,department,track,started_at,deadline_at,completed_at,score,cert_ref) VALUES ('Done Dan','E889','IT','onboarding','2026-01-01T10:00:00','2026-01-06T10:00:00','2026-01-02T10:00:00',90,'CERT-D')")
+    db_.commit(); db_.close()
+    stats_before = connectors.training_stats()
+    ref = lifecycle.create_case('hr', 'Leaving Lena', 'E888', 'IT', 'x', 'hr', '2099-01-01', 'Resignation')
+    assert lifecycle.get(ref)['open_training'] == 1
+    integration.run('tester')
+    assert lifecycle.get(ref)['open_training'] == 1                       # last day not reached: left alone
+    ref2 = lifecycle.create_case('hr', 'Leaving Lena', 'E888', 'IT', 'x', 'hr', '2020-01-01', 'Resignation')
+    assert integration.run('tester', dry_run=True)['cancelled'] >= 1
+    assert lifecycle.get(ref2)['open_training'] == 1                      # dry run changed nothing
+    r = integration.run('tester')
+    assert r['cancelled'] >= 1
+    assert lifecycle.get(ref2)['open_training'] == 0
+    row = sqlite3.connect(cs.DB).execute("SELECT cancelled_at FROM trainees WHERE employee_id='E888'").fetchone()
+    assert row[0]
+    done = sqlite3.connect(cs.DB).execute("SELECT cancelled_at, completed_at FROM trainees WHERE employee_id='E889'").fetchone()
+    assert done[0] is None and done[1]                                    # completed records are untouched
+    assert connectors.training_stats()['people'] == stats_before['people'] - 1   # cancelled person no longer counted as untrained
+    step = next(s for s in lifecycle.get(ref2)['steps'] if s['auto_key'] == 'training')
+    assert step['done']
+    assert integration.run('tester')['cancelled'] == 0                    # idempotent
+
+
+def test_cybershield_cancelled_records_do_not_get_reminders(cs):
+    """The escalation job must skip cancelled trainees."""
+    c = sqlite3.connect(cs.DB)
+    c.execute("INSERT INTO trainees (name,employee_id,department,track,started_at,deadline_at,cancelled_at,hub_enrolled) VALUES ('Quiet Quinn','E901','IT','onboarding','2026-01-01T10:00:00','2026-01-06T10:00:00','2026-02-01T10:00:00',1)")
+    c.commit(); c.close()
+    cs.check_training_deadlines()
+    row = sqlite3.connect(cs.DB).execute("SELECT overdue_notice_count, warning_sent, expiry_notified FROM trainees WHERE employee_id='E901'").fetchone()
+    assert (row[0] or 0) == 0 and (row[1] or 0) == 0 and (row[2] or 0) == 0

@@ -1,0 +1,22 @@
+{% extends 'base.html' %}{% from '_macros.html' import pill, ring %}{% block title %}Compliance report · DAS Trust Hub{% endblock %}
+{% block body %}
+<div class="row noprint"><button class="btn" id="print">Print / save as PDF</button><a class="btn sec" href="{{ url_for('compliance') }}">Back</a></div>
+<h1>Information security readiness report</h1>
+<p class="sub">DAS Plc · generated {{ today }} by {{ me['username'] }} · evidence drawn live from ITAM, CyberShield and the Hub</p>
+<div class="card"><div class="gauge">{{ ring(summ.overall, 'Overall') }}<div><h2>Overall readiness: {{ summ.rating }}</h2>
+<p>{{ summ.counts.pass }} of {{ summ.total }} controls pass, {{ summ.counts.partial }} partial, {{ summ.counts.fail }} fail, {{ summ.counts.unassessed }} not yet assessed.
+Automated evidence {{ '—' if summ.automated is none else summ.automated|round|int }}%, attested {{ '—' if summ.manual is none else summ.manual|round|int }}%.</p></div></div></div>
+<h2 style="margin-top:18px">Coverage by framework</h2><div class="card"><table><thead><tr><th>Framework</th><th>Controls mapped</th><th>Passing</th><th>Score</th></tr></thead><tbody>
+{% for k, f in summ.frameworks.items() %}<tr><td>{{ f.label }}</td><td>{{ f.controls }}</td><td>{{ f.passing }}</td><td><b>{{ '—' if f.score is none else f.score|round|int ~ '%' }}</b></td></tr>{% endfor %}</tbody></table></div>
+<h2 style="margin-top:18px">Evidence base</h2><div class="card"><ul>
+<li>Assets: {{ a.live if a.available else 'n/a' }} live; {{ a.hardware if a.available else 'n/a' }} hardware; {{ a.movements if a.available else 'n/a' }} custody movements recorded.</li>
+<li>Training: {{ t.completed if t.available else 'n/a' }} of {{ t.people if t.available else 'n/a' }} staff trained; average score {{ t.avg_score if t.available and t.avg_score else 'n/a' }}.</li>
+<li>Audit ledger: {{ led.entries }} events; chain {{ 'verified intact' if led.ok else 'FAILED verification' }}; head <span class="mono">{{ led.head }}</span>.</li></ul></div>
+<h2 style="margin-top:18px">Remediation backlog (highest impact first)</h2><div class="card"><table><thead><tr><th>Control</th><th>Status</th><th>Finding</th><th>Action</th></tr></thead><tbody>
+{% for g in gaps %}<tr><td><b>{{ g.id }}</b> {{ g.title }}</td><td>{{ pill(g.status) }}</td><td class="m">{{ g.metric }}</td><td class="m">{{ g.action }}</td></tr>{% else %}<tr><td colspan="4">None.</td></tr>{% endfor %}</tbody></table></div>
+<h2 style="margin-top:18px">Control register</h2><div class="card"><table><thead><tr><th>ID</th><th>Control</th><th>Status</th><th>Evidence</th><th>References</th></tr></thead><tbody>
+{% for i in items %}<tr><td>{{ i.id }}</td><td>{{ i.title }}</td><td>{{ pill(i.status) }}</td><td class="m">{{ i.metric }}{% if i.kind=='manual' and i.attestation %}<br>Attested by {{ i.attestation.attested_by }} {{ i.attestation.attested_at[:10] }}; owner {{ i.attestation.owner or '—' }}{% endif %}</td>
+<td class="m">{% for k, refs in i.maps.items() %}{{ fws[k] }}: {{ refs|join(', ') }}<br>{% endfor %}</td></tr>{% endfor %}</tbody></table></div>
+<p class="note" style="margin-top:14px">This is an internal, evidence-based readiness assessment. It is not an ISO/IEC 27001 certification, a SOC 2 report or legal advice. Manual controls count only where evidence is attested and current.</p>
+<script src="{{ url_for('static', filename='print.js') }}"></script>
+{% endblock %}
