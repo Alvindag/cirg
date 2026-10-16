@@ -145,7 +145,7 @@ def has_perm(perm):
 # ── Inject has_perm into every template automatically ────────────────────────
 @app.context_processor
 def inject_globals():
-    return dict(has_perm=has_perm, days_until=days_until)
+    return dict(has_perm=has_perm, days_until=days_until, hub_url=os.environ.get('HUB_URL', '').rstrip('/'))
 
 def require_perm(perm):
     def decorator(f):
@@ -391,6 +391,14 @@ def init_db():
         db.commit()
     except Exception:
         pass  # column already exists — that is fine
+
+    # Employee ID: authoritative cross-system identifier (used by the Trust Hub; optional here)
+    for ddl in ("ALTER TABLE onboarding ADD COLUMN employee_id TEXT",
+                "ALTER TABLE assets ADD COLUMN assigned_employee_id TEXT"):
+        try:
+            db.execute(ddl); db.commit()
+        except Exception:
+            pass  # already present
 
     # Seed users
     users = [
@@ -848,6 +856,8 @@ def assign_asset(asset_id):
     db.execute("""UPDATE assets SET assigned_to=?,assigned_to_name=?,location=?,
                   department=?,status='Active — Assigned',updated_at=datetime('now')
                   WHERE id=?""", (to_user, to_user_name, to_loc, to_dept, asset_id))
+    db.execute("UPDATE assets SET assigned_employee_id=? WHERE id=?",
+               ((request.form.get('assigned_employee_id') or '').strip()[:40] or None, asset_id))
     audit(db, 'ASSET_ASSIGN', f'{asset["asset_tag"]} → {to_user_name}')
     db.commit()
     flash(f'✓ Asset assigned to {to_user_name}.', 'success')
@@ -2147,6 +2157,8 @@ def new_onboarding():
              'In Progress', current_user.username, f.get('notes','').strip()))
         onb_id = db.execute("SELECT id FROM onboarding WHERE onb_ref=?",
                             (onb_ref,)).fetchone()['id']
+        db.execute("UPDATE onboarding SET employee_id=? WHERE id=?",
+                   ((f.get('employee_id') or '').strip()[:40] or None, onb_id))
 
         # Auto-generate default checklist
         for category, item_name, desc, owner, order in default_checklist():

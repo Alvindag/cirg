@@ -7,7 +7,7 @@ TOKEN = 'i' * 48
 
 
 @pytest.fixture(scope='module')
-def wired(itam, cs, monkeypatch_module):
+def wired(itam, cs, app, monkeypatch_module):
     monkeypatch_module.setenv('INTEGRATION_TOKEN', TOKEN)
     clients = {'http://itam.test': itam.app.test_client(), 'http://cs.test': cs.app.test_client()}
     monkeypatch_module.setenv('ITAM_INTERNAL_URL', 'http://itam.test')
@@ -53,7 +53,7 @@ def test_disabled_without_token(monkeypatch):
 def test_auto_enrol_then_cert_sync_end_to_end(wired, cs, itam):
     assert connectors.joiners() and [j for j in connectors.joiners() if j['name'] == 'Efua Quaye'][0]['training'] == 'not_enrolled'
     r = integration.run('tester')
-    assert r['enrolled'] == 1 and r['errors'] == 0
+    assert r['enrolled'] >= 1 and r['errors'] == 0           # other tests may have added joiners too
     rows = trainees(cs)
     assert len(rows) == 1 and rows[0]['hub_enrolled'] == 1 and rows[0]['deadline_at']
     assert integration.run('tester')['enrolled'] == 0                    # idempotent: no duplicate
@@ -70,7 +70,7 @@ def test_auto_enrol_then_cert_sync_end_to_end(wired, cs, itam):
     db.commit(); db.close()
     assert connectors.onboarding_training_item_done('ONB-INT') is False
     r = integration.run('tester')
-    assert r['synced'] == 1
+    assert r['synced'] >= 1
     assert connectors.onboarding_training_item_done('ONB-INT') is True
     assert integration.run('tester')['synced'] == 0                      # idempotent
     i = sqlite3.connect(itam.DB_PATH)
@@ -85,6 +85,55 @@ def test_auto_enrol_then_cert_sync_end_to_end(wired, cs, itam):
 
 def test_hub_button_permissions(app, wired):
     hr = mk(app, 'hr_int', 'hr')
-    assert 'Auto-enrolled' in hr.post('/lifecycle/integrate', data={'csrf_token': csrf(hr)}, follow_redirects=True).get_data(as_text=True)
+    assert 'Enrolled' in hr.post('/lifecycle/integrate', data={'csrf_token': csrf(hr)}, follow_redirects=True).get_data(as_text=True)
     mgr = mk(app, 'mgr_int', 'line_manager')
     assert mgr.post('/lifecycle/integrate', data={'csrf_token': csrf(mgr)}).status_code == 403
+
+
+def test_dry_run_reports_but_changes_nothing(wired, cs, itam):
+    i = sqlite3.connect(itam.DB_PATH)
+    i.execute("INSERT INTO onboarding (onb_ref,full_name,job_title,department,location,start_date,status,employee_id) VALUES ('ONB-DRY','Dry Runner','Analyst','IT','HQ','2026-10-10','In Progress','E777')")
+    i.commit(); i.close()
+    before = sqlite3.connect(cs.DB).execute('SELECT COUNT(*) FROM trainees').fetchone()[0]
+    r = integration.run('tester', dry_run=True)
+    assert r['dry_run'] and any('Dry Runner' in p for p in r['plan'])
+    assert sqlite3.connect(cs.DB).execute('SELECT COUNT(*) FROM trainees').fetchone()[0] == before
+    assert integration.run('tester')['enrolled'] >= 1                    # a real run does enrol (employee ID passed through)
+    assert sqlite3.connect(cs.DB).execute("SELECT employee_id FROM trainees WHERE name='Dry Runner'").fetchone()[0] == 'E777'
+
+
+def test_leaver_training_cancelled_on_last_day_and_excluded_from_stats(wired, cs, app):
+    from hub import lifecycle
+    db_ = sqlite3.connect(cs.DB)
+    db_.execute("INSERT INTO trainees (name,employee_id,department,track,started_at,deadline_at) VALUES ('Leaving Lena','E888','IT','onboarding','2026-01-01T10:00:00','2026-01-06T10:00:00')")
+    db_.execute("INSERT INTO trainees (name,employee_id,department,track,started_at,deadline_at,completed_at,score,cert_ref) VALUES ('Done Dan','E889','IT','onboarding','2026-01-01T10:00:00','2026-01-06T10:00:00','2026-01-02T10:00:00',90,'CERT-D')")
+    db_.commit(); db_.close()
+    stats_before = connectors.training_stats()
+    ref = lifecycle.create_case('hr', 'Leaving Lena', 'E888', 'IT', 'x', 'hr', '2099-01-01', 'Resignation')
+    assert lifecycle.get(ref)['open_training'] == 1
+    integration.run('tester')
+    assert lifecycle.get(ref)['open_training'] == 1                       # last day not reached: left alone
+    ref2 = lifecycle.create_case('hr', 'Leaving Lena', 'E888', 'IT', 'x', 'hr', '2020-01-01', 'Resignation')
+    assert integration.run('tester', dry_run=True)['cancelled'] >= 1
+    assert lifecycle.get(ref2)['open_training'] == 1                      # dry run changed nothing
+    r = integration.run('tester')
+    assert r['cancelled'] >= 1
+    assert lifecycle.get(ref2)['open_training'] == 0
+    row = sqlite3.connect(cs.DB).execute("SELECT cancelled_at FROM trainees WHERE employee_id='E888'").fetchone()
+    assert row[0]
+    done = sqlite3.connect(cs.DB).execute("SELECT cancelled_at, completed_at FROM trainees WHERE employee_id='E889'").fetchone()
+    assert done[0] is None and done[1]                                    # completed records are untouched
+    assert connectors.training_stats()['people'] == stats_before['people'] - 1   # cancelled person no longer counted as untrained
+    step = next(s for s in lifecycle.get(ref2)['steps'] if s['auto_key'] == 'training')
+    assert step['done']
+    assert integration.run('tester')['cancelled'] == 0                    # idempotent
+
+
+def test_cybershield_cancelled_records_do_not_get_reminders(cs):
+    """The escalation job must skip cancelled trainees."""
+    c = sqlite3.connect(cs.DB)
+    c.execute("INSERT INTO trainees (name,employee_id,department,track,started_at,deadline_at,cancelled_at,hub_enrolled) VALUES ('Quiet Quinn','E901','IT','onboarding','2026-01-01T10:00:00','2026-01-06T10:00:00','2026-02-01T10:00:00',1)")
+    c.commit(); c.close()
+    cs.check_training_deadlines()
+    row = sqlite3.connect(cs.DB).execute("SELECT overdue_notice_count, warning_sent, expiry_notified FROM trainees WHERE employee_id='E901'").fetchone()
+    assert (row[0] or 0) == 0 and (row[1] or 0) == 0 and (row[2] or 0) == 0

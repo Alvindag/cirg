@@ -71,6 +71,15 @@ CREATE TABLE IF NOT EXISTS lifecycle_steps (
     done_at TEXT,
     note TEXT
 );
+CREATE TABLE IF NOT EXISTS identity_links (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    kind TEXT NOT NULL,                   -- 'name' | 'user'
+    key TEXT NOT NULL,                    -- normalised name, or lower-case username
+    employee_id TEXT NOT NULL,
+    confirmed_by TEXT NOT NULL,
+    confirmed_at TEXT NOT NULL DEFAULT (datetime('now')),
+    UNIQUE (kind, key)
+);
 CREATE TABLE IF NOT EXISTS score_history (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     taken_at TEXT NOT NULL DEFAULT (datetime('now')),
@@ -90,8 +99,18 @@ def connect():
     return conn
 
 
+NEW_CASE_COLUMNS = {                      # added after first release: migrate in place
+    'ad_username': 'TEXT', 'ad_dn': 'TEXT', 'ad_confirmed_by': 'TEXT',
+    'ad_disabled_at': 'TEXT', 'training_cancelled_at': 'TEXT',
+}
+
+
 def init():
     conn = connect()
     conn.executescript(SCHEMA)
+    have = {r['name'] for r in conn.execute('PRAGMA table_info(lifecycle_cases)')}
+    for col, typ in NEW_CASE_COLUMNS.items():
+        if col not in have:
+            conn.execute(f'ALTER TABLE lifecycle_cases ADD COLUMN {col} {typ}')
     conn.commit()
     conn.close()

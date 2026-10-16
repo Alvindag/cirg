@@ -39,6 +39,13 @@ def _rows(conn, sql, args=()):
         return []
 
 
+def col(conn, table, name):
+    """`name` if the column exists, else `NULL AS name`: lets the Hub read older ITAM/CyberShield databases
+    that predate a column (e.g. employee_id) until the app is restarted and migrates itself."""
+    have = {r['name'] for r in _rows(conn, f"PRAGMA table_info({table})")}  # nosec B608 - constant table names
+    return name if name in have else f'NULL AS {name}'
+
+
 def _parse(d):
     if not d:
         return None
@@ -148,7 +155,9 @@ def training_records():
     c = cybershield()
     if c is None:
         return None
-    rows = _rows(c, "SELECT id, name, employee_id, department, track, started_at, deadline_at, completed_at, score, cert_ref FROM trainees")
+    cols = {r['name'] for r in _rows(c, "PRAGMA table_info(trainees)")}
+    cancelled = 'cancelled_at' if 'cancelled_at' in cols else 'NULL AS cancelled_at'
+    rows = _rows(c, f"SELECT id, name, employee_id, department, track, started_at, deadline_at, completed_at, score, cert_ref, {cancelled} FROM trainees")  # nosec B608 - constant
     c.close()
     return [dict(r) for r in rows]
 
@@ -160,31 +169,44 @@ def training_status(rec, now=None):
         if (now - done).days <= config.TRAINING_VALID_DAYS:
             return 'completed'
         return 'expired'
+    if rec.get('cancelled_at'):
+        return 'cancelled'
     dl = _parse(rec.get('deadline_at'))
     if dl and dl < now:
         return 'overdue'
     return 'in_progress'
 
 
-def training_stats():
-    recs = training_records()
-    if recs is None:
-        return {'available': False}
-    # one status per person: best status across their records
-    rank = {'completed': 0, 'in_progress': 1, 'expired': 2, 'overdue': 3}
-    people = {}
-    for r in recs:
-        key = norm_name(r['name']) or (r.get('employee_id') or str(r['id']))
+_RANK = {'completed': 0, 'in_progress': 1, 'expired': 2, 'overdue': 3}
+
+
+def _best_training():
+    """{person key: {'status','score','deadline','cert_ref','completed_at'}}; cancelled records are ignored."""
+    from .identity import Resolver
+    res = Resolver()
+    best = {}
+    for r in training_records() or []:
         st = training_status(r)
-        if key not in people or rank[st] < rank[people[key]['status']]:
-            people[key] = {'status': st, 'score': r.get('score')}
-    n = len(people)
-    done = [p for p in people.values() if p['status'] == 'completed']
+        if st == 'cancelled':
+            continue
+        key, _ = res.key(r.get('employee_id'), None, r['name'])
+        if key not in best or _RANK[st] < _RANK[best[key]['status']]:
+            best[key] = {'status': st, 'score': r.get('score'), 'deadline': r.get('deadline_at'),
+                         'cert_ref': r.get('cert_ref'), 'completed_at': r.get('completed_at')}
+    return best, res
+
+
+def training_stats():
+    if training_records() is None:
+        return {'available': False}
+    people_, _ = _best_training()
+    n = len(people_)
+    done = [p for p in people_.values() if p['status'] == 'completed']
     scores = [p['score'] for p in done if p['score'] is not None]
     return {'available': True, 'people': n, 'completed': len(done),
-            'overdue': sum(p['status'] == 'overdue' for p in people.values()),
-            'expired': sum(p['status'] == 'expired' for p in people.values()),
-            'in_progress': sum(p['status'] == 'in_progress' for p in people.values()),
+            'overdue': sum(p['status'] == 'overdue' for p in people_.values()),
+            'expired': sum(p['status'] == 'expired' for p in people_.values()),
+            'in_progress': sum(p['status'] == 'in_progress' for p in people_.values()),
             'avg_score': round(sum(scores) / len(scores), 1) if scores else None,
             'completion_pct': round(100 * len(done) / n, 1) if n else None}
 
@@ -192,53 +214,68 @@ def training_stats():
 # ── People: the join that neither system can do alone ───────────────────────
 def people():
     """One row per person across ITAM (asset holders, joiners) and CyberShield (trainees)."""
+    from .identity import Resolver
+    res = Resolver()
     out = {}
+    rank_q = {'id': 0, 'username': 1, 'name->id': 2, 'name': 3, 'ambiguous': 4}
 
-    def person(key, name):
-        return out.setdefault(key, {'name': name, 'department': '', 'assets': [], 'joiner': None,
-                                    'training': 'not_enrolled', 'score': None, 'deadline': None})
+    def person(key, quality, name):
+        p = out.setdefault(key, {'key': key, 'name': name, 'department': '', 'assets': [], 'joiner': None, 'training': 'not_enrolled',
+                                 'score': None, 'deadline': None, 'quality': quality})
+        if rank_q[quality] > rank_q[p['quality']]:
+            p['quality'] = quality                         # report the weakest link used
+        return p
 
     c = itam()
     if c is not None:
-        for r in _rows(c, "SELECT asset_tag, asset_name, asset_type, assigned_to_name, assigned_to, department FROM assets WHERE status='Active — Assigned'"):
+        for r in _rows(c, f"SELECT asset_tag, asset_name, asset_type, assigned_to_name, assigned_to, {col(c, 'assets', 'assigned_employee_id')}, department FROM assets WHERE status='Active — Assigned'"):  # nosec B608
             nm = r['assigned_to_name'] or r['assigned_to']
             if not nm:
                 continue
-            p = person(norm_name(nm), nm)
+            k, q = res.key(r['assigned_employee_id'], r['assigned_to'], nm)
+            p = person(k, q, nm)
             p['assets'].append({'tag': r['asset_tag'], 'name': r['asset_name'], 'type': r['asset_type']})
             p['department'] = p['department'] or r['department'] or ''
-        for r in _rows(c, "SELECT full_name, department, start_date, status FROM onboarding"):
-            p = person(norm_name(r['full_name']), r['full_name'])
+        for r in _rows(c, f"SELECT full_name, department, start_date, status, {col(c, 'onboarding', 'employee_id')}, {col(c, 'onboarding', 'ad_username')} FROM onboarding"):  # nosec B608
+            k, q = res.key(r['employee_id'], r['ad_username'], r['full_name'])
+            p = person(k, q, r['full_name'])
             p['joiner'] = {'start': r['start_date'], 'status': r['status']}
             p['department'] = p['department'] or r['department'] or ''
         c.close()
-    rank = {'completed': 0, 'in_progress': 1, 'expired': 2, 'overdue': 3, 'not_enrolled': 4}
+    best, _ = _best_training()
     for r in training_records() or []:
-        key = norm_name(r['name'])
-        p = person(key, r['name'])
+        if training_status(r) == 'cancelled':
+            continue
+        k, q = res.key(r.get('employee_id'), None, r['name'])
+        p = person(k, q, r['name'])
         p['department'] = p['department'] or r.get('department') or ''
-        st = training_status(r)
-        if p['training'] == 'not_enrolled' or rank[st] < rank[p['training']]:
-            p['training'] = st
-            p['score'] = r.get('score')
-            p['deadline'] = r.get('deadline_at')
+    for k, b in best.items():
+        if k in out:
+            out[k].update(training=b['status'], score=b['score'], deadline=b['deadline'])
     rows = list(out.values())
     for p in rows:
-        holds = bool(p['assets'])
-        p['exposed'] = holds and p['training'] != 'completed'
+        p['exposed'] = bool(p['assets']) and p['training'] != 'completed'
         p['asset_count'] = len(p['assets'])
-    rows.sort(key=lambda p: (not p['exposed'], rank.get(p['training'], 9) * -1, p['name'].lower()))
+    rank = {'completed': 0, 'in_progress': 1, 'expired': 2, 'overdue': 3, 'not_enrolled': 4}
+    rows.sort(key=lambda p: (not p['exposed'], -rank.get(p['training'], 9), p['name'].lower()))
     return rows
 
 
-def assets_held(name):
-    """Tags of assets ITAM currently shows as assigned to this person (name match)."""
-    key = norm_name(name)
+def assets_held(name, employee_id=None, username=None):
+    """Tags of assets ITAM shows assigned to this person (employee ID, then username, then name)."""
+    from .identity import Resolver
+    res = Resolver()
+    want, _ = res.key(employee_id, username, name)
+    if want.startswith('amb:'):
+        return None                       # cannot safely say who holds what
     c = itam()
-    if c is None or not key:
+    if c is None or not name:
         return None
-    held = [r['asset_tag'] for r in _rows(c, "SELECT asset_tag, assigned_to_name, assigned_to FROM assets WHERE status='Active — Assigned'")
-            if norm_name(r['assigned_to_name'] or r['assigned_to']) == key]
+    held = []
+    for r in _rows(c, f"SELECT asset_tag, assigned_to_name, assigned_to, {col(c, 'assets', 'assigned_employee_id')} FROM assets WHERE status='Active — Assigned'"):  # nosec B608
+        k, _q = res.key(r['assigned_employee_id'], r['assigned_to'], r['assigned_to_name'] or r['assigned_to'])
+        if k == want:
+            held.append(r['asset_tag'])
     c.close()
     return held
 
@@ -248,21 +285,18 @@ def joiners():
     c = itam()
     if c is None:
         return []
-    rows = _rows(c, "SELECT onb_ref, full_name, department, job_title, start_date, status FROM onboarding ORDER BY start_date DESC")
+    rows = _rows(c, f"SELECT onb_ref, full_name, department, job_title, start_date, status, {col(c, 'onboarding', 'employee_id')}, {col(c, 'onboarding', 'ad_username')} FROM onboarding ORDER BY start_date DESC")  # nosec B608
     c.close()
-    rank = {'completed': 0, 'in_progress': 1, 'expired': 2, 'overdue': 3}
-    train = {}
-    for r in training_records() or []:
-        k, st = norm_name(r['name']), training_status(r)
-        if k not in train or rank[st] < rank[train[k]]:
-            train[k] = st
+    best, res = _best_training()
     out = []
     for r in rows:
         start = _parse(r['start_date'])
         days = (datetime.now() - start).days if start else None
-        t = train.get(norm_name(r['full_name']), 'not_enrolled')
+        k, q = res.key(r['employee_id'], r['ad_username'], r['full_name'])
+        t = best.get(k, {}).get('status', 'not_enrolled')
         out.append({'ref': r['onb_ref'], 'name': r['full_name'], 'department': r['department'], 'title': r['job_title'],
                     'start': r['start_date'], 'itam_status': r['status'], 'training': t, 'days_since_start': days,
+                    'employee_id': r['employee_id'], 'quality': q,
                     'late': t == 'not_enrolled' and days is not None and days > 7})
     return out
 
@@ -278,12 +312,28 @@ def onboarding_training_item_done(onb_ref):
     return (r[0]['status'] == 'Completed') if r else None
 
 
-def completed_certificate(name):
+def completed_certificate(name, employee_id=None):
     """Most recent valid completed training record for a person: {'cert_ref','score'} or None."""
-    key = norm_name(name)
+    from .identity import Resolver
+    res = Resolver()
+    want, _ = res.key(employee_id, None, name)
     best = None
     for r in training_records() or []:
-        if norm_name(r['name']) == key and training_status(r) == 'completed' and r.get('cert_ref'):
+        k, _q = res.key(r.get('employee_id'), None, r['name'])
+        if k == want and training_status(r) == 'completed' and r.get('cert_ref'):
             if best is None or (r['completed_at'] or '') > (best['completed_at'] or ''):
                 best = r
     return {'cert_ref': best['cert_ref'], 'score': best['score']} if best else None
+
+
+def open_training_count(name, employee_id=None):
+    """How many of this person's training records are still open (not completed, not cancelled)."""
+    from .identity import Resolver
+    res = Resolver()
+    want, _ = res.key(employee_id, None, name)
+    n = 0
+    for r in training_records() or []:
+        k, _q = res.key(r.get('employee_id'), None, r['name'])
+        if k == want and not r.get('completed_at') and not r.get('cancelled_at'):
+            n += 1
+    return n

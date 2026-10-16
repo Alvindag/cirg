@@ -48,7 +48,7 @@ def test_step_ownership_enforced(app):
     r = lambda c, seq: c.post(f"/lifecycle/{ref['ref']}/step/{sid[seq]}", data={'csrf_token': csrf(c)}, follow_redirects=True).get_data(as_text=True)
     assert 'cannot complete' in r(it, 1)                         # manager step: IT may not
     assert 'cannot complete' in r(it, 2)                         # HR step
-    assert 'recorded' in r(it, 5)                                # IT step: allowed
+    assert 'recorded' in r(it, 7)                                # IT step (mailbox): allowed
     assert 'recorded' in r(mk(app, 'hr2', 'hr'), 2)             # HR step
     assert mgr.get('/lifecycle/' + ref['ref']).status_code == 404   # unrelated manager can't even see it
 
@@ -64,12 +64,12 @@ def test_asset_return_is_verified_from_itam_not_ticked(app, itam):
     hr = mk(app, 'hr3', 'hr')
     ref = start(hr, 'Kofi Boateng', manager='mgr1').headers['Location'].rsplit('/', 1)[1]
     c = lifecycle.get(ref)
-    auto = next(s for s in c['steps'] if s['auto_key'])
+    auto = next(s for s in c['steps'] if s['auto_key'] == 'assets')
     assert not auto['done'] and c['assets_held']                  # Kofi still holds T-2 in ITAM
     admin_like = mk(app, 'adm9', 'admin')
     assert 'cannot complete' in admin_like.post(f"/lifecycle/{ref}/step/{auto['id']}", data={'csrf_token': csrf(admin_like)}, follow_redirects=True).get_data(as_text=True)
     for s in c['steps']:                                          # finish every manual step
-        if not s['auto_key']:
+        if s['auto_key'] != 'assets':                              # AD/training fall back to manual when not integrated
             admin_like.post(f"/lifecycle/{ref}/step/{s['id']}", data={'csrf_token': csrf(admin_like)})
     assert 'Complete every step' in hr.post(f'/lifecycle/{ref}/close', data={'csrf_token': csrf(hr)}, follow_redirects=True).get_data(as_text=True)
     i = sqlite3.connect(itam.DB_PATH)                              # IT returns the laptop in ITAM

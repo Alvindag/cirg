@@ -20,6 +20,8 @@
       <span class="icon">🧑‍💼</span><span>Onboarding</span></a>
     <a href="{{ url_for('new_onboarding') }}" class="nav-item {% if request.endpoint=='new_onboarding' %}active{% endif %}">
       <span class="icon">➕</span><span>New Onboarding</span></a>
+    {% if hub_url %}<a href="{{ hub_url }}/lifecycle" class="nav-item" target="_blank" rel="noopener">
+      <span class="icon">🚪</span><span>Offboarding (Trust Hub) ↗</span></a>{% endif %}
     <a href="{{ url_for('people') }}" class="nav-item {% if request.endpoint in ['people','person_profile'] %}active{% endif %}">
       <span class="icon">👤</span><span>People & Assets</span></a>
 
@@ -61,6 +63,8 @@
     <div class="nav-section">Operations</div>
     <a href="{{ url_for('onboarding') }}" class="nav-item {% if 'onboarding' in request.endpoint %}active{% endif %}">
       <span class="icon">🧑‍💼</span><span>Onboarding</span></a>
+    {% if hub_url %}<a href="{{ hub_url }}/lifecycle" class="nav-item" target="_blank" rel="noopener">
+      <span class="icon">🚪</span><span>Offboarding (Trust Hub) ↗</span></a>{% endif %}
     <a href="{{ url_for('people') }}" class="nav-item {% if request.endpoint in ['people','person_profile'] %}active{% endif %}">
       <span class="icon">👤</span><span>People & Assets</span></a>
     <a href="{{ url_for('repairs') }}" class="nav-item {% if request.endpoint=='repairs' %}active{% endif %}">

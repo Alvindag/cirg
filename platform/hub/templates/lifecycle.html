@@ -1,14 +1,14 @@
-{% extends 'base.html' %}{% from '_macros.html' import pill %}{% block title %}Joiners &amp; leavers · DAS Trust Hub{% endblock %}
-{% block body %}<div class="row"><div><h1>Joiners &amp; leavers</h1><p class="sub">Starters are tracked from ITAM onboarding to a CyberShield certificate. Leavers are tracked until assets are back and access is removed.</p></div>
-{% if can('lifecycle_start') %}<a class="btn right" href="{{ url_for('leaver_new') }}">Start a leaver case</a>{% endif %}</div>
-<h2>Leaver cases</h2><div class="card"><table><thead><tr><th>Case</th><th>Person</th><th>Last day</th><th>Progress</th><th>Status</th></tr></thead><tbody>
+{% extends 'base.html' %}{% from '_macros.html' import pill %}{% block title %}Onboarding &amp; offboarding · DAS Trust Hub{% endblock %}
+{% block body %}<div class="row"><div><h1>Onboarding &amp; offboarding</h1><p class="sub">Joiners are tracked from ITAM onboarding to a CyberShield certificate. Leavers are tracked through offboarding until assets are back and access is removed.</p></div>
+{% if can('lifecycle_start') %}<a class="btn right" href="{{ url_for('leaver_new') }}">Start offboarding (leaver case)</a>{% endif %}</div>
+<h2>Offboarding · Leavers</h2><div class="card"><table><thead><tr><th>Case</th><th>Person</th><th>Last day</th><th>Progress</th><th>Status</th></tr></thead><tbody>
 {% for c in cases %}<tr><td><a href="{{ url_for('leaver_case', ref=c.ref) }}"><b>{{ c.ref }}</b></a></td><td>{{ c.person_name }}<div class="note">{{ c.department }}</div></td><td>{{ c.last_day }}</td>
 <td>{{ c.steps|length - c.open_steps }}/{{ c.steps|length }}{% if c.overdue_steps %} · <span style="color:var(--bad)">{{ c.overdue_steps }} overdue</span>{% endif %}</td>
 <td>{% if c.status=='closed' %}{{ pill('pass') }} Closed{% elif c.at_risk %}<span class="pill fail">At risk</span>{% else %}<span class="pill in_progress">Open</span>{% endif %}</td></tr>
 {% else %}<tr><td colspan="5">No leaver cases{% if not can('lifecycle_all') %} raised by you{% endif %}.</td></tr>{% endfor %}</tbody></table></div>
-{% if can('lifecycle_all') %}<div class="row" style="margin-top:18px"><h2 style="margin:0">New joiners (from ITAM onboarding)</h2>
-{% if can('integrate') %}<form class="right" method="post" action="{{ url_for('lifecycle_integrate') }}"><input type="hidden" name="csrf_token" value="{{ csrf_token }}"><button class="btn sec sm">Enrol joiners &amp; sync certificates now</button></form>{% endif %}</div>
-<p class="note">{{ 'Automation on: joiners are enrolled in CyberShield and their certificate ticks the ITAM onboarding checklist.' if automation else 'Automation off: set INTEGRATION_TOKEN to enrol joiners and sync certificates automatically.' }}</p><div class="card" style="margin-top:8px"><table><thead><tr><th>Person</th><th>Role</th><th>Start</th><th>ITAM onboarding</th><th>Security training</th></tr></thead><tbody>
+{% if can('lifecycle_all') %}<div class="row" style="margin-top:18px"><h2 style="margin:0">Onboarding · Joiners (from ITAM)</h2>
+{% if can('integrate') %}<form class="right row" method="post" action="{{ url_for('lifecycle_integrate') }}"><input type="hidden" name="csrf_token" value="{{ csrf_token }}"><button class="btn sec sm" name="preview" value="1">Preview (no changes)</button><button class="btn sec sm">Run now</button></form>{% endif %}</div>
+<p class="note">{{ 'Automation on: joiners are enrolled in CyberShield and their certificate ticks the ITAM onboarding checklist.' if automation else 'Automation off: set INTEGRATION_TOKEN to enrol joiners and sync certificates automatically.' }}</p><div class="card" style="margin-top:8px"><table><thead><tr><th>Person</th><th>Role</th><th>Start</th><th>ITAM onboarding</th><th>Security training</th><th>Matched by</th></tr></thead><tbody>
 {% for j in joiners %}<tr><td><b>{{ j.name }}</b><div class="note">{{ j.department }}</div></td><td class="m">{{ j.title }}</td><td>{{ j.start }}</td><td class="m">{{ j.itam_status }}</td>
-<td>{{ pill(j.training) }}{% if j.late %} <span class="note" style="color:var(--bad)">not enrolled after {{ j.days_since_start }} days</span>{% endif %}</td></tr>
-{% else %}<tr><td colspan="5">No onboarding records in ITAM.</td></tr>{% endfor %}</tbody></table></div>{% endif %}{% endblock %}
+<td>{{ pill(j.training) }}{% if j.late %} <span class="note" style="color:var(--bad)">not enrolled after {{ j.days_since_start }} days</span>{% endif %}</td><td class="m">{{ j.quality }}</td></tr>
+{% else %}<tr><td colspan="6">No onboarding records in ITAM.</td></tr>{% endfor %}</tbody></table></div>{% endif %}{% endblock %}

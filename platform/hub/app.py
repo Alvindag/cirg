@@ -10,7 +10,7 @@ from werkzeug.security import generate_password_hash
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from common import sso                       # noqa: E402
-from hub import auth, config, connectors, controls, db, integration, ledger, lifecycle   # noqa: E402
+from hub import auth, config, connectors, controls, db, directory, identity, integration, ledger, lifecycle   # noqa: E402
 
 IDLE_SECONDS = 30 * 60
 
@@ -343,9 +343,13 @@ def create_app():
         if not integration.enabled():
             flash('Automation is off: set the same INTEGRATION_TOKEN (32+ characters) for the Hub, ITAM and CyberShield.', 'warn')
         else:
-            r = integration.run(g.user['username'])
-            flash(f"Auto-enrolled {r['enrolled']} joiner(s); synced {r['synced']} certificate(s) to ITAM"
-                  + (f"; {r['errors']} could not be reached." if r['errors'] else '.'), 'danger' if r['errors'] else 'success')
+            preview = request.form.get('preview') == '1'
+            r = integration.run(g.user['username'], dry_run=preview)
+            if preview:
+                flash('PREVIEW, nothing changed. ' + (' | '.join(r['plan']) if r['plan'] else 'Nothing to do.'), 'warn')
+            else:
+                flash(f"Enrolled {r['enrolled']} joiner(s); synced {r['synced']} certificate(s); cancelled {r['cancelled']} leaver training record(s)"
+                      + (f"; {r['errors']} could not be completed." if r['errors'] else '.'), 'danger' if r['errors'] else 'success')
         return redirect(url_for('lifecycle_home'))
 
     @app.route('/lifecycle/new', methods=['GET', 'POST'])
@@ -366,7 +370,8 @@ def create_app():
                 flash('Name, last working day (YYYY-MM-DD), reason and manager are required.', 'danger')
             else:
                 ref = lifecycle.create_case(g.user['username'], f['person'].strip(), f.get('employee_id', '').strip(),
-                                            f.get('department', '').strip(), f.get('job_title', '').strip(), mgr, f['last_day'], f['reason'])
+                                            f.get('department', '').strip(), f.get('job_title', '').strip(), mgr, f['last_day'], f['reason'],
+                                            f.get('ad_username', '').strip())
                 flash(f'Leaver case {ref} opened.', 'success')
                 return redirect(url_for('leaver_case', ref=ref))
         return render_template('leaver_new.html', managers=managers, reasons=lifecycle.REASONS, today=date.today().isoformat())
@@ -377,7 +382,9 @@ def create_app():
         c = lifecycle.get(ref, g.user)
         if not c:
             abort(404)                       # also hides cases the user may not see
-        return render_template('leaver_case.html', c=c, can_step=lambda s: lifecycle.can_complete(g.user, c, s))
+        return render_template('leaver_case.html', c=c, can_step=lambda s: lifecycle.can_complete(g.user, c, s),
+                               ad_on=directory.configured(), ad=directory.settings(), cands=session.pop('ad_cands', None),
+                               ad_result=session.pop('ad_result', None))
 
     @app.post('/lifecycle/<ref>/step/<int:sid>')
     @need('lifecycle')
@@ -387,6 +394,71 @@ def create_app():
             abort(404)
         flash('Step recorded and sealed in the audit ledger.' if r == 'ok' else 'You cannot complete that step.', 'success' if r == 'ok' else 'danger')
         return redirect(url_for('leaver_case', ref=ref))
+
+    @app.post('/lifecycle/<ref>/ad/lookup')
+    @need('lifecycle')
+    def leaver_ad_lookup(ref):
+        status, found = lifecycle.ad_lookup(g.user, ref)
+        if status == 'not_found':
+            abort(404)
+        if status != 'ok':
+            flash(_ad_msg(status), 'danger')
+        else:
+            session['ad_cands'] = [{k: x[k] for k in ('dn', 'sam', 'display', 'employee_id', 'enabled', 'protected', 'match')} for x in found[:5]]
+            flash(f'{len(found)} matching account(s) found. Check carefully, then confirm the exact one.' if found else 'No matching account in AD.', 'warn')
+        return redirect(url_for('leaver_case', ref=ref))
+
+    @app.post('/lifecycle/<ref>/ad/confirm')
+    @need('lifecycle')
+    def leaver_ad_confirm(ref):
+        r = lifecycle.ad_confirm(g.user, ref, request.form.get('dn', ''))
+        flash('Account confirmed for this leaver.' if r == 'ok' else _ad_msg(r), 'success' if r == 'ok' else 'danger')
+        return redirect(url_for('leaver_case', ref=ref))
+
+    @app.post('/lifecycle/<ref>/ad/disable')
+    @need('lifecycle')
+    def leaver_ad_disable(ref):
+        r, res = lifecycle.ad_disable(g.user, ref, dry_run=True if request.form.get('preview') == '1' else None)
+        if r != 'ok':
+            flash(_ad_msg(r), 'danger')
+        else:
+            session['ad_result'] = res
+            flash(('PREVIEW, nothing changed.' if res['dry_run'] else 'Account disabled and verified.'), 'warn' if res['dry_run'] else 'success')
+        return redirect(url_for('leaver_case', ref=ref))
+
+    @app.post('/lifecycle/<ref>/ad/enable')
+    @need('lifecycle')
+    def leaver_ad_enable(ref):
+        r = lifecycle.ad_reenable(g.user, ref)
+        flash('Account re-enabled.' if r == 'ok' else _ad_msg(r), 'success' if r == 'ok' else 'danger')
+        return redirect(url_for('leaver_case', ref=ref))
+
+    @app.post('/lifecycle/<ref>/cancel-training')
+    @need('lifecycle')
+    def leaver_cancel_training(ref):
+        c = lifecycle.get(ref, g.user)
+        if not c:
+            abort(404)
+        if g.user['role'] not in ('hr', 'admin', 'it_manager', 'it_staff'):
+            abort(403)
+        n = lifecycle.cancel_training(g.user['username'], c)
+        flash(f'Cancelled {n} unfinished training record(s).' if n else 'Nothing to cancel (or automation is off).', 'success' if n else 'warn')
+        return redirect(url_for('leaver_case', ref=ref))
+
+    @app.get('/identity')
+    @need('lifecycle_all')
+    def identity_review():
+        rows, amb = identity.review()
+        return render_template('identity.html', rows=rows, amb=amb)
+
+    @app.post('/identity/confirm')
+    @need('lifecycle_start')
+    def identity_confirm():
+        ok = identity.confirm(g.user['username'], request.form.get('name', ''), request.form.get('employee_id', ''))
+        if ok:
+            audit('IDENTITY_CONFIRM', f"{request.form.get('name', '')[:60]} -> {request.form.get('employee_id', '')[:20]}")
+        flash('Identity confirmed.' if ok else 'Name and employee ID are required.', 'success' if ok else 'danger')
+        return redirect(url_for('identity_review'))
 
     @app.post('/lifecycle/<ref>/close')
     @need('lifecycle')
@@ -453,6 +525,12 @@ def create_app():
         return jsonify(score=summ['overall'], rating=summ['rating'], frameworks=summ['frameworks'], counts=summ['counts'],
                        exposed_people=len([p for p in connectors.people() if p['exposed']]),
                        ledger=ledger.verify()['ok'], generated=datetime.now().isoformat(timespec='seconds'))
+
+    def _ad_msg(code):
+        return {'forbidden': 'Your role cannot do that.', 'not_configured': 'Active Directory is not configured on this Hub.',
+                'not_confirmed': 'Confirm the leaver\'s AD account first.', 'too_early': 'The account can only be disabled on or after the last working day.',
+                'protected': 'That is a protected account and cannot be changed by the Hub.', 'no_such_candidate': 'That account was not among the current matches.',
+                'not_found': 'Case not found.'}.get(code, code)
 
     @app.errorhandler(403)
     def _403(e):

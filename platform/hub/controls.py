@@ -133,6 +133,18 @@ def c_exposure(ctx):
                 'Withhold or recall devices from holders until training is complete (see Exposure list).')
 
 
+def c_identity(ctx):
+    rows = ctx['people']
+    if not rows:
+        return _res(NA, 'no people', '', '')
+    weak = [p for p in rows if p['quality'] in ('name', 'ambiguous')]
+    amb = [p for p in rows if p['quality'] == 'ambiguous']
+    p = _pct(len(rows) - len(weak), len(rows))
+    return _res(_band(p, 95, 80) if not amb else FAIL, f"{p}% of people matched by employee ID or username; {len(weak)} rely on a name ({len(amb)} ambiguous)",
+                'Exact identity matters when a name is shared, and before any account is disabled.',
+                'Capture employee IDs in ITAM onboarding and asset assignment; settle legacy names on the Identity page.')
+
+
 def c_ledger(ctx):
     v = ctx['ledger']
     if v['entries'] == 0:
@@ -227,6 +239,8 @@ AUTO = [
      {'iso27001': ['A.6.3'], 'nist_csf': ['PR.AT-01'], 'cis': ['14.2']}),
     ('AC-09', 'Asset holders are trained (joint ITAM × CyberShield)', 3, c_exposure,
      {'iso27001': ['A.6.3', 'A.5.10', 'A.8.1'], 'nist_csf': ['PR.AT-01', 'GV.RR-04'], 'cis': ['14.1']}),
+    ('AC-17', 'People are matched across systems by a reliable identifier', 2, c_identity,
+     {'iso27001': ['A.5.16'], 'nist_csf': ['PR.AA-01'], 'cis': ['5.1']}),
     ('AC-10', 'Audit trails are complete and tamper-evident', 3, c_ledger,
      {'iso27001': ['A.8.15', 'A.5.28'], 'nist_csf': ['DE.CM-09', 'PR.PS-04'], 'cis': ['8.2', '8.9'], 'ghana': ['Act 1038 – evidence preservation']}),
     ('AC-11', 'Privileged access uses multi-factor authentication', 3, c_mfa,

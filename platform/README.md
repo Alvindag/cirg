@@ -15,7 +15,10 @@ One platform over two existing systems, with **nothing in them removed or rework
 - **Tamper-evident audit ledger.** ITAM's `audit_log`, CyberShield's `compliance_log` and the Hub's own events are sealed into a SHA-256 hash chain. Editing or deleting a row later, in the ledger or in either source database, is detected by *Verify*.
 - **Compliance engine.** 26 controls (14 computed from live data, 12 attested with evidence) mapped to ISO/IEC 27001:2022 Annex A, NIST CSF 2.0, CIS Controls v8 and Ghana Acts 843/1038. Unattested controls score zero; expired reviews downgrade. Printable report, CSV export, score history, remediation backlog ranked by impact.
 - **Joiners and leavers.** New starters in ITAM onboarding are **auto-enrolled in CyberShield**; when they pass and receive their certificate, the Hub **ticks the matching ITAM onboarding checklist item** (certificate number and score recorded). Leavers get a case with an HR, manager and IT checklist: asset return is **verified from ITAM and cannot be ticked by hand**, then account/mailbox/system access removal and device wipe. HR and line managers can start a case; a manager sees only the cases they raised; each step can only be completed by its owner role. Overdue leavers who still hold assets show as at-risk and fail control AC-16.
-- **Controlled integration.** The Hub reads both application databases read-only (SQLite `mode=ro`). The only writes into the apps are two token-protected, idempotent endpoints (`/api/hub/enrol` in CyberShield, `/api/hub/onboarding/training-complete` in ITAM), disabled unless `INTEGRATION_TOKEN` is set. Every automated action is sealed in the audit ledger.
+- **Onboarding and offboarding (joiners and leavers), end to end.** Leaver cases also **cancel unfinished CyberShield training on the last day** and can **disable the leaver's on-premise Active Directory account** (LDAPS, dry-run by default, IT confirms the exact account, protected accounts refused, read back to verify; see `docs/ACTIVE_DIRECTORY.md`). If AD or the integration is not configured, those steps stay normal manual steps.
+- **Reliable identity.** People are matched by **employee ID** first, then AD username, and only last by name. ITAM now captures an employee ID at onboarding and asset assignment. Names shared by different employees are never auto-matched; the **Identity** page lets HR/IT confirm legacy records.
+- **Safe to pilot.** `python -m hub.cli preflight` reports on a *copy* of your real data and what automation would do, changing nothing; *Preview (no changes)* buttons do the same in the UI. See `docs/PILOT.md`.
+- **Controlled integration.** The Hub reads both application databases read-only (SQLite `mode=ro`). The only writes into the apps are two token-protected, idempotent endpoints (`/api/hub/enrol` in CyberShield, `/api/hub/onboarding/training-complete` in ITAM, and `/api/hub/cancel` in CyberShield), disabled unless `INTEGRATION_TOKEN` is set. Every automated action is sealed in the audit ledger.
 
 ## Run it on your LAN (Windows or Linux)
 
@@ -40,6 +43,6 @@ Production: `cp .env.example .env`, fill it in, `docker compose up -d --build`, 
 Operations: `python -m hub.cli sync | verify | score | create-user <name> <password> <role>`; set `HUB_AUTO_SYNC_SECONDS` to seal logs automatically; `GET /api/v1/summary` (bearer `HUB_API_TOKEN`) for monitoring.
 
 ## Tests
-`python -m pytest tests -q` runs 37 tests: regression of both original apps, SSO (replay, audience, tamper, role), MFA (RFC 6238 vector), lockout, CSRF, RBAC, open-redirect, CSV-injection, ledger tamper detection, scoring.
+`python -m pytest tests -q` runs 56 tests: regression of both original apps, SSO (replay, audience, tamper, role), MFA (RFC 6238 vector), lockout, CSRF, RBAC, open-redirect, CSV-injection, ledger tamper detection, scoring.
 
 See `docs/ASSESSMENT.md` for the gap assessment, what was fixed and what you must still do.

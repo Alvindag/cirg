@@ -16,6 +16,7 @@ bind = '0.0.0.0' if lan else '127.0.0.1'
 shown = lan or '127.0.0.1'
 env = dict(os.environ)
 env['ITAM_URL'] = f'http://{shown}:5057'
+env['HUB_URL'] = f'http://{shown}:5080'
 env['CYBERSHIELD_URL'] = f'http://{shown}:5076'
 if data:
     os.makedirs(data, exist_ok=True)

@@ -31,7 +31,9 @@ Scope: source review of `app.py` in each product plus the bundled databases. Thi
 | Case closure | HR only, and only when every step is done |
 
 Controls: **AC-15** (joiners enrolled within 7 days) and **AC-16** (leavers: assets returned and access removed on time). Privacy: leaver cases hold name, department, last day and reason only; managers see only their own cases; unrelated cases return 404.
-**Not automated yet:** actually disabling the leaver's AD/Entra/M365 accounts (a manual IT step), and cancelling a leaver's open training.
+**Now automated:** cancelling a leaver's unfinished training on the last day, and disabling the on-premise AD account (confirmed, dry-run by default; `docs/ACTIVE_DIRECTORY.md`).
+**Still manual:** Entra ID / Microsoft 365 / mailbox changes and revoking other business systems.
+**Identity:** matching now uses employee ID, then AD username, then name (control AC-17). The AD logic is tested against an in-memory LDAP directory, not a real AD: use dry run and `docs/PILOT.md`.
 
 ## Integration design
 Hub is the front door and read-only integrator. ITAM and CyberShield keep their own databases and logins; the Hub reaches them by a signed SSO ticket and read-only SQL. Shared identity is by Hub username with role mapping; people are matched by normalised name (ITAM has no employee-ID join key). **Recommended next step:** add `employee_id` to ITAM assets and onboarding so matching is exact.

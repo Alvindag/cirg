@@ -1,0 +1,8 @@
+{% extends 'base.html' %}{% block title %}Identity · DAS Trust Hub{% endblock %}
+{% block body %}<h1>Identity matching</h1><p class="sub">People are joined across ITAM, CyberShield and AD by <b>employee ID</b>, then AD username, and only last by name. Records below still rely on a bare name. Confirm an employee ID to settle them; names shared by different employees are never auto-joined.</p>
+{% if amb %}<div class="flash danger">{{ amb|length }} name(s) belong to more than one employee ID, so they are NOT auto-matched: {% for n, ids in amb.items() %}<b>{{ n }}</b> ({{ ids|join(', ') }}) {% endfor %}</div>{% endif %}
+<div class="card"><table><thead><tr><th>Person</th><th>Seen as</th><th>Assets</th><th>Training</th><th>Confirm employee ID</th></tr></thead><tbody>
+{% for p in rows %}<tr><td><b>{{ p.name }}</b><div class="note">{{ p.department }}</div></td><td class="m">{{ p.quality }}</td><td>{{ p.asset_count }}</td><td class="m">{{ p.training }}</td>
+<td>{% if can('lifecycle_start') %}<form class="row" method="post" action="{{ url_for('identity_confirm') }}"><input type="hidden" name="csrf_token" value="{{ csrf_token }}"><input type="hidden" name="name" value="{{ p.name }}"><input name="employee_id" placeholder="e.g. DASPH000586" style="max-width:170px" required><button class="btn sm">Confirm</button></form>{% endif %}</td></tr>
+{% else %}<tr><td colspan="5">Every record is matched by employee ID or username. 🎉</td></tr>{% endfor %}</tbody></table></div>
+<p class="note">Confirmations are stored in the Hub only (ITAM and CyberShield are untouched). Capture the employee ID in ITAM at onboarding and asset assignment so new records match exactly from the start.</p>{% endblock %}

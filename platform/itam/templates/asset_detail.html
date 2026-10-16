@@ -66,6 +66,7 @@
           <div class="form-grid" style="grid-template-columns:1fr 1fr;">
             <div class="form-group"><label>Username / Staff ID</label><input name="assigned_to" placeholder="e.g. jdoe" required></div>
             <div class="form-group"><label>Full Name</label><input name="assigned_to_name" placeholder="e.g. John Doe" required></div>
+            <div class="form-group"><label>Employee ID (recommended)</label><input name="assigned_employee_id" placeholder="e.g. DASPH000586"></div>
             <div class="form-group"><label>Location</label>
               <select name="location">{% for l in ['NIA — HQ','TA-F1','TA-F2','TAMELE','KUMASI','TAKRODI','Off-Site / Remote'] %}<option {% if asset.location==l %}selected{% endif %}>{{ l }}</option>{% endfor %}</select></div>
             <div class="form-group"><label>Department</label>

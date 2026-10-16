@@ -94,6 +94,10 @@
     <div class="form-section-title">IT Account Details (fill in or complete later)</div>
     <div class="form-grid">
       <div class="form-group">
+        <label>Employee ID (HR number)</label>
+        <input name="employee_id" value="{{ form.get('employee_id','') }}" placeholder="e.g. DASPH000586">
+      </div>
+      <div class="form-group">
         <label>AD Username (to be created)</label>
         <input name="ad_username" value="{{ form.get('ad_username','') }}"
                placeholder="e.g. kwame.asante">

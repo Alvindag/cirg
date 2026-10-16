@@ -41,7 +41,7 @@ def _get_csrf_token():
 
 app.jinja_env.globals['csrf_token'] = _get_csrf_token
 
-_CSRF_EXEMPT_ENDPOINTS = {'admin_login', 'hub_enrol'}  # hub_enrol authenticates with its own bearer token  # no session/token exists yet at login
+_CSRF_EXEMPT_ENDPOINTS = {'admin_login', 'hub_enrol', 'hub_cancel'}  # hub_enrol authenticates with its own bearer token  # no session/token exists yet at login
 
 @app.before_request
 def _enforce_csrf():
@@ -192,6 +192,7 @@ def init_db():
         'ALTER TABLE trainees ADD COLUMN expiry_notified INTEGER DEFAULT 0',
         'ALTER TABLE trainees ADD COLUMN must_change_pw INTEGER DEFAULT 0',
         'ALTER TABLE trainees ADD COLUMN hub_enrolled INTEGER DEFAULT 0',
+        'ALTER TABLE trainees ADD COLUMN cancelled_at TEXT',
         'ALTER TABLE trainees ADD COLUMN warning_sent INTEGER DEFAULT 0',
         # Structured notification cadence (v3.1)
         'ALTER TABLE trainees ADD COLUMN assignment_notified INTEGER DEFAULT 0',
@@ -403,7 +404,7 @@ def check_training_deadlines():
         warn7_threshold = (now + timedelta(days=7)).isoformat()
         for t in conn.execute("""
             SELECT * FROM trainees
-            WHERE completed_at IS NULL AND deadline_at IS NOT NULL
+            WHERE completed_at IS NULL AND cancelled_at IS NULL AND deadline_at IS NOT NULL
               AND deadline_at <= ? AND deadline_at > ?
               AND (reminder_7d_sent IS NULL OR reminder_7d_sent = 0)
         """, (warn7_threshold, (now + timedelta(days=3)).isoformat())).fetchall():
@@ -429,7 +430,7 @@ def check_training_deadlines():
         warn_threshold = (now + timedelta(days=3)).isoformat()
         warn_candidates = conn.execute("""
             SELECT * FROM trainees
-            WHERE completed_at IS NULL
+            WHERE completed_at IS NULL AND cancelled_at IS NULL
               AND deadline_at IS NOT NULL
               AND deadline_at <= ?
               AND deadline_at > ?
@@ -473,7 +474,7 @@ def check_training_deadlines():
         # ── Stage 4: deadline-day expiry escalation ─────────────────────────
         overdue = conn.execute("""
             SELECT * FROM trainees
-            WHERE completed_at IS NULL
+            WHERE completed_at IS NULL AND cancelled_at IS NULL
               AND deadline_at IS NOT NULL
               AND deadline_at < ?
               AND expiry_notified = 0
@@ -520,7 +521,7 @@ def check_training_deadlines():
         renotify_threshold = (now - timedelta(days=OVERDUE_RENOTIFY_DAYS)).isoformat()
         still_overdue = conn.execute("""
             SELECT * FROM trainees
-            WHERE completed_at IS NULL
+            WHERE completed_at IS NULL AND cancelled_at IS NULL
               AND expiry_notified = 1
               AND (last_overdue_notice_at IS NULL OR last_overdue_notice_at <= ?)
         """, (renotify_threshold,)).fetchall()
@@ -967,6 +968,27 @@ def hub_enrol():
     conn.commit(); conn.close()
     threading.Thread(target=notify_assignment, args=(tid,), daemon=True).start()
     return jsonify({'ok': True, 'created': True, 'id': tid, 'deadline': (started + timedelta(days=5)).isoformat()})
+
+@app.route('/api/hub/cancel', methods=['POST'])
+def hub_cancel():
+    """Cancel a leaver's unfinished training: stops reminders and escalations. Completed records are untouched.
+    Matches on employee_id when given, otherwise exact (case-insensitive) name. Disabled unless INTEGRATION_TOKEN is set."""
+    if not _integration_token_ok():
+        return jsonify({'ok': False, 'error': 'unauthorised'}), 401
+    d = request.get_json(silent=True) or {}
+    name = str(d.get('name', '')).strip()[:120]
+    emp = str(d.get('employee_id', '')).strip()[:40]
+    if not name and not emp:
+        return jsonify({'ok': False, 'error': 'name or employee_id required'}), 400
+    conn = get_db()
+    rows = conn.execute("SELECT id FROM trainees WHERE completed_at IS NULL AND cancelled_at IS NULL AND "
+                        "((?<>'' AND employee_id=?) OR (?<>'' AND LOWER(name)=LOWER(?)))", (emp, emp, name, name)).fetchall()
+    for r in rows:
+        conn.execute("UPDATE trainees SET cancelled_at=? WHERE id=?", (datetime.now().isoformat(), r['id']))
+    conn.commit(); conn.close()
+    for r in rows:
+        log_compliance_action(r['id'], 'CANCELLED', 'Leaver: unfinished training cancelled by Trust Hub', 'hub-integration')
+    return jsonify({'ok': True, 'cancelled': len(rows)})
 
 @app.route('/admin/logout')
 def admin_logout():
