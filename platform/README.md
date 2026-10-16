@@ -16,7 +16,17 @@ One platform over two existing systems, with **nothing in them removed or rework
 - **Compliance engine.** 26 controls (14 computed from live data, 12 attested with evidence) mapped to ISO/IEC 27001:2022 Annex A, NIST CSF 2.0, CIS Controls v8 and Ghana Acts 843/1038. Unattested controls score zero; expired reviews downgrade. Printable report, CSV export, score history, remediation backlog ranked by impact.
 - **Read-only integration.** The Hub opens both application databases with SQLite `mode=ro`; it cannot alter source records.
 
-## Run it
+## Run it on your LAN (Windows or Linux)
+
+1. Install Python 3.10+ and unzip this folder on the server PC.
+2. Double-click **`run.bat`** (or `python run_all.py --data data --lan <SERVER_IP>`) and enter the server's LAN IP.
+3. Copy the one-time Hub admin password printed in the window. Sign in at `http://<SERVER_IP>:5080`, then change it (you are forced to).
+4. Allow inbound TCP **5080, 5057, 5076** through Windows Firewall for your LAN only.
+5. Staff open `http://<SERVER_IP>:5076` for training; IT uses the Hub (5080) and ITAM (5057).
+
+To bring over your existing data, stop the apps and copy `itam.db` and `cybershield.db` into `data\`. Back up `data\` regularly. This is plain HTTP, fine for a trusted LAN; for anything wider put a TLS proxy in front and set `COOKIE_SECURE=true`.
+
+## Try it with demo data
 
 ```bash
 pip install -r requirements.txt
