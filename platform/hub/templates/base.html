@@ -1,0 +1,24 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>{% block title %}DAS Trust Hub{% endblock %}</title>
+<link rel="stylesheet" href="{{ url_for('static', filename='hub.css') }}"></head><body>
+{% if me %}
+<header class="top"><div class="bar">
+  <a class="brand" href="{{ url_for('dashboard') }}">DAS <b>Trust Hub</b></a>
+  <nav>
+    {% set ep = request.endpoint %}
+    <a href="{{ url_for('dashboard') }}" class="{{ 'on' if ep=='dashboard' }}">Overview</a>
+    <a href="{{ url_for('exposure') }}" class="{{ 'on' if ep=='exposure' }}">People &amp; assets</a>
+    <a href="{{ url_for('compliance') }}" class="{{ 'on' if ep in ('compliance','control') }}">Compliance</a>
+    {% if can('ledger') %}<a href="{{ url_for('ledger_view') }}" class="{{ 'on' if ep=='ledger_view' }}">Audit ledger</a>{% endif %}
+    {% if can('manage_users') %}<a href="{{ url_for('users') }}" class="{{ 'on' if ep=='users' }}">Users</a>{% endif %}
+    {% if can('launch') %}<a href="{{ url_for('launch', target='itam') }}">ITAM ↗</a><a href="{{ url_for('launch', target='cybershield') }}">CyberShield ↗</a>{% endif %}
+  </nav>
+  <div class="who"><a href="{{ url_for('account') }}">{{ me['username'] }} · {{ me['role'] }}</a>
+    <form class="inline" method="post" action="{{ url_for('logout') }}"><input type="hidden" name="csrf_token" value="{{ csrf_token }}"><button class="btn sec sm">Sign out</button></form></div>
+</div></header>
+{% endif %}
+<main>
+{% with m = get_flashed_messages(with_categories=true) %}{% for c, t in m %}<div class="flash {{ c }}">{{ t }}</div>{% endfor %}{% endwith %}
+{% block body %}{% endblock %}
+</main></body></html>

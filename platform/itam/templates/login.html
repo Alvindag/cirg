@@ -1,0 +1,19 @@
+<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8">
+<title>ITAM — Login</title>
+<link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head><body>
+<div class="login-page"><div class="login-box">
+  <div class="login-logo mb-3">
+    <div class="name">ITAM</div>
+    <div class="tagline">IT Asset Management System</div>
+    <div style="font-size:11px;color:var(--muted);text-align:center;margin-top:4px;">DAS Plc</div>
+  </div>
+  {% with messages = get_flashed_messages(with_categories=true) %}
+    {% for cat, msg in messages %}<div class="alert alert-{{ cat }}">{{ msg }}</div>{% endfor %}
+  {% endwith %}
+  <form method="POST">
+    <div class="form-group mb-2"><label>Username</label><input name="username" autofocus required></div>
+    <div class="form-group mb-2"><label>Password</label><input name="password" type="password" required></div>
+    <button class="btn btn-primary" style="width:100%;justify-content:center;margin-top:8px;" type="submit">Sign In</button>
+  </form>
+</div></div></body></html>

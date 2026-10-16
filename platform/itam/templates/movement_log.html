@@ -1,0 +1,41 @@
+{% extends 'base.html' %}
+{% block title %}Movement Log{% endblock %}
+{% block topbar_title %}Movement Log{% endblock %}
+{% block topbar_sub %}Immutable audit trail — every action on every asset{% endblock %}
+{% block content %}
+<div class="page-header">
+  <div><h1>Movement Log</h1><p>{{ total }} total events recorded</p></div>
+</div>
+<div class="card mb-2"><div class="card-body" style="padding:12px 18px;">
+  <form method="GET" style="display:flex;gap:8px;align-items:flex-end;flex-wrap:wrap;">
+    <div class="form-group" style="margin:0;"><label>Search</label><input name="q" value="{{ q }}" placeholder="Asset tag, name, user…" style="width:220px;margin:0;"></div>
+    <div class="form-group" style="margin:0;"><label>Action</label>
+      <select name="action" style="width:180px;margin:0;">
+        <option value="">All Actions</option>
+        {% for a in actions %}<option {% if action in a.action %}selected{% endif %}>{{ a.action }}</option>{% endfor %}
+      </select></div>
+    <button class="btn btn-primary btn-sm" type="submit">Filter</button>
+    <a href="{{ url_for('movement_log_view') }}" class="btn btn-secondary btn-sm">Clear</a>
+  </form>
+</div></div>
+<div class="card"><div class="card-body" style="padding:0;">
+  {% if logs %}
+  <div class="table-wrap"><table>
+    <thead><tr><th>Date / Time</th><th>Asset Tag</th><th>Asset Name</th><th>Action</th><th>From User</th><th>To User</th><th>Location Change</th><th>Status Change</th><th>Performed By</th><th>Notes</th></tr></thead>
+    <tbody>{% for l in logs %}
+    <tr>
+      <td class="mono fs-sm text-muted">{{ l.created_at[:16] }}</td>
+      <td class="mono fs-sm text-accent">{{ l.asset_tag }}</td>
+      <td class="fs-sm">{{ l.asset_name }}</td>
+      <td class="fw-bold fs-sm {% if 'Assign' in l.action and 'Un' not in l.action %}log-action-assign{% elif 'Repair' in l.action %}log-action-repair{% elif 'Register' in l.action %}log-action-register{% elif 'Unassign' in l.action %}log-action-unassign{% else %}log-action-status{% endif %}">{{ l.action }}</td>
+      <td class="fs-sm text-muted">{{ l.from_user or '—' }}</td>
+      <td class="fs-sm">{{ l.to_user or '—' }}</td>
+      <td class="fs-sm text-muted">{% if l.from_location != l.to_location and l.to_location %}{{ l.from_location or '—' }} → {{ l.to_location }}{% else %}—{% endif %}</td>
+      <td class="fs-sm">{% if l.from_status != l.to_status and l.to_status and l.to_status != l.from_status %}<span class="text-muted">{{ l.from_status or '—' }}</span> → <span class="text-accent">{{ l.to_status }}</span>{% else %}—{% endif %}</td>
+      <td class="fs-sm text-muted">{{ l.performed_by }}</td>
+      <td class="fs-sm text-muted">{{ l.notes or '—' }}</td>
+    </tr>{% endfor %}</tbody>
+  </table></div>
+  {% else %}<div class="empty-state"><div class="icon">📋</div><p>No log entries yet.</p></div>{% endif %}
+</div></div>
+{% endblock %}

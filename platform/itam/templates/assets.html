@@ -1,0 +1,134 @@
+{% extends 'base.html' %}
+{% block title %}Asset Register{% endblock %}
+{% block topbar_title %}Asset Register{% endblock %}
+{% block topbar_sub %}{{ total_count }} assets total · Page {{ page }} of {{ total_pages }}{% endblock %}
+{% block content %}
+{% from 'macros.html' import status_badge, warranty_badge %}
+
+<div class="page-header">
+  <div><h1>IT Asset Register</h1><p>{{ total_count }} assets{% if q or status_f or type_f or loc_f or company_f %} (filtered){% endif %}</p></div>
+  <div class="page-header-actions">
+    {% if has_perm('write') %}<a href="{{ url_for('new_asset') }}" class="btn btn-primary">➕ Register Asset</a>{% endif %}
+    {% if has_perm('bulk') %}
+    <a href="{{ url_for('bulk_upload') }}" class="btn btn-secondary">📥 Bulk Upload</a>
+    <a href="{{ url_for('export_assets') }}" class="btn btn-secondary">📤 Export</a>
+    {% endif %}
+  </div>
+</div>
+
+<!-- Filters -->
+<div class="card mb-2">
+  <div class="card-body" style="padding:12px 18px;">
+    <form method="GET" id="filterForm" style="display:flex;gap:8px;flex-wrap:wrap;align-items:flex-end;">
+      <div class="form-group" style="margin:0;"><label>Search</label>
+        <input name="q" value="{{ q }}" placeholder="Tag, name, serial, user, PO…" style="width:210px;margin:0;"></div>
+      <div class="form-group" style="margin:0;"><label>Status</label>
+        <select name="status" style="width:170px;margin:0;">
+          <option value="">All Statuses</option>
+          {% for s in statuses %}<option {% if status_f==s %}selected{% endif %}>{{ s }}</option>{% endfor %}
+        </select></div>
+      <div class="form-group" style="margin:0;"><label>Type</label>
+        <select name="type" style="width:150px;margin:0;">
+          <option value="">All Types</option>
+          {% for t in all_types %}<option {% if type_f==t.asset_type %}selected{% endif %}>{{ t.asset_type }}</option>{% endfor %}
+        </select></div>
+      <div class="form-group" style="margin:0;"><label>Site / Location</label>
+        <select name="location" style="width:140px;margin:0;">
+          <option value="">All Sites</option>
+          {% for l in locations %}<option {% if loc_f==l %}selected{% endif %}>{{ l }}</option>{% endfor %}
+        </select></div>
+      <div class="form-group" style="margin:0;"><label>Company</label>
+        <select name="company" style="width:160px;margin:0;">
+          <option value="">All Companies</option>
+          {% for c in companies %}<option {% if company_f==c %}selected{% endif %}>{{ c }}</option>{% endfor %}
+        </select></div>
+      <div class="form-group" style="margin:0;"><label>Department</label>
+        <select name="department" style="width:160px;margin:0;">
+          <option value="">All Departments</option>
+          {% for d in departments %}<option {% if dept_f==d %}selected{% endif %}>{{ d }}</option>{% endfor %}
+        </select></div>
+      <button class="btn btn-primary btn-sm" type="submit">Filter</button>
+      <a href="{{ url_for('assets') }}" class="btn btn-secondary btn-sm">Clear</a>
+    </form>
+  </div>
+</div>
+
+{% if has_perm('bulk') %}
+<!-- Bulk action bar -->
+<form method="POST" action="{{ url_for('bulk_status') }}" id="bulkForm">
+  <div class="bulk-bar" id="bulkBar">
+    <span class="fs-sm fw-bold text-accent" id="selectedCount">0 selected</span>
+    <select name="bulk_status" style="width:180px;margin:0;">
+      {% for s in statuses %}<option>{{ s }}</option>{% endfor %}
+    </select>
+    <input name="bulk_notes" placeholder="Notes for bulk update" style="width:200px;margin:0;">
+    <button class="btn btn-primary btn-sm" type="submit" onclick="return confirm('Update all selected assets?')">Update Selected</button>
+    <button type="button" class="btn btn-secondary btn-sm" onclick="clearBulk()">Cancel</button>
+  </div>
+{% endif %}
+
+<div class="card">
+  <div class="card-body" style="padding:0;">
+    {% if assets %}
+    <div class="table-wrap"><table>
+      <thead><tr>
+        {% if has_perm('bulk') %}<th><input type="checkbox" class="bulk-check" id="selectAll" onclick="toggleAll(this)"></th>{% endif %}
+        <th>Asset Tag</th><th>Name</th><th>Type</th><th>Brand/Model</th>
+        <th>Site</th><th>Dept</th><th>Assigned To</th>
+        <th>Warranty</th><th>Status</th><th></th>
+      </tr></thead>
+      <tbody>{% for a in assets %}
+      <tr>
+        {% if has_perm('bulk') %}
+        <td><input type="checkbox" class="bulk-check asset-cb" name="asset_ids" value="{{ a.id }}" onchange="updateBulkBar()"></td>
+        {% endif %}
+        <td><a href="{{ url_for('view_asset', asset_id=a.id) }}" class="mono" style="color:var(--accent);font-weight:700;">{{ a.asset_tag }}</a></td>
+        <td class="fw-bold">{{ a.asset_name[:35] }}{% if a.asset_name|length > 35 %}…{% endif %}</td>
+        <td class="fs-sm text-muted">{{ a.asset_type }}</td>
+        <td class="fs-sm text-muted">{{ (a.brand or '') }} {{ (a.model or '')[:18] }}</td>
+        <td class="fs-sm"><span class="{% if a.location == 'NIA — HQ' %}text-accent fw-bold{% else %}text-muted{% endif %}">{{ a.location or '—' }}</span></td>
+        <td class="fs-sm text-muted">{{ (a.department or '—')[:18] }}</td>
+        <td class="fs-sm">{{ a.assigned_to_name or '<span class="text-muted">—</span>'|safe }}</td>
+        <td>{{ warranty_badge(a) }}</td>
+        <td>{{ status_badge(a.status) }}</td>
+        <td><a href="{{ url_for('view_asset', asset_id=a.id) }}" class="btn btn-xs btn-secondary">View</a></td>
+      </tr>{% endfor %}</tbody>
+    </table></div>
+
+    <!-- Pagination -->
+    <div style="padding:12px 18px;display:flex;align-items:center;justify-content:space-between;">
+      <span class="fs-sm text-muted">Showing {{ ((page-1)*25)+1 }}–{{ [page*25, total_count]|min }} of {{ total_count }} assets</span>
+      <div class="pagination">
+        {% if page > 1 %}
+        <a href="?page={{ page-1 }}&q={{ q }}&status={{ status_f }}&type={{ type_f }}&location={{ loc_f }}&company={{ company_f }}&department={{ dept_f }}" class="page-btn">‹ Prev</a>
+        {% endif %}
+        {% for p in range([1, page-2]|max, [total_pages+1, page+3]|min) %}
+        <a href="?page={{ p }}&q={{ q }}&status={{ status_f }}&type={{ type_f }}&location={{ loc_f }}&company={{ company_f }}&department={{ dept_f }}" class="page-btn {% if p==page %}active{% endif %}">{{ p }}</a>
+        {% endfor %}
+        {% if page < total_pages %}
+        <a href="?page={{ page+1 }}&q={{ q }}&status={{ status_f }}&type={{ type_f }}&location={{ loc_f }}&company={{ company_f }}&department={{ dept_f }}" class="page-btn">Next ›</a>
+        {% endif %}
+      </div>
+    </div>
+    {% else %}<div class="empty-state" style="padding:40px;"><div class="icon">🖥</div><p>No assets found{% if q %}  matching "{{ q }}"{% endif %}.</p></div>{% endif %}
+  </div>
+</div>
+{% if has_perm('bulk') %}</form>{% endif %}
+
+<script>
+function toggleAll(cb) {
+  document.querySelectorAll('.asset-cb').forEach(c => c.checked = cb.checked);
+  updateBulkBar();
+}
+function updateBulkBar() {
+  const checked = document.querySelectorAll('.asset-cb:checked');
+  const bar = document.getElementById('bulkBar');
+  if (checked.length > 0) { bar.classList.add('show'); document.getElementById('selectedCount').textContent = checked.length + ' selected'; }
+  else { bar.classList.remove('show'); }
+}
+function clearBulk() {
+  document.querySelectorAll('.asset-cb, #selectAll').forEach(c => c.checked = false);
+  document.getElementById('bulkBar').classList.remove('show');
+}
+</script>
+{% endblock %}

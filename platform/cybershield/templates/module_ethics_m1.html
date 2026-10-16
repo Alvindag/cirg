@@ -1,0 +1,129 @@
+{% extends "base_trainer.html" %}
+{% block content %}
+<div class="module-header">
+  <div class="module-tag">MODULE 1 OF 6 · BUSINESS ETHICS</div>
+  <div class="module-title"><span>Introduction</span> — DAS Values & Why Ethics Matter</div>
+  <div class="module-desc">Understand the foundation of DAS Plc's Business Ethics Policy (DAS/BEP/005 V5) and what it means for every employee.</div>
+</div>
+
+<div class="slide-container">
+
+  <!-- Slide 1 -->
+  <div class="slide active" id="slide-1">
+    <div class="info-card">
+      <h3>📋 What Is the Business Ethics Policy?</h3>
+      <p>DAS Plc's Business Ethics Policy (Ref: <strong>DAS/BEP/005 V5</strong>) sets the minimum standards of operation for every employee across DAS Plc.</p>
+      <p style="margin-top:12px">It covers how we deal with customers, suppliers, competitors, each other, and the public — based on the <strong style="color:var(--amber)">DAS Values</strong>.</p>
+    </div>
+    <div class="info-card" style="border-color:var(--amber)">
+      <h3 style="color:var(--amber)">🌟 The DAS Values</h3>
+      <table class="data-table">
+        <tbody>
+          <tr><td><strong>Integrity</strong></td><td>We are honest and transparent in everything we do</td></tr>
+          <tr><td><strong>Respect</strong></td><td>We treat every person — staff, customer, supplier — with dignity</td></tr>
+          <tr><td><strong>Excellence</strong></td><td>We set high standards and continuously improve</td></tr>
+          <tr><td><strong>Accountability</strong></td><td>We own our actions and their consequences</td></tr>
+          <tr><td><strong>Teamwork</strong></td><td>We collaborate and support each other across DAS Plc</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- Slide 2 -->
+  <div class="slide" id="slide-2">
+    <div class="info-card">
+      <h3>👥 Who Does This Policy Apply To?</h3>
+      <p>This policy applies to <strong>every employee at every level</strong> across DAS Plc from production floor staff to the Executive Committee.</p>
+    </div>
+    <div class="info-card" style="border-color:var(--teal)">
+      <h3 style="color:var(--teal)">✅ What the Policy Requires</h3>
+      <ul>
+        <li>All DAS senior managers must <strong>communicate this policy annually</strong> to their departments</li>
+        <li>The Executive, managers, and officers must <strong>personally endorse and confirm compliance</strong> within their areas</li>
+        <li>All new employment contracts must <strong>include the Business Ethics Policy</strong> — signed, filed, and auditable</li>
+        <li>The policy is reviewed <strong>annually</strong> to stay current</li>
+        <li>Strict adherence is a <strong>condition of employment</strong> at DAS Plc</li>
+      </ul>
+    </div>
+    <div class="info-card" style="border-color:var(--red)">
+      <h3 style="color:var(--red)">⚠ Consequences of Non-Compliance</h3>
+      <p>Any action that deliberately or recklessly breaches this policy may result in:</p>
+      <ul>
+        <li>Formal disciplinary action</li>
+        <li>Summary dismissal (immediate termination)</li>
+        <li>Criminal proceedings, where appropriate</li>
+      </ul>
+    </div>
+  </div>
+
+  <!-- Slide 3 -->
+  <div class="slide" id="slide-3">
+    <div class="info-card">
+      <h3>🧭 What This Training Covers</h3>
+      <p>Over the next 6 modules, you will learn exactly what DAS Plc expects from you across all areas of the policy:</p>
+    </div>
+    <div class="info-card" style="border-color:var(--teal)">
+      <table class="data-table">
+        <thead><tr><th>Module</th><th>Topic</th></tr></thead>
+        <tbody>
+          <tr><td>Module 1</td><td>Introduction — DAS Values & Why Ethics Matter (you are here)</td></tr>
+          <tr><td>Module 2</td><td>Bribery, Corruption & Gifts — The Rules</td></tr>
+          <tr><td>Module 3</td><td>Records, Confidentiality & Conflicts of Interest</td></tr>
+          <tr><td>Module 4</td><td>Customers, Suppliers & Fair Competition</td></tr>
+          <tr><td>Module 5</td><td>Your Rights & Responsibilities as a DAS Employee</td></tr>
+          <tr><td>Module 6</td><td>How to Report — Whistleblowing & Raising Concerns</td></tr>
+          <tr><td>Assessment</td><td>Scenario-based quiz — 15 questions</td></tr>
+        </tbody>
+      </table>
+      <p style="margin-top:14px;font-size:13px;color:var(--text2)">You have <strong style="color:var(--amber)">5 days</strong> from today to complete all modules and the assessment. Your line manager and HR will be notified if you do not complete within this window.</p>
+    </div>
+  </div>
+
+</div>
+
+<!-- Navigation -->
+<div class="slide-nav">
+  <button class="btn-nav" id="btn-prev" onclick="prevSlide()" disabled>← Previous</button>
+  <div class="slide-dots" id="slide-dots"></div>
+  <button class="btn-nav" id="btn-next" onclick="nextSlide()">Next →</button>
+</div>
+<button class="btn-complete" id="btn-complete" style="display:none"
+  onclick="completeModule('e1', '/module/e2')">
+  Continue to Module 2 →
+</button>
+{% endblock %}
+{% block scripts %}
+<script>
+const TOTAL = 3;
+let cur = 1;
+function buildDots() {
+  const d = document.getElementById('slide-dots');
+  for (let i = 1; i <= TOTAL; i++) {
+    const dot = document.createElement('div');
+    dot.className = 'slide-dot' + (i === 1 ? ' active' : '');
+    dot.onclick = () => goSlide(i);
+    d.appendChild(dot);
+  }
+}
+function goSlide(n) {
+  document.getElementById('slide-' + cur).classList.remove('active');
+  document.querySelectorAll('.slide-dot')[cur-1].classList.remove('active');
+  cur = n;
+  document.getElementById('slide-' + cur).classList.add('active');
+  document.querySelectorAll('.slide-dot')[cur-1].classList.add('active');
+  document.getElementById('btn-prev').disabled = cur === 1;
+  document.getElementById('btn-next').style.display = cur === TOTAL ? 'none' : '';
+  document.getElementById('btn-complete').style.display = cur === TOTAL ? 'block' : 'none';
+  const speech = {
+    1: "Welcome to the Business Ethics training. This policy applies to every single employee at DAS Plc — let's start with the values that guide everything we do.",
+    2: "Pay attention to who this policy applies to. There are no exceptions. Senior managers have an additional duty to communicate this policy to their teams.",
+    3: "Six modules, then a final assessment. You have 5 days. Let's get started."
+  };
+  AlvinAvatar.speak(speech[cur] || '');
+}
+function nextSlide() { if (cur < TOTAL) goSlide(cur + 1); }
+function prevSlide() { if (cur > 1) goSlide(cur - 1); }
+buildDots();
+AlvinAvatar.speak("Welcome to the Business Ethics training. This policy applies to every single employee at DAS Plc — let's start with the values that guide everything we do.");
+</script>
+{% endblock %}

@@ -1,0 +1,40 @@
+{% extends 'base.html' %}
+{% block title %}Software & Licenses{% endblock %}
+{% block topbar_title %}Software & License Register{% endblock %}
+{% block topbar_sub %}Applications, OS licenses, seat counts & expiry tracking{% endblock %}
+{% block content %}
+<div class="page-header">
+  <div><h1>Software & Licenses</h1><p>{{ software|length }} records</p></div>
+  <a href="{{ url_for('new_software') }}" class="btn btn-primary">➕ Add Software</a>
+</div>
+<div class="stat-grid mb-2" style="grid-template-columns:repeat(4,1fr);">
+  <div class="stat-card"><div class="stat-val blue">{{ stats.total }}</div><div class="stat-label">Total Licenses</div></div>
+  <div class="stat-card ok"><div class="stat-val green">{{ stats.active }}</div><div class="stat-label">Active</div></div>
+  <div class="stat-card warn"><div class="stat-val yellow">{{ stats.expiring }}</div><div class="stat-label">Expiring (30d)</div></div>
+  <div class="stat-card red"><div class="stat-val red">{{ stats.expired }}</div><div class="stat-label">Expired</div></div>
+</div>
+<div class="card"><div class="card-body" style="padding:0;">
+  {% if software %}
+  <div class="table-wrap"><table>
+    <thead><tr><th>SW Tag</th><th>Name</th><th>Type</th><th>Vendor</th><th>Version</th><th>License</th><th>Seats</th><th>Expiry</th><th>Company</th><th>Status</th><th></th></tr></thead>
+    <tbody>{% for s in software %}
+    {% set d = days_until(s.expiry_date) %}
+    <tr>
+      <td class="mono fs-sm text-accent">{{ s.sw_tag }}</td>
+      <td class="fw-bold">{{ s.sw_name }}</td>
+      <td class="fs-sm text-muted">{{ s.sw_type }}</td>
+      <td class="fs-sm text-muted">{{ s.vendor or '—' }}</td>
+      <td class="fs-sm mono">{{ s.version or '—' }}</td>
+      <td class="fs-sm">{{ s.license_type }}</td>
+      <td class="fs-sm">{{ s.used_seats }}/{{ s.total_seats }}
+        {% if s.used_seats >= s.total_seats %}<span style="color:var(--critical);">⚠</span>{% endif %}</td>
+      <td class="fs-sm {% if d is not none and d < 0 %}warranty-expired{% elif d is not none and d <= 30 %}warranty-warn{% else %}warranty-ok{% endif %}">
+        {{ s.expiry_date or '—' }}{% if d is not none %} ({{ d }}d){% endif %}</td>
+      <td class="fs-sm text-muted">{{ (s.company or '—')[:18] }}</td>
+      <td><span class="badge badge-{% if s.status=='Active' %}active{% else %}retired{% endif %}">{{ s.status }}</span></td>
+      <td><a href="{{ url_for('edit_software', sw_id=s.id) }}" class="btn btn-xs btn-secondary">Edit</a></td>
+    </tr>{% endfor %}</tbody>
+  </table></div>
+  {% else %}<div class="empty-state"><div class="icon">💿</div><p>No software records yet.</p></div>{% endif %}
+</div></div>
+{% endblock %}

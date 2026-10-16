@@ -1,0 +1,78 @@
+{% extends "base_trainer.html" %}
+{% block content %}
+<div class="module-header">
+  <div class="module-tag">MODULE R2 OF 3 · ANNUAL REFRESHER</div>
+  <div class="module-title">Scenario <span>Challenge</span></div>
+  <div class="module-desc">Two real-world attack scenarios tailored to DAS Plc. Apply your knowledge — the right decision at the right moment protects everyone.</div>
+</div>
+<div class="slide-container">
+  <div class="slide active" id="slide-1">
+    <div class="info-card">
+      <h3>🎯 Scenario 1: The CEO WhatsApp</h3>
+      <p>You are in the Finance team at DAS Plc. At 4:45pm on a Friday you receive a WhatsApp from a number saved as <strong>"MD — DAS Plc"</strong>:</p>
+      <div style="background:var(--bg3);border-left:3px solid #25d366;border-radius:0 10px 10px 0;padding:16px 18px;margin:14px 0;font-size:15px;color:var(--text);font-style:italic">"I'm in a board meeting and can't take calls. I need you to urgently process a payment of GHS 85,000 to a new supplier — Afrique Tech Solutions. Account: 1234567890, GCB Bank. I will send the PO after the meeting. Please process before 5pm close. Very important."</div>
+    </div>
+    <div class="choice-grid">
+      <button class="choice-btn" onclick="sc1Choice(this, false)"><span class="choice-letter">A</span> Process the payment — the MD is asking urgently</button>
+      <button class="choice-btn" onclick="sc1Choice(this, true)"><span class="choice-letter">B</span> Do NOT process. Call the MD's official office number directly to verify before any action</button>
+      <button class="choice-btn" onclick="sc1Choice(this, false)"><span class="choice-letter">C</span> Reply on WhatsApp asking for more details and proceed if confirmed</button>
+      <button class="choice-btn" onclick="sc1Choice(this, false)"><span class="choice-letter">D</span> Process half the amount and wait for the PO before releasing the rest</button>
+    </div>
+    <div class="consequence-box" id="sc1-result"></div>
+  </div>
+  <div class="slide" id="slide-2">
+    <div class="info-card">
+      <h3>🎯 Scenario 2: The Teams Message</h3>
+      <p>You receive a Microsoft Teams message from what appears to be the Assistant IT Manager account:</p>
+      <div style="background:rgba(26,42,58,0.9);border:1px solid rgba(42,58,74,0.9);border-radius:10px;padding:16px;margin:14px 0;font-size:15px">
+        <div style="display:flex;align-items:center;gap:12px;margin-bottom:10px">
+          <div style="width:34px;height:34px;border-radius:50%;background:var(--amber);display:flex;align-items:center;justify-content:center;font-weight:700;font-size:14px;color:#0C2340">A</div>
+          <div><div style="font-weight:600;font-size:14px">Alvin Dagbui</div><div style="font-size:12px;color:var(--text2)">Asst. IT Manager · Today 2:17pm</div></div>
+        </div>
+        <p>Hi, we're doing urgent security patching on all accounts. I need you to click this link to verify your M365 account before 3pm or it will be disabled: <span class="sms-link">m365-verify.das-secure-login.net</span></p>
+      </div>
+    </div>
+    <div class="choice-grid">
+      <button class="choice-btn" onclick="sc2Choice(this, false)"><span class="choice-letter">A</span> Click the link immediately — IT is asking and there's a deadline</button>
+      <button class="choice-btn" onclick="sc2Choice(this, false)"><span class="choice-letter">B</span> Reply on Teams asking if it's legitimate</button>
+      <button class="choice-btn" onclick="sc2Choice(this, true)"><span class="choice-letter">C</span> Do NOT click. Call IT on Ext. 204 to verify. The domain "das-secure-login.net" is not official</button>
+      <button class="choice-btn" onclick="sc2Choice(this, false)"><span class="choice-letter">D</span> Forward the message to your line manager and wait</button>
+    </div>
+    <div class="consequence-box" id="sc2-result"></div>
+  </div>
+</div>
+<div class="nav-buttons">
+  <button class="btn-nav" id="btn-prev" onclick="prevSlide()" disabled>← BACK</button>
+  <span style="flex:1"></span>
+  <span style="font-size:14px;color:var(--text2);align-self:center" id="slide-counter">Scenario 1 of 2</span>
+  <button class="btn-nav-primary" id="btn-next" onclick="nextSlide()">NEXT →</button>
+</div>
+{% endblock %}
+{% block scripts %}
+<script>
+let current = 1; const total = 2;
+const msgs = ["Business Email Compromise via WhatsApp. This type of fraud costs DAS Plc sector companies hundreds of thousands of cedis. What do you do?","Account takeover via Teams. Note the domain in the link — does it match dasplcgh.com? Never trust the platform, verify the link."];
+function sc1Choice(btn, correct) {
+  document.querySelectorAll('#slide-1 .choice-btn').forEach(b => b.disabled = true);
+  const r = document.getElementById('sc1-result');
+  if (correct) { btn.classList.add('correct'); r.className='consequence-box good show'; r.innerHTML='✅ <strong>Correct!</strong> This is a classic BEC attack. Red flags: Friday afternoon urgency, "can\'t take calls" (prevents verification), no PO yet, new unknown supplier, WhatsApp (not official channel). Always call the MD\'s official number directly. Even if the number is correct, the account could be compromised.'; AlvinAvatar.react('celebrate'); }
+  else { btn.classList.add('wrong'); document.querySelectorAll('#slide-1 .choice-btn')[1].classList.add('correct'); r.className='consequence-box bad show'; r.innerHTML='❌ <strong>Incorrect.</strong> Never process financial transfers based on WhatsApp requests without separate voice verification via known official contact details. GHS 85,000 is a significant fraud risk.'; AlvinAvatar.react('wrong'); }
+}
+function sc2Choice(btn, correct) {
+  document.querySelectorAll('#slide-2 .choice-btn').forEach(b => b.disabled = true);
+  const r = document.getElementById('sc2-result');
+  if (correct) { btn.classList.add('correct'); r.className='consequence-box good show'; r.innerHTML='✅ <strong>Correct!</strong> The domain "das-secure-login.net" is NOT an official DAS Plc domain. Real IT notifications come from @dasplcgh.com domains. Call IT on Ext. 204 to verify. Account takeover via Teams is a growing attack vector — attackers compromise one account and use it to attack others.'; AlvinAvatar.react('celebrate'); }
+  else { btn.classList.add('wrong'); document.querySelectorAll('#slide-2 .choice-btn')[2].classList.add('correct'); r.className='consequence-box bad show'; r.innerHTML='❌ <strong>Incorrect.</strong> Replying or forwarding still leaves the decision unresolved while time pressure builds. Call IT directly on Ext. 204. Even if the message was from the IT account, it could be compromised — always verify out-of-band.'; AlvinAvatar.react('wrong'); }
+}
+function updateSlide() {
+  document.querySelectorAll('.slide').forEach((s,i) => s.classList.toggle('active', i+1===current));
+  document.getElementById('slide-counter').textContent = `Scenario ${current} of ${total}`;
+  document.getElementById('btn-prev').disabled = current === 1;
+  document.getElementById('btn-next').textContent = current === total ? 'COMPLETE MODULE →' : 'NEXT SCENARIO →';
+  AlvinAvatar.speak(msgs[current-1]||'', 'alvin-speech');
+}
+function nextSlide() { if (current < total) { current++; updateSlide(); } else { completeModule('r2', '/module/r3'); } }
+function prevSlide() { if (current > 1) { current--; updateSlide(); } }
+updateSlide();
+</script>
+{% endblock %}

@@ -1,0 +1,44 @@
+{% extends 'base.html' %}
+{% block title %}{{ 'Edit' if sw else 'New' }} Software{% endblock %}
+{% block topbar_title %}{{ 'Edit' if sw else 'Add' }} Software / License{% endblock %}
+{% block content %}
+<div class="page-header">
+  <div><h1>{{ 'Edit' if sw else 'Add' }} Software / License</h1></div>
+  <a href="{{ url_for('software') }}" class="btn btn-secondary">← Back</a>
+</div>
+<div class="card"><div class="card-body"><form method="POST">
+  <div class="form-section"><div class="form-section-title">Software Details</div>
+  <div class="form-grid">
+    <div class="form-group"><label>Software Name *</label><input name="sw_name" value="{{ sw.sw_name if sw else '' }}" required></div>
+    <div class="form-group"><label>Software Type</label>
+      <select name="sw_type">{% for t in sw_types %}<option {% if sw and sw.sw_type==t %}selected{% endif %}>{{ t }}</option>{% endfor %}</select></div>
+    <div class="form-group"><label>Vendor</label><input name="vendor" value="{{ sw.vendor if sw else '' }}" placeholder="e.g. Microsoft, Adobe"></div>
+    <div class="form-group"><label>Version</label><input name="version" value="{{ sw.version if sw else '' }}" placeholder="e.g. 2021, 365, 22.04"></div>
+    <div class="form-group"><label>License Type</label>
+      <select name="license_type">{% for t in license_types %}<option {% if sw and sw.license_type==t %}selected{% endif %}>{{ t }}</option>{% endfor %}</select></div>
+    <div class="form-group"><label>Company</label>
+      <select name="company"><option value="">— Select —</option>{% for c in companies %}<option {% if sw and sw.company==c %}selected{% endif %}>{{ c }}</option>{% endfor %}</select></div>
+    <div class="form-group"><label>Total Seats / Licenses</label><input type="number" name="total_seats" value="{{ sw.total_seats if sw else 1 }}" min="1"></div>
+    <div class="form-group"><label>Used Seats</label><input type="number" name="used_seats" value="{{ sw.used_seats if sw else 0 }}" min="0"></div>
+    <div class="form-group"><label>Installed On (devices)</label><input name="installed_on" value="{{ sw.installed_on if sw else '' }}" placeholder="e.g. All Finance laptops, ERP-SRV-01"></div>
+    <div class="form-group"><label>License Key</label><input name="license_key" value="{{ sw.license_key if sw else '' }}" placeholder="XXXXX-XXXXX-XXXXX"></div>
+  </div></div>
+  <div class="form-section"><div class="form-section-title">Dates & Costs</div>
+  <div class="form-grid">
+    <div class="form-group"><label>Purchase Date</label><input type="date" name="purchase_date" value="{{ sw.purchase_date if sw else '' }}"></div>
+    <div class="form-group"><label>License Expiry Date</label><input type="date" name="expiry_date" value="{{ sw.expiry_date if sw else '' }}"></div>
+    <div class="form-group"><label>Support Expiry</label><input type="date" name="support_expiry" value="{{ sw.support_expiry if sw else '' }}"></div>
+    <div class="form-group"><label>Purchase Cost (GHS)</label><input type="number" step="0.01" name="purchase_cost" value="{{ sw.purchase_cost if sw else '' }}"></div>
+    <div class="form-group"><label>Supplier</label><input name="supplier" value="{{ sw.supplier if sw else '' }}"></div>
+    <div class="form-group"><label>PO Number</label><input name="po_number" value="{{ sw.po_number if sw else '' }}"></div>
+    <div class="form-check mt-2"><input type="checkbox" name="auto_renew" id="ar" {% if sw and sw.auto_renew %}checked{% endif %}><label for="ar">Auto-Renew Enabled</label></div>
+  </div></div>
+  <div class="form-group full mb-2"><label>Status</label>
+    <select name="status" style="max-width:200px;"><option {% if sw and sw.status=='Active' %}selected{% endif %}>Active</option><option {% if sw and sw.status=='Expired' %}selected{% endif %}>Expired</option><option {% if sw and sw.status=='Retired' %}selected{% endif %}>Retired</option></select></div>
+  <div class="form-group full"><label>Notes</label><textarea name="notes">{{ sw.notes if sw else '' }}</textarea></div>
+  <div class="form-actions">
+    <button class="btn btn-primary" type="submit">💾 Save</button>
+    <a href="{{ url_for('software') }}" class="btn btn-secondary">Cancel</a>
+  </div>
+</form></div></div>
+{% endblock %}

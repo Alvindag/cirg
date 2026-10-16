@@ -1,0 +1,181 @@
+{% extends "base_trainer.html" %}
+{% block title %}Edit {{ mod.name }} — CyberShield{% endblock %}
+{% block sidebar %}
+<aside class="sidebar">
+  <div class="sidebar-logo">⚔ DAS TRAINING</div>
+  <div class="alvin-label" style="margin-top:6px">ADMIN PANEL</div>
+  <div class="alvin-role">Content Management</div>
+
+  <div class="progress-steps" style="margin-top:8px">
+    <div class="progress-steps-title">NAVIGATE</div>
+    <a href="/admin" class="step-item"><div class="step-dot">📊</div><span>Dashboard</span></a>
+    <a href="/admin/lessons" class="step-item {% if '/admin/lessons' in request.path %}active{% endif %}"><div class="step-dot">📚</div><span>Lesson Editor</span></a>
+    <a href="/admin/quiz/onboarding" class="step-item {% if '/admin/quiz' in request.path %}active{% endif %}"><div class="step-dot">📝</div><span>Quiz Editor</span></a>
+    <a href="/admin/dept-managers" class="step-item"><div class="step-dot">👥</div><span>Dept Managers</span></a>
+    <a href="/admin/compliance-log" class="step-item"><div class="step-dot">📋</div><span>Compliance Log</span></a>
+  </div>
+
+  <div style="margin-top:auto;padding-top:20px;width:100%">
+    <div style="background:rgba(232,160,32,0.08);border:1px solid rgba(232,160,32,0.2);border-radius:10px;padding:12px 14px;font-size:12px;color:var(--text2)">
+      <div style="color:var(--amber);font-family:var(--font-head);font-size:13px;margin-bottom:6px">🔐 NEED HELP?</div>
+      <div>IT Dept: <strong style="color:var(--text)">Ext. 204</strong></div>
+      <div style="margin-top:3px">IT Manager: <strong style="color:var(--text)">Ext. 115</strong></div>
+      <div style="margin-top:3px;font-size:11px">IThelpdesk@dasplcgh.com</div>
+    </div>
+  </div>
+</aside>
+{% endblock %}
+{% block content %}
+
+<style>
+.editor-wrap{display:grid;grid-template-columns:1fr 340px;gap:16px;align-items:start}
+.editor-main{background:var(--card);border:1px solid var(--border);border-radius:10px;overflow:hidden}
+.editor-toolbar{background:rgba(31,56,100,.8);padding:10px 16px;display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.toolbar-btn{padding:5px 11px;border-radius:5px;font-size:12px;font-weight:700;border:none;cursor:pointer;transition:.15s}
+.tb-primary{background:linear-gradient(135deg,var(--amber),#b87800);color:#0C2340}
+.tb-secondary{background:rgba(255,255,255,.1);color:var(--text);border:1px solid rgba(255,255,255,.2)}
+.tb-secondary:hover{background:rgba(255,255,255,.15)}
+.tb-danger{background:rgba(192,0,0,.2);color:#ff6b6b;border:1px solid rgba(192,0,0,.4)}
+textarea#editor{width:100%;min-height:560px;background:#0a1628;color:#e8edf2;font-family:Consolas,'Courier New',monospace;font-size:13px;line-height:1.7;padding:16px;border:none;resize:vertical;outline:none}
+.sidebar-card{background:var(--card);border:1px solid var(--border);border-radius:10px;padding:16px 18px;margin-bottom:14px}
+.sidebar-title{font-size:13px;font-weight:700;color:var(--amber);margin-bottom:10px}
+.preview-frame{width:100%;height:320px;border:none;border-radius:6px;background:#fff}
+.status-msg{padding:10px 14px;border-radius:7px;font-size:13px;margin-bottom:12px;display:none}
+.status-ok{background:rgba(30,107,60,.2);border:1px solid rgba(30,107,60,.4);color:#55cc88}
+.status-err{background:rgba(192,0,0,.15);border:1px solid rgba(192,0,0,.4);color:#ff6b6b}
+.module-nav{display:flex;flex-direction:column;gap:4px}
+.mod-link{display:flex;align-items:center;gap:8px;padding:7px 10px;border-radius:6px;font-size:12px;color:var(--text2);text-decoration:none;transition:.15s}
+.mod-link:hover,.mod-link.active{background:rgba(232,160,32,.1);color:var(--amber);text-decoration:none}
+.btn{display:inline-flex;align-items:center;gap:5px;padding:7px 14px;border-radius:7px;font-size:12px;font-weight:700;border:none;cursor:pointer;text-decoration:none;transition:.15s}
+.btn-secondary{background:rgba(31,56,100,.7);color:var(--text);border:1px solid var(--border)}
+.btn-secondary:hover{border-color:var(--amber);text-decoration:none}
+</style>
+
+<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;flex-wrap:wrap;gap:10px">
+  <div>
+    <a href="/admin/lessons" style="color:var(--text2);font-size:13px">← Back to Lesson Editor</a>
+    <h1 style="font-size:18px;font-weight:700;color:var(--amber);margin-top:6px">✏ Editing: {{ mod.name }}</h1>
+    <div style="font-size:12px;color:var(--text2);margin-top:2px">File: templates/{{ mod.file }}</div>
+  </div>
+</div>
+
+<div id="status-msg" class="status-msg"></div>
+
+<div class="editor-wrap">
+  <!-- Left: code editor -->
+  <div class="editor-main">
+    <div class="editor-toolbar">
+      <button class="toolbar-btn tb-primary" onclick="saveLesson()">💾 Save Changes</button>
+      <button class="toolbar-btn tb-secondary" onclick="refreshPreview()">👁 Preview</button>
+      <button class="toolbar-btn tb-danger" onclick="restoreLesson()">↺ Restore Original</button>
+      <span style="font-size:11px;color:rgba(255,255,255,.4);margin-left:auto">
+        Ctrl+S to save &nbsp;·&nbsp; Changes are live immediately after saving
+      </span>
+    </div>
+    <textarea id="editor" spellcheck="false" data-module-id="{{ module_id }}">{{ content }}</textarea>
+  </div>
+
+  <!-- Right: sidebar -->
+  <div>
+    <!-- Live preview -->
+    <div class="sidebar-card">
+      <div class="sidebar-title">👁 Live Preview</div>
+      <div style="font-size:11px;color:var(--text2);margin-bottom:8px">Click Preview to refresh</div>
+      <iframe id="preview-frame" class="preview-frame" srcdoc="<p style='padding:20px;color:#888;font-family:Arial'>Click Preview to render</p>"></iframe>
+    </div>
+
+    <!-- Tips -->
+    <div class="sidebar-card">
+      <div class="sidebar-title">📌 Editing Tips</div>
+      <ul style="font-size:12px;color:var(--text2);line-height:2;padding-left:16px">
+        <li>The file is a Jinja2/HTML template</li>
+        <li>Do not remove <code style="background:rgba(0,0,0,.3);padding:1px 4px;border-radius:3px">{% raw %}{% extends %}{% endraw %}</code> or <code style="background:rgba(0,0,0,.3);padding:1px 4px;border-radius:3px">{% raw %}{% block %}{% endraw %}</code> tags</li>
+        <li>Use <code style="background:rgba(0,0,0,.3);padding:1px 4px;border-radius:3px">{% raw %}{{ module_id }}{% endraw %}</code> for the current module</li>
+        <li>A backup is created on first save — use Restore Original to undo all changes</li>
+        <li>Content changes affect the next learner who opens the module</li>
+      </ul>
+    </div>
+
+    <!-- Other modules -->
+    <div class="sidebar-card">
+      <div class="sidebar-title">📚 Jump to Module</div>
+      <div class="module-nav">
+        {% for mid, m in modules.items() %}
+        <a href="/admin/lessons/{{ mid }}" class="mod-link {% if mid == module_id %}active{% endif %}">
+          <span>{% if m.track == 'onboarding' %}📘{% else %}🔄{% endif %}</span>
+          <span style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">{{ m.name.split('—')[1].strip() if '—' in m.name else m.name }}</span>
+        </a>
+        {% endfor %}
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+const moduleId = document.getElementById('editor').dataset.moduleId;
+</script>
+{% raw %}
+<script>
+document.getElementById('editor').addEventListener('keydown', function(e) {
+  if ((e.ctrlKey || e.metaKey) && e.key === 's') {
+    e.preventDefault();
+    saveLesson();
+  }
+  if (e.key === 'Tab') {
+    e.preventDefault();
+    const start = this.selectionStart;
+    const end = this.selectionEnd;
+    this.value = this.value.substring(0, start) + '  ' + this.value.substring(end);
+    this.selectionStart = this.selectionEnd = start + 2;
+  }
+});
+
+function showStatus(msg, ok) {
+  const el = document.getElementById('status-msg');
+  el.className = 'status-msg ' + (ok ? 'status-ok' : 'status-err');
+  el.textContent = msg;
+  el.style.display = 'block';
+  setTimeout(() => el.style.display = 'none', 4000);
+}
+
+function saveLesson() {
+  const content = document.getElementById('editor').value;
+  const form = new FormData();
+  form.append('content', content);
+  fetch('/admin/lessons/' + moduleId + '/save', {method: 'POST', body: form})
+    .then(r => r.json())
+    .then(d => showStatus(d.ok ? '✓ ' + d.msg : '✗ ' + d.error, d.ok))
+    .catch(e => showStatus('✗ Save failed: ' + e, false));
+}
+
+function refreshPreview() {
+  const content = document.getElementById('editor').value;
+  let preview = content;
+  let s, e2;
+  // Remove {%...%} blocks
+  while ((s = preview.indexOf('{' + '%')) !== -1) {
+    e2 = preview.indexOf('%' + '}', s);
+    if (e2 === -1) break;
+    preview = preview.substring(0, s) + preview.substring(e2 + 2);
+  }
+  // Replace {{...}} with [dynamic]
+  while ((s = preview.indexOf('{{')) !== -1) {
+    e2 = preview.indexOf('}}', s);
+    if (e2 === -1) break;
+    preview = preview.substring(0, s) + '[dynamic]' + preview.substring(e2 + 2);
+  }
+  document.getElementById('preview-frame').srcdoc = preview;
+}
+
+function restoreLesson() {
+  if (!confirm('Restore this module to its original content? All your edits will be lost.')) return;
+  fetch('/admin/lessons/' + moduleId + '/restore', {method: 'POST'})
+    .then(r => r.json())
+    .then(d => {
+      showStatus(d.ok ? '✓ ' + d.msg : '✗ ' + d.error, d.ok);
+      if (d.ok) setTimeout(() => location.reload(), 1200);
+    });
+}
+</script>
+{% endraw %}
+{% endblock %}

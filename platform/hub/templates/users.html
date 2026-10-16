@@ -1,0 +1,14 @@
+{% extends 'base.html' %}{% block title %}Users · DAS Trust Hub{% endblock %}
+{% block body %}<h1>Hub users</h1><p class="sub">Role decides what the user can do here and which role they receive when they launch ITAM or CyberShield.</p>
+<div class="card" style="margin-bottom:14px"><table><thead><tr><th>User</th><th>Role</th><th>MFA</th><th>Last sign-in</th><th>State</th><th></th></tr></thead><tbody>
+{% for u in rows %}<tr><td><b>{{ u.username }}</b><div class="note">{{ u.full_name }}</div></td>
+<td><form class="inline" method="post"><input type="hidden" name="csrf_token" value="{{ csrf_token }}"><input type="hidden" name="act" value="role"><input type="hidden" name="uid" value="{{ u.id }}"><select name="role" style="width:auto">{% for r in roles %}<option {{ 'selected' if r==u.role }}>{{ r }}</option>{% endfor %}</select><button class="btn sm sec">Set</button></form></td>
+<td>{{ '✔' if u.mfa_enabled else '—' }}</td><td class="m">{{ u.last_login or 'never' }}</td><td>{{ 'Locked' if u.locked_until > now else ('Active' if u.is_active else 'Disabled') }}</td>
+<td><form class="inline" method="post"><input type="hidden" name="csrf_token" value="{{ csrf_token }}"><input type="hidden" name="uid" value="{{ u.id }}">
+{% if u.locked_until > now %}<button name="act" value="unlock" class="btn sm sec">Unlock</button>{% endif %}
+{% if u.is_active %}<button name="act" value="disable" class="btn sm sec">Disable</button>{% else %}<button name="act" value="enable" class="btn sm">Enable</button>{% endif %}</form></td></tr>{% endfor %}</tbody></table></div>
+<div class="card"><h2>Add user</h2><form method="post" class="grid g4"><input type="hidden" name="csrf_token" value="{{ csrf_token }}"><input type="hidden" name="act" value="create">
+<div><label>Username</label><input name="username" required></div><div><label>Full name</label><input name="full_name"></div>
+<div><label>Role</label><select name="role">{% for r in roles %}<option {{ 'selected' if r=='readonly' }}>{{ r }}</option>{% endfor %}</select></div>
+<div><label>Temporary password</label><input type="password" name="password" autocomplete="new-password" required></div>
+<div style="align-self:end"><button class="btn">Create</button></div></form></div>{% endblock %}

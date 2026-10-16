@@ -1,0 +1,11 @@
+{% extends 'base.html' %}{% from '_macros.html' import pill, ring, spark %}{% block title %}Compliance · DAS Trust Hub{% endblock %}
+{% block body %}<div class="row"><div><h1>Compliance &amp; assurance</h1><p class="sub">Controls mapped to ISO/IEC 27001:2022, NIST CSF 2.0, CIS v8 and Ghana law, scored from live evidence. Unattested manual controls score zero.</p></div>
+<div class="right row noprint">{% if can('export') %}<a class="btn" href="{{ url_for('report_html') }}">Printable report</a><a class="btn sec" href="{{ url_for('report_csv') }}">CSV</a>{% endif %}</div></div>
+<div class="grid g4"><div class="card kpi"><div class="gauge">{{ ring(summ.overall, 'Overall') }}<div><div class="l">Overall</div><span class="pill {{ 'pass' if summ.overall and summ.overall>=85 else ('partial' if summ.overall and summ.overall>=45 else 'fail') }}">{{ summ.rating }}</span></div></div></div>
+<div class="card kpi"><div class="l">Automated (live evidence)</div><div class="n">{{ '—' if summ.automated is none else summ.automated|round|int ~ '%' }}</div></div>
+<div class="card kpi"><div class="l">Manual (attested)</div><div class="n">{{ '—' if summ.manual is none else summ.manual|round|int ~ '%' }}</div></div>
+<div class="card kpi"><div class="l">History</div>{{ spark(hist) }}</div></div>
+<div class="row noprint" style="margin:14px 0"><a class="btn {{ '' if not fw else 'sec' }} sm" href="?">All</a>{% for k, l in fws.items() %}<a class="btn {{ '' if fw==k else 'sec' }} sm" href="?fw={{ k }}">{{ l }} · {{ '—' if summ.frameworks[k].score is none else summ.frameworks[k].score|round|int ~ '%' }}</a>{% endfor %}</div>
+<div class="card"><table><thead><tr><th>ID</th><th>Control</th><th>Status</th><th>Evidence</th><th>Mapping</th></tr></thead><tbody>
+{% for i in items %}<tr><td><a href="{{ url_for('control', cid=i.id) }}"><b>{{ i.id }}</b></a><div class="note">{{ i.kind }} · w{{ i.weight }}</div></td><td>{{ i.title }}</td><td>{{ pill(i.status) }}</td><td class="m">{{ i.metric }}</td>
+<td>{% for k, refs in i.maps.items() %}{% for r in refs %}<span class="tag">{{ {'iso27001':'ISO','nist_csf':'CSF','cis':'CIS','ghana':'GH'}[k] }} {{ r }}</span>{% endfor %}{% endfor %}</td></tr>{% endfor %}</tbody></table></div>{% endblock %}

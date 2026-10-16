@@ -1,0 +1,250 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>CyberShield — DAS Plc Cybersecurity Training</title>
+<link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+<script>
+// Auto-attach the CSRF token to every state-changing fetch() call in the admin panel.
+(function(){
+  var _origFetch = window.fetch;
+  window.fetch = function(input, init){
+    init = init || {};
+    var method = (init.method || 'GET').toUpperCase();
+    if (['POST','PUT','PATCH','DELETE'].indexOf(method) !== -1) {
+      init.headers = init.headers || {};
+      if (init.headers instanceof Headers) { init.headers.set('X-CSRFToken', window.CSRF_TOKEN || ''); }
+      else { init.headers['X-CSRFToken'] = window.CSRF_TOKEN || ''; }
+    }
+    return _origFetch(input, init);
+  };
+})();
+</script>
+</head>
+<body>
+
+<!-- Animated background -->
+<div class="bg-orbs">
+  <div class="bg-orb"></div>
+  <div class="bg-orb"></div>
+  <div class="bg-orb"></div>
+  <div class="bg-orb"></div>
+</div>
+<div class="particles" id="particles-container"></div>
+
+<div class="trainer-layout">
+  <!-- Sidebar -->
+  {% block sidebar %}
+  <aside class="sidebar">
+    <div class="sidebar-logo">⚔ DAS TRAINING</div>
+
+    <!-- Alvin Avatar -->
+    <div class="avatar-container" id="alvin-mount"></div>
+    <div class="alvin-label">ALVIN DAGBUI</div>
+    <div class="alvin-role">Assistant IT Manager — DAS Plc Group</div>
+    <div class="speech-bubble" id="alvin-speech">Loading your training session...</div>
+
+    <!-- Progress steps -->
+    <div class="progress-steps">
+      <div class="progress-steps-title">YOUR PROGRESS</div>
+      {% if track == 'refresher' %}
+        <div class="step-item {% if module_id == 'r1' %}active{% endif %}" id="step-r1">
+          <div class="step-dot">R1</div><span>New Threats 2025/2026</span>
+        </div>
+        <div class="step-item {% if module_id == 'r2' %}active{% endif %}" id="step-r2">
+          <div class="step-dot">R2</div><span>Scenario Challenge</span>
+        </div>
+        <div class="step-item {% if module_id == 'r3' %}active{% endif %}" id="step-r3">
+          <div class="step-dot">R3</div><span>Policy Updates 2026</span>
+        </div>
+      {% elif track == 'ethics' %}
+        <div class="step-item {% if module_id == 'e1' %}active{% endif %}" id="step-e1">
+          <div class="step-dot">E1</div><span>Introduction & Values</span>
+        </div>
+        <div class="step-item {% if module_id == 'e2' %}active{% endif %}" id="step-e2">
+          <div class="step-dot">E2</div><span>Bribery, Corruption & Gifts</span>
+        </div>
+        <div class="step-item {% if module_id == 'e3' %}active{% endif %}" id="step-e3">
+          <div class="step-dot">E3</div><span>Records & Conflicts</span>
+        </div>
+        <div class="step-item {% if module_id == 'e4' %}active{% endif %}" id="step-e4">
+          <div class="step-dot">E4</div><span>Customers & Competition</span>
+        </div>
+        <div class="step-item {% if module_id == 'e5' %}active{% endif %}" id="step-e5">
+          <div class="step-dot">E5</div><span>Your Rights & Duties</span>
+        </div>
+        <div class="step-item {% if module_id == 'e6' %}active{% endif %}" id="step-e6">
+          <div class="step-dot">E6</div><span>Reporting & Whistleblowing</span>
+        </div>
+      {% else %}
+        <div class="step-item {% if module_id == 'm1' %}active{% endif %}" id="step-m1">
+          <div class="step-dot">1</div><span>Welcome to DAS Plc</span>
+        </div>
+        <div class="step-item {% if module_id == 'm2' %}active{% endif %}" id="step-m2">
+          <div class="step-dot">2</div><span>Phishing & Reporting</span>
+        </div>
+        <div class="step-item {% if module_id == 'm3' %}active{% endif %}" id="step-m3">
+          <div class="step-dot">3</div><span>Smishing & Vishing</span>
+        </div>
+        <div class="step-item {% if module_id == 'm4' %}active{% endif %}" id="step-m4">
+          <div class="step-dot">4</div><span>USB Drop Attacks</span>
+        </div>
+        <div class="step-item {% if module_id == 'm5' %}active{% endif %}" id="step-m5">
+          <div class="step-dot">5</div><span>Password & MFA</span>
+        </div>
+        <div class="step-item {% if module_id == 'm6' %}active{% endif %}" id="step-m6">
+          <div class="step-dot">6</div><span>Social Engineering</span>
+        </div>
+        <div class="step-item {% if module_id == 'm7' %}active{% endif %}" id="step-m7">
+          <div class="step-dot">7</div><span>Outlook Reporting Drill</span>
+        </div>
+      {% endif %}
+      <div class="step-item" id="step-quiz">
+        <div class="step-dot">✓</div><span>Final Assessment</span>
+      </div>
+    </div>
+
+    <!-- Deadline countdown -->
+    {% if deadline_at %}
+    <div id="deadline-banner" style="margin-top:16px;width:100%">
+      <div id="deadline-box" style="border-radius:10px;padding:12px 14px;font-size:12px;text-align:center;transition:all 0.5s">
+        <div id="deadline-label" style="font-family:var(--font-head);font-size:11px;letter-spacing:1px;margin-bottom:6px">&#9201; TIME REMAINING</div>
+        <div id="deadline-value" style="font-size:22px;font-weight:700;letter-spacing:1px;margin-bottom:4px">--</div>
+        <div id="deadline-sub" style="font-size:11px;opacity:0.8">calculating...</div>
+      </div>
+    </div>
+    <script>
+    (function(){
+      var deadline = new Date("{{ deadline_at }}");
+      function update() {
+        var now  = new Date();
+        var diff = deadline - now;
+        var box  = document.getElementById('deadline-box');
+        var val  = document.getElementById('deadline-value');
+        var sub  = document.getElementById('deadline-sub');
+        var lbl  = document.getElementById('deadline-label');
+        if (!box) return;
+        if (diff <= 0) {
+          box.style.background = 'rgba(230,57,70,0.15)';
+          box.style.border     = '1px solid rgba(230,57,70,0.5)';
+          lbl.style.color      = '#E63946';
+          val.style.color      = '#E63946';
+          val.textContent      = 'EXPIRED';
+          sub.textContent      = 'Contact IT to reset';
+          return;
+        }
+        var days = Math.floor(diff / 86400000);
+        var hrs  = Math.floor((diff % 86400000) / 3600000);
+        var mins = Math.floor((diff % 3600000)  / 60000);
+        var secs = Math.floor((diff % 60000)    / 1000);
+        if (diff < 86400000) {
+          box.style.background = 'rgba(230,57,70,0.12)';
+          box.style.border     = '1px solid rgba(230,57,70,0.4)';
+          lbl.style.color = val.style.color = '#E63946';
+        } else if (diff < 2*86400000) {
+          box.style.background = 'rgba(244,162,97,0.12)';
+          box.style.border     = '1px solid rgba(244,162,97,0.4)';
+          lbl.style.color = val.style.color = '#F4A261';
+        } else {
+          box.style.background = 'rgba(46,196,182,0.08)';
+          box.style.border     = '1px solid rgba(46,196,182,0.25)';
+          lbl.style.color = val.style.color = '#2EC4B6';
+        }
+        val.textContent = days > 0
+          ? days+'d '+String(hrs).padStart(2,'0')+'h '+String(mins).padStart(2,'0')+'m'
+          : String(hrs).padStart(2,'0')+':'+String(mins).padStart(2,'0')+':'+String(secs).padStart(2,'0');
+        sub.textContent = days > 1 ? days+' days left to finish'
+          : days === 1 ? 'Last day — complete today!'
+          : 'Less than a day left!';
+        setTimeout(update, 1000);
+      }
+      update();
+    })();
+    </script>
+    {% endif %}
+
+        <!-- Contact card -->
+    <div style="margin-top:auto;padding-top:20px;width:100%">
+      <div style="background:rgba(232,160,32,0.08);border:1px solid rgba(232,160,32,0.2);border-radius:10px;padding:12px 14px;font-size:12px;color:var(--text2)">
+        <div style="color:var(--amber);font-family:var(--font-head);font-size:13px;margin-bottom:6px">🔐 NEED HELP?</div>
+        <div>IT Dept: <strong style="color:var(--text)">Ext. 204</strong></div>
+        <div style="margin-top:3px">IT Manager: <strong style="color:var(--text)">Ext. 115</strong></div>
+        <div style="margin-top:3px;font-size:11px">IThelpdesk@dasplcgh.com</div>
+      </div>
+    </div>
+  </aside>
+  {% endblock %}
+
+  <!-- Main content -->
+  <main class="main-content">
+    {% block content %}{% endblock %}
+  </main>
+</div>
+
+<!-- Reading mode toggle — WCAG accessibility -->
+<button class="reading-mode-toggle no-print" id="rm-toggle" onclick="toggleReadingMode()" title="Toggle white background reading mode">
+  <span id="rm-icon">☀</span><span id="rm-label">READING MODE</span>
+</button>
+
+<script src="{{ url_for('static', filename='js/alvin.js') }}"></script>
+<script>
+// Reading mode — persisted in localStorage across all training pages
+function toggleReadingMode() {
+  const active = document.body.classList.toggle('reading-mode');
+  localStorage.setItem('cs_reading_mode', active ? '1' : '0');
+  const icon  = document.getElementById('rm-icon');
+  const label = document.getElementById('rm-label');
+  if (icon)  icon.textContent  = active ? '🌙' : '☀';
+  if (label) label.textContent = active ? 'DARK MODE' : 'READING MODE';
+}
+// Apply on load
+(function() {
+  if (localStorage.getItem('cs_reading_mode') === '1') {
+    document.body.classList.add('reading-mode');
+    document.addEventListener('DOMContentLoaded', function() {
+      const icon  = document.getElementById('rm-icon');
+      const label = document.getElementById('rm-label');
+      if (icon)  icon.textContent  = '🌙';
+      if (label) label.textContent = 'DARK MODE';
+    });
+  }
+})();
+
+// Mount avatar
+AlvinAvatar.mount('#alvin-mount');
+
+// Generate particles
+(function() {
+  const container = document.getElementById('particles-container');
+  if (!container) return;
+  for (let i = 0; i < 30; i++) {
+    const p = document.createElement('div');
+    p.className = 'particle';
+    p.style.left   = Math.random() * 100 + 'vw';
+    p.style.setProperty('--drift', (Math.random() * 60 - 30) + 'px');
+    p.style.animationDuration  = (8 + Math.random() * 16) + 's';
+    p.style.animationDelay     = (Math.random() * 12) + 's';
+    p.style.width = p.style.height = (Math.random() > 0.7 ? '3px' : '2px');
+    p.style.background = Math.random() > 0.5 ? 'var(--teal)' : 'var(--amber)';
+    p.style.opacity = (Math.random() * 0.5 + 0.1).toString();
+    container.appendChild(p);
+  }
+})();
+
+// Module complete helper
+function completeModule(moduleId, nextUrl) {
+  fetch('/api/complete_module', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({module_id: moduleId, score: 1})
+  }).then(() => {
+    const stepEl = document.getElementById('step-' + moduleId);
+    if (stepEl) stepEl.className = 'step-item done';
+    window.location.href = nextUrl;
+  });
+}
+</script>
+{% block scripts %}{% endblock %}
+</body>
+</html>

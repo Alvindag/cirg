@@ -1,0 +1,466 @@
+{% extends 'base.html' %}
+{% from 'macros.html' import status_badge, warranty_badge %}
+{% block title %}{{ full_name }}{% endblock %}
+{% block topbar_title %}{{ full_name }}{% endblock %}
+{% block topbar_sub %}{{ username }} · {{ current|length }} asset{{ 's' if current|length != 1 else '' }} currently assigned{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <div>
+    <h1>{{ full_name }}</h1>
+    <p>
+      <span class="mono text-muted">{{ username }}</span>
+      {% if department and department != '—' %} · {{ department }}{% endif %}
+      {% if location and location != '—' %} · <span id="currentLocationDisplay" style="color:var(--accent);">{{ location }}</span>{% endif %}
+    </p>
+  </div>
+  <div class="page-header-actions">
+    {% if has_perm('assign') %}
+    <button onclick="document.getElementById('update-profile-panel').style.display = document.getElementById('update-profile-panel').style.display=='none' ? 'block' : 'none'"
+            class="btn btn-secondary">📍 Update Location / Department</button>
+    {% endif %}
+    <a href="{{ url_for('people') }}" class="btn btn-secondary">← All People</a>
+  </div>
+</div>
+
+<!-- Update Profile Panel -->
+{% if has_perm('assign') %}
+<div id="update-profile-panel" style="display:none;" class="card mb-3">
+  <div class="card-header">
+    <span class="card-title">📍 Update Location & Department for {{ full_name }}</span>
+  </div>
+  <div class="card-body">
+    <div class="alert alert-info" style="margin-bottom:14px;">
+      ℹ This will update the location and/or department on <strong>all {{ current|length }} currently assigned asset{{ 's' if current|length != 1 else '' }}</strong> at once.
+      The change is logged in the movement history for each asset.
+    </div>
+    <form method="POST" action="{{ url_for('update_person_profile', username=username) }}">
+      <div class="form-grid">
+        <div class="form-group">
+          <label>New Location / Site</label>
+          <select name="new_location" required>
+            <option value="">— Select Site —</option>
+            {% for l in ['NIA — HQ','TA-F1','TA-F2','TAMELE','KUMASI','TAKRODI','Off-Site / Remote'] %}
+            <option {% if l == location %}selected{% endif %}>{{ l }}</option>
+            {% endfor %}
+          </select>
+          <div class="fs-sm text-muted" style="margin-top:4px;">
+            Current: <span style="color:var(--accent);">{{ location or '—' }}</span>
+          </div>
+        </div>
+        <div class="form-group">
+          <label>New Department</label>
+          <select name="new_department">
+            <option value="">— Keep current department —</option>
+            {% for d in ['Information Technology','Finance & Accounts','Human Resources',
+                         'Production','Quality Assurance','Procurement','Sales & Marketing',
+                         'Warehouse & Logistics','Administration','Executive Management',
+                         'Research & Development','Maintenance','Legal & Compliance'] %}
+            <option {% if d == department %}selected{% endif %}>{{ d }}</option>
+            {% endfor %}
+          </select>
+          <div class="fs-sm text-muted" style="margin-top:4px;">
+            Current: <span style="color:var(--accent);">{{ department or '—' }}</span>
+          </div>
+        </div>
+        <div class="form-group full">
+          <label>Reason for Change *</label>
+          <input name="reason" required
+                 placeholder="e.g. Staff transferred from NIA Head Office to KUMASI branch effective 14 March 2026">
+        </div>
+      </div>
+      <div class="form-actions" style="border:none;padding-top:10px;">
+        <button class="btn btn-primary" type="submit"
+                onclick="return confirm('Update location/dept for ALL ' + {{ current|length }} + ' asset(s) assigned to {{ full_name }}?')">
+          📍 Apply to All {{ current|length }} Asset{{ 's' if current|length != 1 else '' }}
+        </button>
+        <button type="button" class="btn btn-secondary"
+                onclick="document.getElementById('update-profile-panel').style.display='none'">
+          Cancel
+        </button>
+      </div>
+    </form>
+  </div>
+</div>
+{% endif %}
+
+<!-- Summary Cards -->
+<div class="stat-grid mb-3" style="grid-template-columns:repeat(auto-fill,minmax(140px,1fr));">
+  <div class="stat-card">
+    <div class="stat-val {% if current|length >= 3 %}yellow{% else %}green{% endif %}">{{ current|length }}</div>
+    <div class="stat-label">Assets Held</div>
+  </div>
+  {% for asset in current %}
+  <div class="stat-card">
+    <div style="font-size:13px;font-weight:700;color:var(--accent);margin-bottom:4px;">{{ asset.asset_type }}</div>
+    <div style="font-size:11px;color:var(--text);font-weight:600;">{{ asset.asset_name[:28] }}</div>
+    <div class="mono fs-sm text-muted" style="margin-top:4px;">{{ asset.asset_tag }}</div>
+  </div>
+  {% endfor %}
+</div>
+
+<div class="grid-2 mb-3">
+
+  <!-- Current Assets -->
+  <div class="card">
+    <div class="card-header">
+      <span class="card-title">🖥 Currently Assigned Assets ({{ current|length }})</span>
+      {% if has_perm('assign') %}
+      <button onclick="document.getElementById('assign-panel').style.display = document.getElementById('assign-panel').style.display=='none' ? 'block' : 'none'"
+              class="btn btn-xs btn-primary">➕ Assign Asset to {{ (full_name or username).split()[0] }}</button>
+      {% endif %}
+    </div>
+
+    <!-- Assign Asset Panel -->
+    {% if has_perm('assign') %}
+    <div id="assign-panel" style="display:none;border-bottom:1px solid var(--border);padding:16px 18px;background:var(--bg2);">
+      <div class="form-section-title" style="margin-bottom:12px;">Assign an Asset to {{ full_name }}</div>
+
+      <!-- Search unassigned assets -->
+      <div style="display:flex;gap:8px;margin-bottom:12px;align-items:flex-end;flex-wrap:wrap;">
+        <div class="form-group" style="margin:0;flex:1;">
+          <label>Search Unassigned Assets</label>
+          <input type="text" id="assetSearch"
+                 placeholder="Type asset tag, name, or type (e.g. Mobile Phone, Laptop)…"
+                 oninput="searchAssets(this.value)"
+                 style="margin:0;width:100%;">
+        </div>
+        <button type="button" class="btn btn-secondary btn-sm" onclick="searchAssets(document.getElementById('assetSearch').value)">Search</button>
+      </div>
+
+      <!-- Results table -->
+      <div id="searchResults" style="display:none;margin-bottom:14px;max-height:240px;overflow-y:auto;border:1px solid var(--border);border-radius:6px;">
+        <table style="width:100%;border-collapse:collapse;font-size:12px;">
+          <thead>
+            <tr style="background:var(--card2);">
+              <th style="padding:8px 12px;color:var(--muted);text-transform:uppercase;font-size:10px;">Tag</th>
+              <th style="padding:8px 12px;color:var(--muted);text-transform:uppercase;font-size:10px;">Asset Name</th>
+              <th style="padding:8px 12px;color:var(--muted);text-transform:uppercase;font-size:10px;">Type</th>
+              <th style="padding:8px 12px;color:var(--muted);text-transform:uppercase;font-size:10px;">Location</th>
+              <th style="padding:8px 12px;"></th>
+            </tr>
+          </thead>
+          <tbody id="resultsBody"></tbody>
+        </table>
+        <div id="noResults" style="display:none;padding:14px;text-align:center;color:var(--muted);font-size:13px;">No unassigned assets found matching your search.</div>
+      </div>
+
+      <!-- Confirm assignment form (hidden until asset selected) -->
+      <form method="POST" id="confirmAssignForm" style="display:none;"
+            action="" onsubmit="return confirmAssign()">
+        <div style="background:var(--card);border:1px solid var(--accent);border-radius:6px;padding:14px;margin-bottom:12px;">
+          <div class="fs-sm fw-bold" style="color:var(--accent);margin-bottom:8px;">Selected Asset:</div>
+          <div id="selectedAssetInfo" style="font-size:13px;"></div>
+        </div>
+        <input type="hidden" name="assigned_to" value="{{ username }}">
+        <input type="hidden" name="assigned_to_name" value="{{ full_name }}">
+        <input type="hidden" name="location" id="assignLocation" value="">
+        <input type="hidden" name="department" id="assignDepartment" value="{{ department }}">
+        <div class="form-group" style="margin-bottom:10px;">
+          <label>Handover / Assignment Notes</label>
+          <input name="notes" placeholder="e.g. New mobile phone issued — company SIM included" style="margin:0;">
+        </div>
+        <div style="display:flex;gap:8px;">
+          <button class="btn btn-primary btn-sm" type="submit">✓ Confirm Assignment</button>
+          <button type="button" class="btn btn-secondary btn-sm" onclick="clearSelection()">Cancel</button>
+        </div>
+      </form>
+    </div>
+    {% endif %}
+      {% if current %}
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr><th>Tag</th><th>Asset</th><th>Type</th><th>Site</th><th>Warranty</th><th>Condition</th><th></th></tr>
+          </thead>
+          <tbody>
+            {% for a in current %}
+            <tr>
+              <td>
+                <a href="{{ url_for('view_asset', asset_id=a.id) }}"
+                   class="mono fs-sm" style="color:var(--accent);font-weight:700;">
+                  {{ a.asset_tag }}
+                </a>
+              </td>
+              <td class="fw-bold fs-sm">{{ a.asset_name }}</td>
+              <td class="fs-sm text-muted">{{ a.asset_type }}</td>
+              <td class="fs-sm {% if 'NIA' in (a.location or '') %}text-accent{% else %}text-muted{% endif %}">
+                {{ a.location or '—' }}
+              </td>
+              <td>{{ warranty_badge(a) }}</td>
+              <td>
+                <span class="badge badge-{% if a.condition=='New' or a.condition=='Excellent' %}good{% elif a.condition=='Good' %}good{% elif a.condition=='Fair' %}fair{% else %}poor{% endif %}">
+                  {{ a.condition }}
+                </span>
+              </td>
+              <td>
+                {% if has_perm('assign') %}
+                <button class="btn btn-xs btn-warn"
+                        onclick="document.getElementById('return-{{ a.id }}').style.display='block'">
+                  ↩ Return
+                </button>
+                <div id="return-{{ a.id }}" style="display:none;margin-top:8px;">
+                  <form method="POST"
+                        action="{{ url_for('return_one_asset', username=username, asset_id=a.id) }}">
+                    <input name="notes" placeholder="Return reason / notes"
+                           style="width:100%;margin-bottom:6px;">
+                    <div style="display:flex;gap:6px;">
+                      <button class="btn btn-xs btn-warn" type="submit">Confirm Return</button>
+                      <button type="button" class="btn btn-xs btn-secondary"
+                              onclick="document.getElementById('return-{{ a.id }}').style.display='none'">
+                        Cancel
+                      </button>
+                    </div>
+                  </form>
+                </div>
+                {% endif %}
+              </td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+      {% else %}
+      <div class="empty-state" style="padding:24px;">
+        <p>No assets currently assigned to {{ full_name }}.</p>
+      </div>
+      {% endif %}
+    </div>
+  </div>
+
+  <!-- Handover Panel -->
+  <div>
+    {% if current and has_perm('assign') %}
+    <div class="card mb-2">
+      <div class="card-header">
+        <span class="card-title">📦 Full Staff Handover</span>
+      </div>
+      <div class="card-body">
+        <p class="fs-sm text-muted" style="margin-bottom:14px;">
+          Use this when <strong>{{ full_name }}</strong> is leaving, transferring, or returning
+          all assets at once. All {{ current|length }} asset{{ 's' if current|length != 1 else '' }}
+          will be moved to the unassigned pool and the full event logged.
+        </p>
+
+        <div style="background:var(--card2);border:1px solid var(--border);border-radius:6px;padding:12px;margin-bottom:14px;">
+          <div class="fs-sm fw-bold mb-1" style="color:var(--accent);">Assets that will be returned:</div>
+          {% for a in current %}
+          <div class="fs-sm" style="padding:3px 0;border-bottom:1px solid var(--border);">
+            <span class="mono text-accent">{{ a.asset_tag }}</span>
+            <span class="text-muted"> — </span>
+            {{ a.asset_name }}
+            <span class="badge badge-{% if a.asset_type == 'Laptop' %}blue{% elif a.asset_type == 'Mobile Phone' %}purple{% else %}storage{% endif %}"
+                  style="font-size:9px;margin-left:6px;">{{ a.asset_type }}</span>
+          </div>
+          {% endfor %}
+        </div>
+
+        <form method="POST"
+              action="{{ url_for('person_handover', username=username) }}"
+              onsubmit="return confirm('Return ALL ' + {{ current|length }} + ' assets from {{ full_name }} to the unassigned pool? This cannot be undone but is fully logged.')">
+          <div class="form-group mb-2">
+            <label>Reason for Handover *</label>
+            <select name="reason" required style="margin:0;">
+              <option value="">— Select reason —</option>
+              <option>Staff resignation</option>
+              <option>Staff transfer — same site</option>
+              <option>Staff transfer — different site</option>
+              <option>End of contract</option>
+              <option>Maternity / paternity leave</option>
+              <option>Long-term sick leave</option>
+              <option>Retirement</option>
+              <option>Termination</option>
+              <option>Temporary recall</option>
+              <option>Other</option>
+            </select>
+          </div>
+          <div class="form-group mb-2">
+            <label>Handover Notes</label>
+            <textarea name="handover_notes"
+                      placeholder="e.g. Staff resigned effective 14 March 2026. All devices collected and inspected by IT."
+                      style="min-height:70px;"></textarea>
+          </div>
+          <button class="btn btn-danger" type="submit" style="width:100%;justify-content:center;">
+            📦 Return All {{ current|length }} Asset{{ 's' if current|length != 1 else '' }} to Pool
+          </button>
+        </form>
+      </div>
+    </div>
+    {% endif %}
+
+    <!-- Repair history for this person's assets -->
+    {% if repairs %}
+    <div class="card">
+      <div class="card-header">
+        <span class="card-title">🔧 Repair History</span>
+      </div>
+      <div class="card-body" style="padding:0;">
+        <table>
+          <thead><tr><th>Ref</th><th>Asset</th><th>Fault</th><th>Status</th></tr></thead>
+          <tbody>
+            {% for r in repairs %}
+            <tr>
+              <td class="mono fs-sm text-accent">{{ r.repair_ref }}</td>
+              <td class="fs-sm">{{ r.asset_tag }}</td>
+              <td class="fs-sm text-muted">{{ r.fault_description[:35] }}{% if r.fault_description|length > 35 %}…{% endif %}</td>
+              <td>
+                <span class="badge badge-{% if r.status=='Closed' %}closed{% elif r.status=='Open' %}open{% else %}progress{% endif %}">
+                  {{ r.status }}
+                </span>
+              </td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+    {% endif %}
+  </div>
+</div>
+
+<!-- Full Movement History for this person -->
+<div class="card">
+  <div class="card-header">
+    <span class="card-title">📋 Full Assignment History for {{ full_name }} ({{ history|length }} events)</span>
+  </div>
+  <div class="card-body" style="padding:0;">
+    {% if history %}
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>Date / Time</th>
+            <th>Asset Tag</th>
+            <th>Asset Name</th>
+            <th>Action</th>
+            <th>Role in Event</th>
+            <th>Location</th>
+            <th>Performed By</th>
+            <th>Notes</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for h in history %}
+          {% set role_in_event = 'Received' if h.to_user == username else 'Returned / Transferred' %}
+          <tr>
+            <td class="mono fs-sm text-muted">{{ h.created_at[:16] }}</td>
+            <td class="mono fs-sm">
+              {% set asset_link_check = namespace(found=false) %}
+              <span style="color:var(--accent);">{{ h.asset_tag }}</span>
+            </td>
+            <td class="fs-sm">{{ h.asset_name }}</td>
+            <td class="fw-bold fs-sm
+              {% if 'Assign' in h.action and 'Un' not in h.action %}log-action-assign
+              {% elif 'Repair' in h.action %}log-action-repair
+              {% elif 'Handover' in h.action or 'Return' in h.action %}log-action-unassign
+              {% elif 'Register' in h.action %}log-action-register
+              {% else %}log-action-status{% endif %}">
+              {{ h.action }}
+            </td>
+            <td>
+              {% if h.to_user == username %}
+                <span style="color:var(--success);font-size:12px;font-weight:600;">↙ Received</span>
+              {% else %}
+                <span style="color:var(--warning);font-size:12px;font-weight:600;">↗ Returned / Transferred</span>
+              {% endif %}
+            </td>
+            <td class="fs-sm text-muted">
+              {% if h.from_location != h.to_location and h.to_location and h.to_location != '' %}
+                {{ h.from_location or '—' }} → {{ h.to_location }}
+              {% else %}
+                {{ h.to_location or h.from_location or '—' }}
+              {% endif %}
+            </td>
+            <td class="fs-sm text-muted">{{ h.performed_by }}</td>
+            <td class="fs-sm text-muted">{{ h.notes or '—' }}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% else %}
+    <div class="empty-state" style="padding:24px;">
+      <p>No assignment history found for {{ full_name }}.</p>
+    </div>
+    {% endif %}
+  </div>
+</div>
+
+
+<script>
+let selectedAssetId = null;
+
+function searchAssets(query) {
+  if (!query || query.trim().length < 2) {
+    document.getElementById('searchResults').style.display = 'none';
+    return;
+  }
+  fetch(`/api/search-unassigned?q=${encodeURIComponent(query.trim())}`)
+    .then(r => r.json())
+    .then(data => {
+      const results  = document.getElementById('searchResults');
+      const tbody    = document.getElementById('resultsBody');
+      const noResult = document.getElementById('noResults');
+      tbody.innerHTML = '';
+      results.style.display = 'block';
+      if (data.length === 0) { noResult.style.display = 'block'; return; }
+      noResult.style.display = 'none';
+      data.forEach(a => {
+        const tr = document.createElement('tr');
+        tr.style.borderBottom = '1px solid var(--border)';
+        tr.style.cursor = 'pointer';
+        tr.onmouseover = () => tr.style.background = 'rgba(255,255,255,0.03)';
+        tr.onmouseout  = () => tr.style.background = '';
+        tr.innerHTML = `
+          <td style="padding:8px 12px;font-family:monospace;color:var(--accent);font-weight:700;">${a.asset_tag}</td>
+          <td style="padding:8px 12px;font-weight:600;">${a.asset_name}</td>
+          <td style="padding:8px 12px;color:var(--muted);font-size:11px;">${a.asset_type}</td>
+          <td style="padding:8px 12px;color:var(--muted);font-size:11px;">${a.location || '—'}</td>
+          <td style="padding:8px 12px;">
+            <button class="btn btn-xs btn-primary"
+              onclick="selectAsset(${a.id},'${a.asset_tag}','${a.asset_name.replace(/'/g,"\\'")}','${a.asset_type}','${(a.location||'').replace(/'/g,"\\'")}')">
+              Select
+            </button>
+          </td>`;
+        tbody.appendChild(tr);
+      });
+    });
+}
+
+function selectAsset(id, tag, name, type, location) {
+  selectedAssetId = id;
+  document.getElementById('searchResults').style.display = 'none';
+  document.getElementById('assetSearch').value = tag + ' — ' + name;
+  document.getElementById('confirmAssignForm').action = '/assets/' + id + '/assign';
+  document.getElementById('assignLocation').value = location;
+  document.getElementById('selectedAssetInfo').innerHTML =
+    '<span style="color:var(--accent);font-family:monospace;font-weight:700;">' + tag + '</span>' +
+    '<span style="color:var(--muted);"> — </span><strong>' + name + '</strong>' +
+    '<span style="margin-left:8px;background:var(--card2);border:1px solid var(--border);border-radius:4px;padding:2px 8px;font-size:11px;">' + type + '</span>';
+  document.getElementById('confirmAssignForm').style.display = 'block';
+}
+
+function clearSelection() {
+  selectedAssetId = null;
+  document.getElementById('assetSearch').value = '';
+  document.getElementById('confirmAssignForm').style.display = 'none';
+  document.getElementById('searchResults').style.display = 'none';
+  document.getElementById('selectedAssetInfo').innerHTML = '';
+}
+
+function confirmAssign() {
+  if (!selectedAssetId) { alert('Please select an asset first.'); return false; }
+  return true;
+}
+
+let searchTimer;
+document.addEventListener('DOMContentLoaded', function() {
+  const inp = document.getElementById('assetSearch');
+  if (inp) inp.addEventListener('keyup', function() {
+    clearTimeout(searchTimer);
+    searchTimer = setTimeout(() => searchAssets(this.value), 400);
+  });
+});
+</script>
+
+{% endblock %}

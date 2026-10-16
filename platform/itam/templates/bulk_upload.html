@@ -1,0 +1,117 @@
+{% extends 'base.html' %}
+{% block title %}Bulk Upload{% endblock %}
+{% block topbar_title %}Bulk Asset Upload{% endblock %}
+{% block topbar_sub %}Import multiple assets from Excel{% endblock %}
+{% block content %}
+<div class="page-header">
+  <div><h1>Bulk Asset Upload</h1><p>Upload an Excel file to register multiple assets at once</p></div>
+  <a href="{{ url_for('download_template') }}" class="btn btn-primary">📋 Download Template</a>
+</div>
+
+{% if not has_excel %}
+<div class="alert alert-warning">⚠ openpyxl is not installed. Run: <code>pip install openpyxl</code> then restart the app.</div>
+{% endif %}
+
+<div class="grid-2 mb-3">
+  <div class="card">
+    <div class="card-header"><span class="card-title">📥 Upload File</span></div>
+    <div class="card-body">
+      <form method="POST" enctype="multipart/form-data" id="uploadForm">
+        <div class="upload-zone" id="dropZone" onclick="document.getElementById('fileInput').click()">
+          <span class="icon">📊</span>
+          <div class="fw-bold" id="fileName">Click to select or drag & drop your Excel file here</div>
+          <div class="fs-sm text-muted" style="margin-top:6px;">.xlsx files only · Maximum 500 rows · Maximum 10 MB</div>
+        </div>
+        <input type="file" name="file" id="fileInput" accept=".xlsx,.xls" style="display:none;" onchange="showFileName(this)">
+        <div style="margin-top:14px;display:flex;gap:10px;align-items:center;">
+          <button class="btn btn-primary" type="submit" id="uploadBtn" disabled>📥 Upload & Import</button>
+          <span class="fs-sm text-muted" id="uploadStatus"></span>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-header"><span class="card-title">📋 How to Use</span></div>
+    <div class="card-body">
+      <div style="font-size:13px;line-height:1.8;">
+        <div class="mb-2"><strong style="color:var(--accent);">Step 1</strong> — Click <em>Download Template</em> to get the pre-formatted Excel file</div>
+        <div class="mb-2"><strong style="color:var(--accent);">Step 2</strong> — Fill in the <em>Asset Data</em> sheet. The first row is a sample — delete it or leave it (it is skipped on import)</div>
+        <div class="mb-2"><strong style="color:var(--accent);">Step 3</strong> — Required fields: Asset Name, Asset Type, Location, Company, Department</div>
+        <div class="mb-2"><strong style="color:var(--accent);">Step 4</strong> — Leave Asset Tag blank — it is auto-generated as <code style="color:var(--accent);">DAS-HW-2026-XXXX</code></div>
+        <div class="mb-2"><strong style="color:var(--accent);">Step 5</strong> — Dates must be <code>YYYY-MM-DD</code> · Costs must be numbers only (no GHS symbol)</div>
+        <div class="mb-2"><strong style="color:var(--accent);">Step 6</strong> — Duplicate serial numbers will be rejected — the row is skipped with an error message</div>
+        <div><strong style="color:var(--accent);">Step 7</strong> — Save as <code>.xlsx</code> and upload here</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+{% if errors is defined %}
+{% if success_count %}
+<div class="alert alert-success">✓ {{ success_count }} assets imported successfully.</div>{% endif %}
+{% if failed_count %}
+<div class="alert alert-warning">⚠ {{ failed_count }} rows failed validation or contained errors.</div>{% endif %}
+{% if errors %}
+<div class="card mb-3">
+  <div class="card-header"><span class="card-title">⚠ Import Errors</span></div>
+  <div class="card-body" style="padding:0;max-height:300px;overflow-y:auto;">
+    <table>
+      <tbody>{% for e in errors %}
+      <tr><td class="fs-sm text-danger" style="padding:8px 16px;border-bottom:1px solid var(--border);">{{ e }}</td></tr>
+      {% endfor %}</tbody>
+    </table>
+  </div>
+</div>{% endif %}{% endif %}
+
+{% if recent %}
+<div class="card">
+  <div class="card-header"><span class="card-title">📜 Recent Uploads</span></div>
+  <div class="card-body" style="padding:0;"><div class="table-wrap"><table>
+    <thead><tr><th>File</th><th>Uploaded By</th><th>Date</th><th>Total</th><th>Success</th><th>Failed</th></tr></thead>
+    <tbody>{% for u in recent %}
+    <tr>
+      <td class="fs-sm">{{ u.filename }}</td>
+      <td class="fs-sm text-muted">{{ u.uploaded_by }}</td>
+      <td class="fs-sm text-muted">{{ u.created_at[:16] }}</td>
+      <td class="fs-sm">{{ u.total_rows }}</td>
+      <td class="fs-sm text-success">{{ u.success_rows }}</td>
+      <td class="fs-sm {% if u.failed_rows > 0 %}text-danger{% else %}text-muted{% endif %}">{{ u.failed_rows }}</td>
+    </tr>{% endfor %}</tbody>
+  </table></div></div>
+</div>{% endif %}
+
+<script>
+const dropZone = document.getElementById('dropZone');
+const fileInput = document.getElementById('fileInput');
+const uploadBtn = document.getElementById('uploadBtn');
+
+function showFileName(input) {
+  if (input.files.length > 0) {
+    document.getElementById('fileName').textContent = '📊 ' + input.files[0].name;
+    uploadBtn.disabled = false;
+    dropZone.style.borderColor = 'var(--accent)';
+  }
+}
+
+['dragover','dragenter'].forEach(ev => dropZone.addEventListener(ev, e => {
+  e.preventDefault(); dropZone.classList.add('drag');
+}));
+['dragleave','drop'].forEach(ev => dropZone.addEventListener(ev, e => {
+  e.preventDefault(); dropZone.classList.remove('drag');
+}));
+dropZone.addEventListener('drop', e => {
+  const dt = e.dataTransfer;
+  if (dt.files.length) {
+    fileInput.files = dt.files;
+    showFileName(fileInput);
+  }
+});
+
+document.getElementById('uploadForm').addEventListener('submit', function() {
+  uploadBtn.disabled = true;
+  uploadBtn.textContent = '⏳ Importing…';
+  document.getElementById('uploadStatus').textContent = 'Processing file…';
+});
+</script>
+{% endblock %}

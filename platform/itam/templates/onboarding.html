@@ -1,0 +1,98 @@
+{% extends 'base.html' %}
+{% block title %}Onboarding{% endblock %}
+{% block topbar_title %}Employee Onboarding{% endblock %}
+{% block topbar_sub %}New joiner workflow — accounts, equipment, induction, HR documents{% endblock %}
+{% block content %}
+
+<div class="page-header">
+  <div><h1>Employee Onboarding</h1><p>{{ stats.total }} records total</p></div>
+  <div class="page-header-actions">
+    <a href="{{ url_for('new_onboarding') }}" class="btn btn-primary">➕ New Onboarding</a>
+  </div>
+</div>
+
+<!-- Stats -->
+<div class="stat-grid mb-3" style="grid-template-columns:repeat(4,1fr);">
+  <div class="stat-card"><div class="stat-val blue">{{ stats.total }}</div><div class="stat-label">Total Records</div></div>
+  <div class="stat-card warn"><div class="stat-val yellow">{{ stats.in_progress }}</div><div class="stat-label">In Progress</div></div>
+  <div class="stat-card ok"><div class="stat-val green">{{ stats.completed }}</div><div class="stat-label">Completed</div></div>
+  <div class="stat-card"><div class="stat-val blue">{{ stats.this_month }}</div><div class="stat-label">This Month</div></div>
+</div>
+
+<!-- Filter bar -->
+<div class="card mb-2">
+  <div class="card-body" style="padding:12px 18px;">
+    <form method="GET" style="display:flex;gap:8px;align-items:flex-end;flex-wrap:wrap;">
+      <div class="form-group" style="margin:0;">
+        <label>Search</label>
+        <input name="q" value="{{ q }}" placeholder="Name, job title, ref…" style="width:220px;margin:0;">
+      </div>
+      <div class="form-group" style="margin:0;">
+        <label>Status</label>
+        <select name="status" style="width:160px;margin:0;">
+          <option value="">All Statuses</option>
+          {% for s in ['In Progress','Completed','Cancelled'] %}
+          <option {% if status_f==s %}selected{% endif %}>{{ s }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <button class="btn btn-primary btn-sm" type="submit">Filter</button>
+      {% if q or status_f %}<a href="{{ url_for('onboarding') }}" class="btn btn-secondary btn-sm">Clear</a>{% endif %}
+    </form>
+  </div>
+</div>
+
+<!-- Records table -->
+<div class="card">
+  <div class="card-body" style="padding:0;">
+    {% if records %}
+    <div class="table-wrap"><table>
+      <thead>
+        <tr>
+          <th>Ref</th><th>New Joiner</th><th>Job Title</th><th>Department</th>
+          <th>Site</th><th>Start Date</th><th>Progress</th><th>Status</th><th></th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for rec, prog in records %}
+        <tr>
+          <td class="mono fs-sm text-accent">{{ rec.onb_ref }}</td>
+          <td>
+            <a href="{{ url_for('view_onboarding', onb_id=rec.id) }}"
+               style="color:var(--text);font-weight:700;text-decoration:none;">
+              {{ rec.full_name }}
+            </a>
+            {% if rec.preferred_name %}<div class="fs-sm text-muted">"{{ rec.preferred_name }}"</div>{% endif %}
+          </td>
+          <td class="fs-sm">{{ rec.job_title }}</td>
+          <td class="fs-sm text-muted">{{ rec.department }}</td>
+          <td class="fs-sm {% if 'NIA' in (rec.location or '') %}text-accent{% else %}text-muted{% endif %}">{{ rec.location }}</td>
+          <td class="fs-sm">{{ rec.start_date or '—' }}</td>
+          <td style="width:140px;">
+            <div style="display:flex;align-items:center;gap:8px;">
+              <div class="progress-bar-wrap" style="flex:1;">
+                <div class="progress-bar {% if prog == 100 %}green{% elif prog >= 60 %}yellow{% else %}red{% endif %}"
+                     style="width:{{ prog }}%;"></div>
+              </div>
+              <span class="fs-sm fw-bold" style="color:{% if prog==100 %}var(--success){% elif prog>=60 %}var(--warning){% else %}var(--critical){% endif %};">{{ prog }}%</span>
+            </div>
+          </td>
+          <td>
+            <span class="badge badge-{% if rec.status=='Completed' %}success{% elif rec.status=='In Progress' %}warning{% else %}muted{% endif %}">
+              {{ rec.status }}
+            </span>
+          </td>
+          <td><a href="{{ url_for('view_onboarding', onb_id=rec.id) }}" class="btn btn-xs btn-secondary">View</a></td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table></div>
+    {% else %}
+    <div class="empty-state">
+      <div class="icon">🧑‍💼</div>
+      <p>No onboarding records yet. Click <strong>➕ New Onboarding</strong> to start.</p>
+    </div>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}

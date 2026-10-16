@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Training Expired — CyberShield</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+  <style>
+    body { display:flex; align-items:center; justify-content:center; min-height:100vh; background:var(--bg, #0D1B2A); }
+    .expired-card {
+      background: #1B2A3B;
+      border: 1.5px solid #E63946;
+      border-radius: 14px;
+      padding: 48px 44px 40px;
+      max-width: 520px;
+      width: 90%;
+      text-align: center;
+    }
+    .expired-icon { font-size: 56px; margin-bottom: 16px; }
+    .expired-title {
+      font-size: 24px;
+      font-weight: 700;
+      color: #E63946;
+      margin: 0 0 8px;
+      letter-spacing: 0.5px;
+    }
+    .expired-name {
+      font-size: 16px;
+      color: #C8D6E5;
+      margin: 0 0 24px;
+    }
+    .expired-box {
+      background: rgba(230,57,70,0.08);
+      border: 1px solid rgba(230,57,70,0.3);
+      border-radius: 8px;
+      padding: 16px 20px;
+      margin-bottom: 24px;
+      text-align: left;
+    }
+    .expired-box p {
+      color: #C8D6E5;
+      font-size: 14px;
+      margin: 6px 0;
+      line-height: 1.6;
+    }
+    .expired-box .label {
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      color: #8899AA;
+      margin-bottom: 4px;
+    }
+    .expired-box .deadline-val {
+      color: #E63946;
+      font-weight: 600;
+      font-size: 15px;
+    }
+    .contact-box {
+      background: rgba(46,196,182,0.08);
+      border: 1px solid rgba(46,196,182,0.3);
+      border-radius: 8px;
+      padding: 14px 20px;
+      margin-bottom: 24px;
+    }
+    .contact-box p {
+      color: #C8D6E5;
+      font-size: 14px;
+      margin: 4px 0;
+    }
+    .contact-box a { color: #2EC4B6; text-decoration: none; }
+    .contact-box a:hover { text-decoration: underline; }
+    .brand-footer {
+      font-size: 11px;
+      color: #8899AA;
+      margin-top: 8px;
+    }
+  </style>
+</head>
+<body>
+  <div class="expired-card">
+    <div class="expired-icon">⛔</div>
+    <div class="expired-title">Training Access Expired</div>
+    <div class="expired-name">{{ trainee_name }}</div>
+
+    <div class="expired-box">
+      <div class="label">What happened</div>
+      <p>Your 5-day training window has closed. Access to CyberShield modules and assessments has been locked for your session.</p>
+      {% if deadline %}
+      <div class="label" style="margin-top:12px">Your deadline was</div>
+      <div class="deadline-val">{{ deadline }}</div>
+      {% endif %}
+    </div>
+
+    <div class="contact-box">
+      <p><strong style="color:#2EC4B6">What to do next</strong></p>
+      <p>Contact the IT Department to have your training window reset.</p>
+      <p>📧 <a href="mailto:IThelpdesk@dasplcgh.com">IThelpdesk@dasplcgh.com</a></p>
+      <p>📞 Extension 204</p>
+    </div>
+
+    <div class="brand-footer">
+      CyberShield · Dannex Ayrton Starwin Plc · IT Security Department
+    </div>
+  </div>
+</body>
+</html>

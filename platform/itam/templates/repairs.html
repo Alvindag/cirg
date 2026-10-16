@@ -1,0 +1,55 @@
+{% extends 'base.html' %}
+{% block title %}Repair Tracker{% endblock %}
+{% block topbar_title %}Repair Tracker{% endblock %}
+{% block topbar_sub %}All asset repairs — open, in progress & closed{% endblock %}
+{% block content %}
+<div class="page-header">
+  <div><h1>Repair Tracker</h1><p>Log repairs from the individual asset page</p></div>
+</div>
+<div class="stat-grid mb-2" style="grid-template-columns:repeat(4,1fr);">
+  <div class="stat-card"><div class="stat-val blue">{{ stats.total }}</div><div class="stat-label">Total Repairs</div></div>
+  <div class="stat-card orange"><div class="stat-val orange">{{ stats.open }}</div><div class="stat-label">Open</div></div>
+  <div class="stat-card blue"><div class="stat-val blue">{{ stats.progress }}</div><div class="stat-label">In Progress</div></div>
+  <div class="stat-card ok"><div class="stat-val green">{{ stats.closed }}</div><div class="stat-label">Closed</div></div>
+</div>
+<div class="card"><div class="card-body" style="padding:0;">
+  {% if repairs %}
+  <div class="table-wrap"><table>
+    <thead><tr><th>Ref</th><th>Asset</th><th>Fault</th><th>Type</th><th>Vendor</th><th>Sent</th><th>Expected</th><th>Cost</th><th>Status</th><th></th></tr></thead>
+    <tbody>{% for r in repairs %}
+    <tr>
+      <td class="mono fs-sm text-accent">{{ r.repair_ref }}</td>
+      <td><div class="fw-bold fs-sm">{{ r.asset_name }}</div><div class="mono fs-sm text-muted">{{ r.asset_tag }}</div></td>
+      <td class="fs-sm">{{ r.fault_description[:45] }}{% if r.fault_description|length>45 %}…{% endif %}</td>
+      <td class="fs-sm text-muted">{{ r.repair_type }}</td>
+      <td class="fs-sm text-muted">{{ r.vendor or '—' }}</td>
+      <td class="fs-sm">{{ r.sent_date or '—' }}</td>
+      <td class="fs-sm {% if r.expected_return and r.status=='Open' %}text-warning{% endif %}">{{ r.expected_return or '—' }}</td>
+      <td class="fs-sm">{% if r.repair_cost %}GHS {{ '%.0f'|format(r.repair_cost) }}{% else %}—{% endif %}</td>
+      <td><span class="badge badge-{{ r.status|lower|replace(' ','') }}">{{ r.status }}</span></td>
+      <td>
+        {% if r.status == 'Open' %}
+        <button onclick="document.getElementById('close-{{ r.id }}').style.display='block'" class="btn btn-xs btn-secondary">Close</button>
+        {% endif %}
+      </td>
+    </tr>
+    {% if r.status == 'Open' %}
+    <tr id="close-{{ r.id }}" style="display:none;background:var(--bg2);">
+      <td colspan="10" style="padding:14px;">
+        <form method="POST" action="{{ url_for('close_repair', repair_id=r.id) }}">
+          <div style="display:flex;gap:10px;align-items:flex-end;flex-wrap:wrap;">
+            <div class="form-group" style="margin:0;"><label>Outcome</label>
+              <select name="outcome" style="width:160px;margin:0;"><option>Repaired</option><option>Replaced</option><option>Unrepairable</option><option>Under Warranty</option></select></div>
+            <div class="form-group" style="flex:1;margin:0;"><label>Repair Notes / Parts Replaced</label><input name="repair_notes" placeholder="What was done, what was replaced…"></div>
+            <div class="form-group" style="margin:0;"><label>Parts Replaced</label><input name="parts_replaced" placeholder="e.g. Battery, Screen" style="width:160px;"></div>
+            <button class="btn btn-primary btn-sm" type="submit">✓ Close Repair</button>
+            <button type="button" class="btn btn-secondary btn-sm" onclick="document.getElementById('close-{{ r.id }}').style.display='none'">Cancel</button>
+          </div>
+        </form>
+      </td>
+    </tr>{% endif %}
+    {% endfor %}</tbody>
+  </table></div>
+  {% else %}<div class="empty-state"><div class="icon">🛠</div><p>No repair records yet. Log repairs from individual asset pages.</p></div>{% endif %}
+</div></div>
+{% endblock %}

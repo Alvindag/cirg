@@ -1,0 +1,180 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>CyberShield Certificate — {{ trainee_name }}</title>
+<link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+<script>
+(function(){
+  var _origFetch = window.fetch;
+  window.fetch = function(input, init){
+    init = init || {};
+    var method = (init.method || 'GET').toUpperCase();
+    var sameOrigin = typeof input === 'string' && !/^https?:\/\//i.test(input);
+    if (sameOrigin && ['POST','PUT','PATCH','DELETE'].indexOf(method) !== -1) {
+      init.headers = init.headers || {};
+      if (init.headers instanceof Headers) { init.headers.set('X-CSRFToken', window.CSRF_TOKEN || ''); }
+      else { init.headers['X-CSRFToken'] = window.CSRF_TOKEN || ''; }
+    }
+    return _origFetch(input, init);
+  };
+})();
+</script>
+</head>
+<body>
+
+<div class="bg-orbs no-print">
+  <div class="bg-orb"></div>
+  <div class="bg-orb"></div>
+</div>
+
+<div class="cert-page">
+
+  <div class="cert-wrapper" id="cert-wrapper">
+    <div class="cert-org">DANNEX AYRTON STARWIN PLC</div>
+
+    <div class="cert-logo-row">
+      <div class="cert-shield">🛡</div>
+      <div class="cert-brand">CYBERSHIELD</div>
+    </div>
+
+    <div class="cert-title">Certificate of Completion</div>
+
+    <div class="cert-present">This is to certify that</div>
+    <div class="cert-name">{{ trainee_name }}</div>
+
+    <div class="cert-desc">
+      has successfully completed the
+      {% if track == 'ethics' %}
+        <strong>Business Ethics Policy Compliance Training</strong>
+        covering: DAS Values &amp; Business Ethics Policy (DAS/BEP/005 V5),
+        Bribery, Corruption &amp; Gifts Policy, Record-Keeping &amp; Accounting Standards,
+        Confidential Information &amp; Conflicts of Interest, Treatment of Customers, Suppliers
+        &amp; Fair Competition, Employee Rights under Labour Act 651, Equal Opportunity,
+        Health &amp; Safety, and Confidential Reporting &amp; Whistleblowing Procedures.
+        <br><br>
+        Issued under <strong>DAS Business Ethics Policy DAS/BEP/005 V5</strong>, compliant with
+        <strong>Ghana Labour Act 651</strong>, <strong>Ghana Data Protection Act 2012 (Act 843)</strong>,
+        and <strong>Ghana FDA</strong> pharmaceutical governance requirements.
+      {% elif track == 'refresher' %}
+        <strong>Annual Cybersecurity Awareness Refresher Training</strong>
+        covering: New Threats 2025/2026 (AI Phishing, Quishing, OT Attacks),
+        Advanced Scenario Challenges, and DAS Plc IT Security Policy Updates
+        including MFA Mandate (R-2026-0001) and USB Restriction GPO (NC-2026-0004).
+      {% else %}
+        <strong>DAS Plc Cybersecurity Awareness Onboarding Training</strong>
+        covering: Information Security Fundamentals, Phishing Recognition &amp; Outlook Reporting,
+        Smishing &amp; Vishing, USB Drop Attack Prevention, Password Hygiene &amp; MFA,
+        Social Engineering Defence, Microsoft 365 Business Central Security, and a hands-on
+        Outlook Phishing Reporting Drill.
+      {% endif %}
+      <br><br>
+      This training is compliant with <strong>NIST SP 800-61</strong>, <strong>Ghana Data Protection Act 2012</strong>,
+      <strong>Ghana Cybersecurity Authority Guidelines</strong>, and <strong>Ghana FDA</strong> pharmaceutical
+      information security requirements. Issued under DAS Plc IT Security Policy <strong>IT22-001</strong>.
+    </div>
+
+    <div class="cert-score-row">
+      <div class="cert-score-item">
+        <div class="cert-score-val">{{ score }}%</div>
+        <div class="cert-score-lbl">Assessment Score</div>
+      </div>
+      <div class="cert-score-item">
+        <div class="cert-score-val">{{ completion_date }}</div>
+        <div class="cert-score-lbl">Date of Completion</div>
+      </div>
+      <div class="cert-score-item">
+        <div class="cert-score-val">{% if track == 'refresher' %}3{% elif track == 'ethics' %}6{% else %}7{% endif %}</div>
+        <div class="cert-score-lbl">Modules Completed</div>
+      </div>
+    </div>
+
+    <div class="cert-sig-row">
+      <!-- Signature 1: Alvin E.J. Dagbui — Asst. IT Manager -->
+      <div class="cert-sig-block">
+        <div style="height:56px;display:flex;align-items:flex-end;margin-bottom:6px">
+          <div style="width:180px;border-bottom:1.5px solid #999"></div>
+        </div>
+        <div class="cert-sig-name">Alvin E.J. Dagbui</div>
+        <div class="cert-sig-role">Assistant IT Manager — DAS Plc Group</div>
+        <div class="cert-sig-role">MSc Digital Forensics &amp; Cybersecurity · Ext. 204</div>
+        <div style="font-size:10px;color:#aaa;margin-top:4px;font-style:italic">Signature &amp; Date: _______________</div>
+      </div>
+
+      <!-- Centre seal -->
+      <div style="text-align:center;flex-shrink:0;padding:0 10px">
+        <div style="width:68px;height:68px;margin:0 auto 8px;background:linear-gradient(135deg,#E8A020,#b87800);clip-path:polygon(50% 0%,100% 25%,100% 75%,50% 100%,0% 75%,0% 25%);display:flex;align-items:center;justify-content:center;font-size:30px">🛡</div>
+        <div style="font-size:10px;color:#888;font-family:'Rajdhani',sans-serif;letter-spacing:2px">OFFICIAL SEAL</div>
+        <div style="font-size:10px;color:#bbb;font-family:'Rajdhani',sans-serif;margin-top:2px">DAS Plc IT</div>
+      </div>
+
+      <!-- Signature 2: Samuel Akushie — IT Manager -->
+      <div class="cert-sig-block">
+        <div style="height:56px;display:flex;align-items:flex-end;margin-bottom:6px">
+          <div style="width:180px;border-bottom:1.5px solid #999"></div>
+        </div>
+        <div class="cert-sig-name">Samuel Akushie</div>
+        <div class="cert-sig-role">IT Manager — DAS Plc Group</div>
+        <div class="cert-sig-role">Head of IT Department · Ext. 115</div>
+        <div style="font-size:10px;color:#aaa;margin-top:4px;font-style:italic">Signature &amp; Date: _______________</div>
+      </div>
+    </div>
+
+    <div class="cert-ref">
+      Certificate Reference: <strong>{{ cert_ref }}</strong> &nbsp;|&nbsp;
+      Valid for 12 months from date of issue &nbsp;|&nbsp;
+      Next renewal due: {{ (completion_date.split(' ')[2]|int + 1)|string if completion_date else '2027' }} &nbsp;|&nbsp;
+      IT Contact: Ext. 204 · IThelpdesk@dasplcgh.com
+    </div>
+  </div>
+
+  <!-- Action buttons (hidden when printing) -->
+  <div class="no-print" style="display:flex;gap:14px;margin-top:28px;position:relative;z-index:1;flex-wrap:wrap;justify-content:center">
+    <button class="print-btn" onclick="window.print()">🖨️ PRINT CERTIFICATE</button>
+    <button class="print-btn" onclick="window.location.href='/admin'" style="border-color:var(--teal);color:var(--teal)">📊 ADMIN DASHBOARD</button>
+    <button class="print-btn" onclick="window.location.href='/'" style="border-color:var(--amber);color:var(--amber)">🔄 NEW TRAINING SESSION</button>
+  </div>
+
+  <div class="no-print" style="margin-top:16px;font-size:13px;color:var(--text2);text-align:center;position:relative;z-index:1">
+    This certificate has been recorded in the DAS Plc ISMS Training Register.
+    <br>Certificate Reference: <strong style="color:var(--amber)">{{ cert_ref }}</strong>
+  </div>
+
+</div>
+
+<script src="{{ url_for('static', filename='js/alvin.js') }}"></script>
+<script>
+// Fire ITAM integration webhook
+try {
+  fetch('/api/onboarding/complete', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({
+      event: 'cybersecurity_training_complete',
+      trainee_name: "{{ trainee_name }}",
+      cert_ref: "{{ cert_ref }}",
+      score: {{ score }},
+      track: "{{ track }}",
+      completed_at: new Date().toISOString()
+    })
+  });
+
+  // Also push to ITAM v2 if running
+  fetch('http://localhost:5057/api/onboarding/complete', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({
+      event: 'cybersecurity_training_complete',
+      trainee_name: "{{ trainee_name }}",
+      cert_ref: "{{ cert_ref }}",
+      score: {{ score }},
+      track: "{{ track }}",
+      completed_at: new Date().toISOString()
+    })
+  }).then(() => console.log('✅ ITAM sync successful'))
+    .catch(() => console.log('ℹ️ ITAM not running — sync skipped'));
+} catch(e) { console.log('Webhook skipped:', e); }
+</script>
+</body>
+</html>

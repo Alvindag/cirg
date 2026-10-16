@@ -1,0 +1,120 @@
+{% extends 'base.html' %}
+{% block title %}New Onboarding{% endblock %}
+{% block topbar_title %}New Employee Onboarding{% endblock %}
+{% block topbar_sub %}HR initiates — full checklist auto-generated on save{% endblock %}
+{% block content %}
+<div class="page-header">
+  <div><h1>New Onboarding Record</h1>
+    <p>Fill in the new joiner's details. The full checklist is generated automatically.</p>
+  </div>
+  <a href="{{ url_for('onboarding') }}" class="btn btn-secondary">← Back</a>
+</div>
+
+<div class="alert alert-info">
+  ℹ  Once saved, the system will auto-generate <strong>30 checklist items</strong> across IT Accounts,
+  Equipment, Access Rights, HR Documents, IT Security, and Induction — ready for each team to action.
+</div>
+
+<div class="card"><div class="card-body">
+<form method="POST">
+
+  <div class="form-section">
+    <div class="form-section-title">New Joiner Details</div>
+    <div class="form-grid">
+      <div class="form-group">
+        <label>Full Name *</label>
+        <input name="full_name" value="{{ form.get('full_name','') }}" required
+               placeholder="e.g. Kwame Asante">
+      </div>
+      <div class="form-group">
+        <label>Preferred / Short Name</label>
+        <input name="preferred_name" value="{{ form.get('preferred_name','') }}"
+               placeholder="e.g. Kwame">
+      </div>
+      <div class="form-group">
+        <label>Job Title *</label>
+        <input name="job_title" value="{{ form.get('job_title','') }}" required
+               placeholder="e.g. Sales Executive">
+      </div>
+      <div class="form-group">
+        <label>Employment Type</label>
+        <select name="employment_type">
+          {% for t in ['Full-Time','Part-Time','Contract','Intern','Temporary'] %}
+          <option {% if form.get('employment_type','')==t %}selected{% endif %}>{{ t }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="form-group">
+        <label>Department *</label>
+        <select name="department" required>
+          <option value="">— Select Department —</option>
+          {% for d in departments %}
+          <option {% if form.get('department','')==d %}selected{% endif %}>{{ d }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="form-group">
+        <label>Site / Location *</label>
+        <select name="location" required>
+          <option value="">— Select Site —</option>
+          {% for l in locations %}
+          <option {% if form.get('location','')==l %}selected{% endif %}>{{ l }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="form-group">
+        <label>Start Date</label>
+        <input type="date" name="start_date" value="{{ form.get('start_date','') }}">
+      </div>
+      <div class="form-group">
+        <label>Phone Number</label>
+        <input name="phone_number" value="{{ form.get('phone_number','') }}"
+               placeholder="e.g. 0244 123 456">
+      </div>
+    </div>
+  </div>
+
+  <div class="form-section">
+    <div class="form-section-title">Line Manager</div>
+    <div class="form-grid">
+      <div class="form-group">
+        <label>Manager Full Name</label>
+        <input name="manager_name" value="{{ form.get('manager_name','') }}"
+               placeholder="e.g. Aba Mensah">
+      </div>
+      <div class="form-group">
+        <label>Manager Username</label>
+        <input name="manager_username" value="{{ form.get('manager_username','') }}"
+               placeholder="e.g. aba.mensah">
+      </div>
+    </div>
+  </div>
+
+  <div class="form-section">
+    <div class="form-section-title">IT Account Details (fill in or complete later)</div>
+    <div class="form-grid">
+      <div class="form-group">
+        <label>AD Username (to be created)</label>
+        <input name="ad_username" value="{{ form.get('ad_username','') }}"
+               placeholder="e.g. kwame.asante">
+      </div>
+      <div class="form-group">
+        <label>Email Address (to be created)</label>
+        <input name="email_assigned" value="{{ form.get('email_assigned','') }}"
+               placeholder="e.g. kwame.asante@das-plc.com">
+      </div>
+    </div>
+  </div>
+
+  <div class="form-group full mb-2">
+    <label>Additional Notes</label>
+    <textarea name="notes" placeholder="Any special requirements, late start, remote worker, etc.">{{ form.get('notes','') }}</textarea>
+  </div>
+
+  <div class="form-actions">
+    <button class="btn btn-primary" type="submit">🧑‍💼 Create Onboarding Record</button>
+    <a href="{{ url_for('onboarding') }}" class="btn btn-secondary">Cancel</a>
+  </div>
+</form>
+</div></div>
+{% endblock %}
