@@ -48,7 +48,7 @@ $b = foreach ($s in $Servers) {
         NoAutoRebootWithLoggedOnUsers=$au.NoAutoRebootWithLoggedOnUsers; Status='OK' } }
   } catch { [pscustomobject]@{ Server=$s; Status="FAILED: $($_.Exception.Message)" } }
 }
-$b = $b | Select-Object *,@{n='InstallDayName';e={$days[[int]$_.InstallDay]}},@{n='AUOptionsMeaning';e={$opts[[int]$_.AUOptions]}}
+$b = $b | Select-Object *,@{n='InstallDayName';e={if($null -ne $_.InstallDay){$days[[int]$_.InstallDay]}}},@{n='AUOptionsMeaning';e={if($null -ne $_.AUOptions){$opts[[int]$_.AUOptions]}}}
 $b | Export-Csv "$OutDir\Task4B_Server_PatchPolicy_$stamp.csv" -NoTypeInformation
 $b | Format-Table Server,WSUSServer,TargetGroup,AUOptionsMeaning,InstallDayName,InstallHour,Status -AutoSize
 Stop-Transcript | Out-Null
