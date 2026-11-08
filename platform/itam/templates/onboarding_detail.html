@@ -1,0 +1,316 @@
+{% extends 'base.html' %}
+{% from 'icons.html' import icon %}
+{% block title %}{{ rec.onb_ref }}{% endblock %}
+{% block topbar_title %}{{ rec.full_name }}{% endblock %}
+{% block topbar_sub %}{{ rec.onb_ref }} · {{ rec.job_title }} · {{ rec.department }} · {{ rec.location }}{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <div>
+    <h1>{{ rec.full_name }}
+      {% if rec.preferred_name %}<span style="color:var(--muted);font-size:16px;font-weight:400;">"{{ rec.preferred_name }}"</span>{% endif %}
+    </h1>
+    <p>{{ rec.onb_ref }} · {{ rec.job_title }} · {{ rec.employment_type }}</p>
+  </div>
+  <div class="page-header-actions">
+    {% if rec.status == 'In Progress' %}
+    <form method="POST" action="{{ url_for('set_onboarding_status', onb_id=rec.id) }}" style="display:inline;">
+      <input type="hidden" name="status" value="Completed">
+      <button class="btn btn-secondary" type="submit"
+              onclick="return confirm('Mark entire onboarding as Completed?')">
+        {{ icon('circle-check', 15) }} Mark Complete
+      </button>
+    </form>
+    <form method="POST" action="{{ url_for('set_onboarding_status', onb_id=rec.id) }}" style="display:inline;">
+      <input type="hidden" name="status" value="Cancelled">
+      <button class="btn btn-danger" type="submit"
+              onclick="return confirm('Cancel this onboarding? Use this only for a record raised in error. It stays in the list as Cancelled.')">
+        {{ icon('x', 15) }} Cancel
+      </button>
+    </form>
+    {% endif %}
+    <a href="{{ url_for('onboarding') }}" class="btn btn-secondary">← All Records</a>
+  </div>
+</div>
+
+<!-- Overall Progress Bar -->
+<div class="card mb-3">
+  <div class="card-body" style="padding:14px 18px;">
+    <div style="display:flex;align-items:center;gap:16px;">
+      <div style="font-size:13px;font-weight:700;color:var(--muted);white-space:nowrap;">Overall Progress</div>
+      <div class="progress-bar-wrap" style="flex:1;height:14px;border-radius:7px;">
+        <div class="progress-bar {% if overall==100 %}green{% elif overall>=60 %}yellow{% else %}red{% endif %}"
+             style="width:{{ overall }}%;height:14px;border-radius:7px;transition:width 0.5s;"></div>
+      </div>
+      <div style="font-size:22px;font-weight:800;color:{% if overall==100 %}var(--success){% elif overall>=60 %}var(--warning){% else %}var(--critical){% endif %};white-space:nowrap;">
+        {{ overall }}%
+      </div>
+      <span class="badge badge-{% if rec.status=='Completed' %}success{% elif rec.status=='In Progress' %}warning{% else %}muted{% endif %}">
+        {{ rec.status }}
+      </span>
+    </div>
+    <!-- Per-category mini bars -->
+    <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:10px;margin-top:14px;">
+      {% for cat, p in progress.items() %}
+      <div style="background:var(--card2);border:1px solid var(--border);border-radius:6px;padding:10px;">
+        <div class="fs-sm fw-bold" style="margin-bottom:4px;">
+          {% set _ci = {'IT Accounts':'key-round','Equipment':'monitor','Access Rights':'lock','HR Documents':'file-text','IT Security':'shield-check','Induction':'calendar','Onboarding Form':'clipboard-list','Credential Handover':'key-round','Documentation':'folder'} %}
+          {% if _ci.get(cat) %}{{ icon(_ci.get(cat), 14) }}{% endif %} {{ cat }}
+        </div>
+        <div style="display:flex;align-items:center;gap:6px;">
+          <div class="progress-bar-wrap" style="flex:1;height:6px;">
+            <div class="progress-bar {% if p.pct==100 %}green{% elif p.pct>=50 %}yellow{% else %}red{% endif %}"
+                 style="width:{{ p.pct }}%;height:6px;"></div>
+          </div>
+          <span class="fs-sm text-muted">{{ p.done }}/{{ p.total }}</span>
+        </div>
+      </div>
+      {% endfor %}
+    </div>
+  </div>
+</div>
+
+<div class="grid-2 mb-3">
+  <!-- Staff Details -->
+  <div class="card">
+    <div class="card-header">
+      <span class="card-title">{{ icon('user-round', 15) }} New Joiner Details</span>
+      <button onclick="document.getElementById('edit-details').style.display=document.getElementById('edit-details').style.display=='none'?'block':'none'"
+              class="btn btn-xs btn-secondary">Edit</button>
+    </div>
+    <!-- View mode -->
+    <div id="view-details" class="card-body">
+      <div class="detail-row"><span class="detail-label">Full Name</span><span class="detail-val fw-bold">{{ rec.full_name }}</span></div>
+      <div class="detail-row"><span class="detail-label">Job Title</span><span class="detail-val">{{ rec.job_title }}</span></div>
+      <div class="detail-row"><span class="detail-label">Department</span><span class="detail-val">{{ rec.department }}</span></div>
+      <div class="detail-row"><span class="detail-label">Site</span><span class="detail-val" style="color:var(--accent);">{{ rec.location }}</span></div>
+      <div class="detail-row"><span class="detail-label">Start Date</span><span class="detail-val">{{ rec.start_date or '—' }}</span></div>
+      <div class="detail-row"><span class="detail-label">Employment Type</span><span class="detail-val">{{ rec.employment_type }}</span></div>
+      <div class="detail-row"><span class="detail-label">Phone</span><span class="detail-val">{{ rec.phone_number or '—' }}</span></div>
+      <div class="detail-row"><span class="detail-label">Manager</span><span class="detail-val">{{ rec.manager_name or '—' }}</span></div>
+      <div class="detail-row"><span class="detail-label">AD Username</span><span class="detail-val mono">{{ rec.ad_username or '—' }}</span></div>
+      <div class="detail-row"><span class="detail-label">Email</span><span class="detail-val mono fs-sm">{{ rec.email_assigned or '—' }}</span></div>
+      <div class="detail-row"><span class="detail-label">Initiated By</span><span class="detail-val text-muted">{{ rec.hr_initiated_by }}</span></div>
+      {% if rec.notes %}<div class="detail-row"><span class="detail-label">Notes</span><span class="detail-val fs-sm text-muted">{{ rec.notes }}</span></div>{% endif %}
+    </div>
+    <!-- Edit mode -->
+    <div id="edit-details" style="display:none;padding:16px;border-top:1px solid var(--border);">
+      <form method="POST" action="{{ url_for('update_onboarding_details', onb_id=rec.id) }}">
+        <div class="form-grid">
+          <div class="form-group"><label>AD Username</label><input name="ad_username" value="{{ rec.ad_username or '' }}" placeholder="firstname.lastname"></div>
+          <div class="form-group"><label>Email Address</label><input name="email_assigned" value="{{ rec.email_assigned or '' }}" placeholder="user@das-plc.com"></div>
+          <div class="form-group"><label>Phone Number</label><input name="phone_number" value="{{ rec.phone_number or '' }}"></div>
+          <div class="form-group"><label>Start Date</label><input type="date" name="start_date" value="{{ rec.start_date or '' }}"></div>
+          <div class="form-group"><label>Manager Name</label><input name="manager_name" value="{{ rec.manager_name or '' }}"></div>
+          <div class="form-group"><label>Manager Username</label><input name="manager_username" value="{{ rec.manager_username or '' }}"></div>
+          <div class="form-group full"><label>Notes</label><textarea name="notes">{{ rec.notes or '' }}</textarea></div>
+        </div>
+        <div class="form-actions" style="border:none;padding-top:8px;">
+          <button class="btn btn-primary btn-sm" type="submit">{{ icon('save', 15) }} Save</button>
+          <button type="button" class="btn btn-secondary btn-sm"
+                  onclick="document.getElementById('edit-details').style.display='none'">Cancel</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Assigned Equipment from ITAM -->
+  <div class="card">
+    <div class="card-header">
+      <span class="card-title">{{ icon('monitor', 15) }} Equipment Assigned in ITAM</span>
+      {% if rec.ad_username %}
+      <a href="{{ url_for('person_profile', username=rec.ad_username) }}"
+         class="btn btn-xs btn-secondary">Open Profile →</a>
+      {% endif %}
+    </div>
+    <div class="card-body" style="padding:0;">
+      {% if assigned_assets %}
+      <table>
+        <thead><tr><th>Tag</th><th>Asset</th><th>Type</th><th>Condition</th></tr></thead>
+        <tbody>
+          {% for a in assigned_assets %}
+          <tr>
+            <td class="mono fs-sm"><a href="{{ url_for('view_asset', asset_id=a.id) }}" style="color:var(--accent);">{{ a.asset_tag }}</a></td>
+            <td class="fw-bold fs-sm">{{ a.asset_name[:30] }}</td>
+            <td class="fs-sm text-muted">{{ a.asset_type }}</td>
+            <td><span class="badge badge-{{ 'good' if a.condition in ['New','Excellent','Good'] else 'fair' }}">{{ a.condition }}</span></td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+      {% elif rec.ad_username %}
+      <div class="empty-state" style="padding:20px;">
+        <p class="fs-sm">No assets assigned yet in ITAM for <span class="mono">{{ rec.ad_username }}</span>.</p>
+        <a href="{{ url_for('assets') }}?status=Active — Unassigned" class="btn btn-xs btn-secondary" style="margin-top:8px;">Browse Unassigned Assets</a>
+      </div>
+      {% else %}
+      <div class="empty-state" style="padding:20px;">
+        <p class="fs-sm text-muted">Set an AD Username above to link ITAM equipment records.</p>
+      </div>
+      {% endif %}
+    </div>
+  </div>
+</div>
+
+<!-- ── CHECKLIST SECTIONS ───────────────────────────────────────────────── -->
+{% set cat_icons = {
+  'Onboarding Form':    'clipboard-list',
+  'IT Accounts':        'key-round',
+  'Access Rights':      'lock',
+  'Credential Handover':'key-round',
+  'Documentation':      'folder',
+  'HR Documents':       'file-text',
+  'IT Security':        'shield-check'
+} %}
+{% set cat_owners = {
+  'Onboarding Form':    'HR → IT',
+  'IT Accounts':        'IT Team — SOP 7.2',
+  'Access Rights':      'IT Team + Manager — SOP 7.2',
+  'Credential Handover':'IT Team — SOP 7.3',
+  'Documentation':      'IT Team — SOP 7.4',
+  'HR Documents':       'HR Team',
+  'IT Security':        'IT Team'
+} %}
+
+{% for cat in categories %}
+{% set items = checklist[cat] %}
+{% set p = progress[cat] %}
+<div class="card mb-2">
+  <div class="card-header">
+    <span class="card-title">{% if cat_icons.get(cat) %}{{ icon(cat_icons.get(cat), 15) }}{% endif %} {{ cat }}
+      <span class="fs-sm text-muted" style="font-weight:400;margin-left:8px;">— {{ cat_owners[cat] }}</span>
+    </span>
+    <span style="font-size:13px;font-weight:700;color:{% if p.pct==100 %}var(--success){% elif p.pct>=50 %}var(--warning){% else %}var(--critical){% endif %};">
+      {{ p.done }}/{{ p.total }} complete
+    </span>
+  </div>
+  <div class="card-body" style="padding:0;">
+    <table>
+      <thead>
+        <tr><th style="width:36px;"></th><th>Item</th><th>Owner</th><th>Status</th><th>Completed By</th><th>Date</th><th>Notes</th><th></th></tr>
+      </thead>
+      <tbody>
+        {% for item in items %}
+        <tr style="{% if item.status=='Complete' %}opacity:0.65;{% elif item.status=='N/A' %}opacity:0.4;{% endif %}">
+          <td style="text-align:center;font-size:18px;">
+            {% if item.status == 'Complete' %}<span style="color:var(--success)">{{ icon('circle-check', 18) }}</span>
+            {% elif item.status == 'N/A' %}<span class="text-muted">{{ icon('minus', 18) }}</span>
+            {% elif item.status == 'In Progress' %}<span style="color:var(--blue)">{{ icon('refresh-cw', 18) }}</span>
+            {% else %}<span class="text-muted">{{ icon('square', 18) }}</span>{% endif %}
+          </td>
+          <td>
+            <div class="fw-bold fs-sm {% if item.status=='Complete' %}text-muted{% endif %}" style="{% if item.status=='Complete' %}text-decoration:line-through;{% endif %}">
+              {{ item.item_name }}
+            </div>
+            {% if item.description %}<div class="fs-sm text-muted">{{ item.description }}</div>{% endif %}
+          </td>
+          <td><span class="badge badge-{% if item.owner=='IT' %}blue{% elif item.owner=='HR' %}purple{% else %}warning{% endif %}" style="font-size:10px;">{{ item.owner }}</span></td>
+          <td><span class="badge badge-{% if item.status=='Complete' %}success{% elif item.status=='In Progress' %}blue{% elif item.status=='N/A' %}muted{% else %}warning{% endif %}">{{ item.status }}</span></td>
+          <td class="fs-sm text-muted">{{ item.completed_by or '—' }}</td>
+          <td class="fs-sm text-muted">{{ (item.completed_at or '—')[:10] }}</td>
+          <td class="fs-sm text-muted">{{ item.notes or '—' }}</td>
+          <td>
+            {% if item.status != 'Complete' %}
+            <div style="display:flex;gap:4px;">
+              <form method="POST" action="{{ url_for('update_checklist_item', onb_id=rec.id, item_id=item.id) }}" style="display:inline;">
+                <input type="hidden" name="status" value="Complete">
+                <button class="btn btn-xs btn-secondary" style="color:var(--success);border-color:rgba(16,185,129,0.3);" type="submit" title="Mark complete">{{ icon('circle-check', 14) }}</button>
+              </form>
+              <button class="btn btn-xs btn-secondary"
+                      onclick="toggleUpdateForm('upd-{{ item.id }}')" title="Update status or add a note">{{ icon('pencil', 13) }}</button>
+            </div>
+            <div id="upd-{{ item.id }}" style="display:none;margin-top:6px;min-width:200px;">
+              <form method="POST" action="{{ url_for('update_checklist_item', onb_id=rec.id, item_id=item.id) }}">
+                <select name="status" style="width:100%;margin-bottom:4px;font-size:12px;">
+                  {% for s in ['Pending','In Progress','Complete','N/A'] %}
+                  <option {% if s==item.status %}selected{% endif %}>{{ s }}</option>
+                  {% endfor %}
+                </select>
+                <input name="notes" placeholder="Notes (optional)" style="font-size:12px;margin-bottom:4px;" value="{{ item.notes or '' }}">
+                <button class="btn btn-xs btn-primary" type="submit" style="width:100%;">Save</button>
+              </form>
+            </div>
+            {% else %}
+            <span style="color:var(--success);font-size:16px;">✓</span>
+            {% endif %}
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endfor %}
+
+<!-- ── INDUCTION SCHEDULE ──────────────────────────────────────────────────── -->
+<div class="card mb-3" id="induction">
+  <div class="card-header">
+    <span class="card-title">{{ icon('calendar', 15) }} Induction Schedule
+      <span class="fs-sm text-muted" style="font-weight:400;margin-left:8px;">— HR + Line Manager</span>
+    </span>
+    <span style="font-size:13px;font-weight:700;color:{% if progress.Induction.pct==100 %}var(--success){% elif progress.Induction.pct>=50 %}var(--warning){% else %}var(--critical){% endif %};">
+      {{ progress.Induction.done }}/{{ progress.Induction.total }} completed
+    </span>
+  </div>
+  <div class="card-body" style="padding:0;">
+    <table>
+      <thead>
+        <tr><th></th><th>Session</th><th>Department / Visit</th><th>Facilitator</th><th>Date</th><th>Time</th><th>Status</th><th></th></tr>
+      </thead>
+      <tbody>
+        {% for s in induction %}
+        <tr style="{% if s.status=='Completed' %}opacity:0.65;{% endif %}">
+          <td style="text-align:center;font-size:16px;">
+            {% if s.status=='Completed' %}<span style="color:var(--success)">{{ icon('circle-check', 18) }}</span>{% elif s.status=='In Progress' %}{{ icon('refresh-cw', 18) }}{% else %}{{ icon('calendar', 18) }}{% endif %}
+          </td>
+          <td class="fw-bold fs-sm {% if s.status=='Completed' %}text-muted{% endif %}"
+              style="{% if s.status=='Completed' %}text-decoration:line-through;{% endif %}">
+            {{ s.session_title }}
+          </td>
+          <td class="fs-sm text-muted">{{ s.department or '—' }}</td>
+          <td class="fs-sm">{{ s.facilitator or '—' }}</td>
+          <td class="fs-sm {% if not s.scheduled_date %}text-muted{% endif %}">{{ s.scheduled_date or 'Not set' }}</td>
+          <td class="fs-sm text-muted">{{ s.scheduled_time or '—' }}</td>
+          <td>
+            <span class="badge badge-{% if s.status=='Completed' %}success{% elif s.status=='Cancelled' %}muted{% elif s.status=='In Progress' %}blue{% else %}warning{% endif %}">
+              {{ s.status }}
+            </span>
+          </td>
+          <td>
+            <button class="btn btn-xs btn-secondary"
+                    onclick="toggleUpdateForm('ind-{{ s.id }}')">Edit</button>
+            <div id="ind-{{ s.id }}" style="display:none;margin-top:6px;min-width:240px;background:var(--bg2);border:1px solid var(--border);border-radius:6px;padding:10px;">
+              <form method="POST" action="{{ url_for('update_induction_session', onb_id=rec.id, session_id=s.id) }}">
+                <div class="form-group" style="margin-bottom:6px;"><label>Date</label><input type="date" name="scheduled_date" value="{{ s.scheduled_date or '' }}" style="margin:0;font-size:12px;"></div>
+                <div class="form-group" style="margin-bottom:6px;"><label>Time</label><input type="time" name="scheduled_time" value="{{ s.scheduled_time or '' }}" style="margin:0;font-size:12px;"></div>
+                <div class="form-group" style="margin-bottom:6px;"><label>Status</label>
+                  <select name="status" style="margin:0;font-size:12px;">
+                    {% for st in ['Scheduled','In Progress','Completed','Cancelled'] %}
+                    <option {% if st==s.status %}selected{% endif %}>{{ st }}</option>
+                    {% endfor %}
+                  </select></div>
+                <div class="form-group" style="margin-bottom:6px;"><label>Notes</label><input name="notes" value="{{ s.notes or '' }}" style="margin:0;font-size:12px;"></div>
+                <div style="display:flex;gap:4px;margin-top:6px;">
+                  <button class="btn btn-xs btn-primary" type="submit">Save</button>
+                  <button type="button" class="btn btn-xs btn-secondary" onclick="toggleUpdateForm('ind-{{ s.id }}')">Cancel</button>
+                </div>
+              </form>
+            </div>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+function toggleUpdateForm(id) {
+  const el = document.getElementById(id);
+  el.style.display = el.style.display === 'none' ? 'block' : 'none';
+}
+</script>
+{% endblock %}

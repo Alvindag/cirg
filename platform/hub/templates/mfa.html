@@ -1,0 +1,5 @@
+{% extends 'base.html' %}{% block body %}<div class="login card"><h1>Verification code</h1>
+<p class="sub">Enter the 6-digit code from your authenticator app.</p>
+<form method="post"><input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+<input name="code" inputmode="numeric" pattern="[0-9 ]*" maxlength="7" autocomplete="one-time-code" autofocus required>
+<p><button class="btn" style="width:100%">Verify</button></p></form></div>{% endblock %}

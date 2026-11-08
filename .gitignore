@@ -39,3 +39,13 @@ desktop.ini
 src/mobile/android/key.properties
 *.jks
 *.keystore
+
+# ── DAS Trust Hub platform: never commit data, secrets or sessions ──
+platform/**/.env
+platform/**/instance/
+platform/demo-data/
+platform/itam/uploads/*
+!platform/itam/uploads/.gitkeep
+platform/**/*.db
+platform/**/.secret_key
+DAS-Trust-Hub.zip

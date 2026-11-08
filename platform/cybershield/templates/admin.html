@@ -1,0 +1,629 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>CyberShield — Admin Dashboard</title>
+<link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+<script>
+// Auto-attach the CSRF token to every state-changing fetch() call on this page.
+(function(){
+  var _origFetch = window.fetch;
+  window.fetch = function(input, init){
+    init = init || {};
+    var method = (init.method || 'GET').toUpperCase();
+    if (['POST','PUT','PATCH','DELETE'].indexOf(method) !== -1) {
+      init.headers = init.headers || {};
+      if (init.headers instanceof Headers) { init.headers.set('X-CSRFToken', window.CSRF_TOKEN || ''); }
+      else { init.headers['X-CSRFToken'] = window.CSRF_TOKEN || ''; }
+    }
+    return _origFetch(input, init);
+  };
+})();
+</script>
+<style>
+.section-header{display:flex;align-items:center;gap:12px;margin:36px 0 16px;padding-bottom:12px;border-bottom:1px solid var(--border)}
+.section-header h2{font-family:var(--font-head);font-size:22px;font-weight:700;color:var(--text);letter-spacing:1px}
+.section-badge{font-size:11px;color:var(--teal);background:rgba(0,196,232,0.08);border:1px solid rgba(0,196,232,0.25);border-radius:4px;padding:3px 10px;letter-spacing:1px;font-family:var(--font-head)}
+.section-desc{font-size:14px;color:var(--text2);margin-bottom:18px;line-height:1.7}
+.panel-card{background:linear-gradient(135deg,rgba(13,30,49,0.95),rgba(15,38,64,0.9));border:1px solid var(--border);border-radius:12px;padding:24px 26px;margin-bottom:16px;backdrop-filter:blur(8px)}
+.panel-card h3{font-family:var(--font-head);font-size:18px;color:var(--amber);margin-bottom:12px;display:flex;align-items:center;gap:10px}
+.action-btn{display:inline-flex;align-items:center;gap:8px;padding:11px 20px;border-radius:8px;font-family:var(--font-head);font-size:14px;font-weight:600;letter-spacing:1px;cursor:pointer;transition:all 0.2s;border:none;text-decoration:none}
+.action-btn-primary{background:linear-gradient(135deg,var(--amber),#b87800);color:#0C2340;box-shadow:0 3px 12px rgba(232,160,32,0.25)}
+.action-btn-primary:hover{transform:translateY(-1px);box-shadow:0 5px 20px rgba(232,160,32,0.4)}
+.action-btn-teal{background:rgba(0,196,232,0.12);color:var(--teal);border:1px solid rgba(0,196,232,0.35)}
+.action-btn-teal:hover{background:rgba(0,196,232,0.22)}
+.action-btn-danger{background:rgba(239,68,68,0.1);color:var(--red);border:1px solid rgba(239,68,68,0.35)}
+.action-btn-danger:hover{background:rgba(239,68,68,0.2)}
+.action-btn-grey{background:rgba(26,58,92,0.6);color:var(--text2);border:1px solid var(--border)}
+.action-btn-grey:hover{border-color:var(--text2);color:var(--text)}
+.two-col{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+@media(max-width:700px){.two-col{grid-template-columns:1fr}}
+.backup-row{display:flex;align-items:center;gap:14px;padding:12px 14px;background:rgba(8,15,26,0.6);border:1px solid var(--border);border-radius:8px;margin-bottom:8px;font-size:14px;transition:border-color 0.2s}
+.backup-row:hover{border-color:rgba(0,196,232,0.3)}
+.drop-zone{border:2px dashed var(--border);border-radius:12px;padding:28px 20px;text-align:center;cursor:pointer;transition:all 0.25s;color:var(--text2);font-size:15px}
+.drop-zone:hover,.drop-zone.drag-over{border-color:var(--amber);background:rgba(232,160,32,0.05);color:var(--amber)}
+.tab-bar{display:flex;gap:4px;margin-bottom:18px;border-bottom:1px solid var(--border)}
+.tab-btn{padding:10px 20px;font-family:var(--font-head);font-size:14px;letter-spacing:1px;background:transparent;border:none;border-bottom:3px solid transparent;color:var(--text2);cursor:pointer;transition:all 0.2s;margin-bottom:-1px}
+.tab-btn:hover{color:var(--text)}.tab-btn.active{color:var(--amber);border-bottom-color:var(--amber)}
+.tab-pane{display:none}.tab-pane.active{display:block}
+.q-row{background:rgba(8,15,26,0.6);border:1px solid var(--border);border-radius:10px;padding:16px 18px;margin-bottom:10px;transition:border-color 0.2s;position:relative}
+.q-row:hover{border-color:rgba(232,160,32,0.3)}.q-row.inactive{opacity:0.55;border-style:dashed}
+.q-text{font-size:15px;color:var(--text);margin-bottom:8px;line-height:1.5;font-weight:500;padding-right:90px}
+.q-options{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:8px}
+.q-chip{font-size:12px;padding:3px 10px;border-radius:6px;background:rgba(26,58,92,0.6);border:1px solid var(--border);color:var(--text2)}
+.q-chip.correct{background:rgba(10,42,20,0.8);border-color:var(--green);color:var(--green)}
+.q-explanation{font-size:13px;color:var(--text2);font-style:italic;line-height:1.5}
+.q-actions{display:flex;gap:8px;margin-top:10px}
+.q-status{position:absolute;top:14px;right:14px}
+.q-form{display:none;background:rgba(8,15,26,0.8);border:1px solid rgba(232,160,32,0.3);border-radius:12px;padding:22px;margin-top:14px}
+.q-form.open{display:block}
+.q-form label{display:block;font-size:12px;color:var(--text2);letter-spacing:1px;text-transform:uppercase;margin-bottom:6px;margin-top:14px}
+.q-form label:first-of-type{margin-top:0}
+.q-form input[type=text],.q-form textarea,.q-form select{width:100%;background:rgba(12,35,64,0.8);border:1px solid var(--border);border-radius:7px;padding:10px 14px;color:var(--text);font-size:14px;font-family:var(--font-body);outline:none;transition:border-color 0.2s;resize:vertical}
+.q-form input:focus,.q-form textarea:focus,.q-form select:focus{border-color:var(--amber)}
+.q-form textarea{min-height:78px}.q-form select option{background:#0C2340}
+.opts-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+@media(max-width:600px){.opts-grid{grid-template-columns:1fr}}
+#toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%) translateY(80px);background:rgba(12,35,64,0.95);border:1px solid var(--amber);border-radius:10px;padding:12px 24px;font-family:var(--font-head);font-size:15px;color:var(--text);z-index:9999;transition:transform 0.3s cubic-bezier(0.4,0,0.2,1);backdrop-filter:blur(12px);box-shadow:0 8px 30px rgba(0,0,0,0.4);white-space:nowrap}
+#toast.show{transform:translateX(-50%) translateY(0)}
+#toast.ok{border-color:var(--green);color:var(--green)}
+#toast.err{border-color:var(--red);color:var(--red)}
+.std-badge{display:inline-block;font-size:11px;color:var(--text2);background:rgba(26,58,92,0.5);border:1px solid var(--border);border-radius:4px;padding:2px 8px;font-family:var(--font-head);letter-spacing:1px;margin-right:4px}
+.mono{font-family:monospace;background:rgba(0,0,0,0.3);padding:2px 7px;border-radius:4px;font-size:13px}
+</style>
+</head>
+<body>
+<div class="bg-orbs"><div class="bg-orb"></div><div class="bg-orb"></div><div class="bg-orb"></div><div class="bg-orb"></div></div>
+<div class="particles" id="particles-container"></div>
+<div id="toast"></div>
+
+<div class="admin-page">
+
+  <!-- Header -->
+  <div class="admin-header">
+    <div style="display:flex;align-items:center;gap:16px;margin-bottom:10px;flex-wrap:wrap">
+      <div style="width:50px;height:50px;background:linear-gradient(135deg,var(--amber),#b87800);clip-path:polygon(50% 0%,100% 25%,100% 75%,50% 100%,0% 75%,0% 25%);display:flex;align-items:center;justify-content:center;font-size:22px;flex-shrink:0">🛡</div>
+      <div style="flex:1">
+        <div class="admin-title">CYBERSHIELD v3 — Admin Dashboard</div>
+        <div class="admin-sub">Dannex Ayrton Starwin Plc · IT Security Training Platform</div>
+      </div>
+      <div style="text-align:right;font-size:13px;color:var(--text2)">
+        <div><strong style="color:var(--amber)">Alvin E.J. Dagbui</strong></div>
+        <div>Asst. IT Manager · <strong style="color:var(--text)">Ext. 204</strong></div>
+        <div style="font-size:11px;margin-top:2px">IThelpdesk@dasplcgh.com</div>
+      </div>
+    </div>
+    <div style="display:flex;flex-wrap:wrap;gap:6px">
+      <span class="std-badge">ISO 27001:2022 A.8.13</span>
+      <span class="std-badge">NIST SP 800-61</span>
+      <span class="std-badge">Ghana DPA 2012</span>
+      <span class="std-badge">Ghana FDA</span>
+      <span class="std-badge">DAS IT Policy IT22-001</span>
+    </div>
+  </div>
+
+  <!-- Stats -->
+  <div class="stat-grid">
+    <div class="stat-card"><div class="stat-val">{{ stats.total or 0 }}</div><div class="stat-lbl">Total Trainees</div></div>
+    <div class="stat-card"><div class="stat-val">{{ stats.completed or 0 }}</div><div class="stat-lbl">Completions</div></div>
+    <div class="stat-card"><div class="stat-val">{{ stats.certs or 0 }}</div><div class="stat-lbl">Certificates Issued</div></div>
+    <div class="stat-card"><div class="stat-val">{{ stats.avg_score or '—' }}{% if stats.avg_score %}%{% endif %}</div><div class="stat-lbl">Average Score</div></div>
+  </div>
+
+  <!-- Training Records -->
+  <div class="section-header"><h2>📋 Training Records</h2><span class="section-badge">REGISTER</span></div>
+  <div class="admin-table">
+    <div class="admin-table-header" style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px">
+      <div class="admin-table-title">All Trainees</div>
+      <div style="display:flex;gap:10px;flex-wrap:wrap">
+        <button class="print-btn" onclick="window.print()" style="margin:0">🖨️ Print</button>
+        <button class="print-btn" onclick="exportCSV()" style="margin:0;border-color:var(--teal);color:var(--teal)">📥 Export CSV</button>
+        <a href="/admin/compliance-log" class="print-btn" style="margin:0;text-decoration:none;display:inline-block;border-color:#7B2FBE;color:#7B2FBE">&#128196; Compliance Log</a>
+        <a href="/admin/dept-managers" class="print-btn" style="margin:0;text-decoration:none;display:inline-block;border-color:var(--amber);color:var(--amber)">&#128101; Dept Managers</a>
+        <a href="/" class="print-btn" style="margin:0;text-decoration:none;display:inline-block;border-color:var(--amber);color:var(--amber)">+ New Session</a>
+      </div>
+    </div>
+    <div style="overflow-x:auto">
+      <table class="data-table" id="trainee-table">
+        <thead><tr><th>#</th><th>Name</th><th>Employee ID</th><th>Department</th><th>Track</th><th>Started</th><th>Days Left</th><th>Completed</th><th>Score</th><th>Certificate Ref</th><th>Status</th></tr></thead>
+        <tbody>
+          {% for t in trainees %}
+          <tr>
+            <td style="color:var(--text2)">{{ t.id }}</td>
+            <td><strong>{{ t.name }}</strong></td>
+            <td style="color:var(--text2)">{{ t.employee_id or '—' }}</td>
+            <td style="color:var(--text2);font-size:13px">{{ t.department or '—' }}</td>
+            <td>{% if t.track=='refresher' %}<span class="badge badge-teal">Refresher</span>{% else %}<span class="badge badge-orange">Onboarding</span>{% endif %}</td>
+            <td style="font-size:13px;color:var(--text2)">{{ t.started_at[:16].replace('T',' ') if t.started_at else '—' }}</td>
+            <td style="text-align:center">
+              {% if t.completed_at or t.cert_ref %}
+                <span style="color:var(--green);font-size:12px">Done</span>
+              {% elif t.deadline_exceeded %}
+                <span style="background:rgba(230,57,70,0.15);color:#E63946;border:1px solid rgba(230,57,70,0.4);border-radius:6px;padding:2px 8px;font-size:12px;font-weight:600">EXPIRED</span>
+              {% elif t.days_left is not none %}
+                {% if t.days_left == 0 %}
+                  <span style="background:rgba(230,57,70,0.12);color:#E63946;border:1px solid rgba(230,57,70,0.35);border-radius:6px;padding:2px 8px;font-size:12px;font-weight:600">&lt;1 day</span>
+                {% elif t.days_left == 1 %}
+                  <span style="background:rgba(244,162,97,0.12);color:#F4A261;border:1px solid rgba(244,162,97,0.35);border-radius:6px;padding:2px 8px;font-size:12px;font-weight:600">1 day</span>
+                {% elif t.days_left <= 2 %}
+                  <span style="background:rgba(244,162,97,0.1);color:#F4A261;border:1px solid rgba(244,162,97,0.3);border-radius:6px;padding:2px 8px;font-size:12px;font-weight:600">{{ t.days_left }} days</span>
+                {% else %}
+                  <span style="background:rgba(46,196,182,0.08);color:#2EC4B6;border:1px solid rgba(46,196,182,0.25);border-radius:6px;padding:2px 8px;font-size:12px;font-weight:600">{{ t.days_left }} days</span>
+                {% endif %}
+              {% else %}
+                <span style="color:var(--text2);font-size:12px">—</span>
+              {% endif %}
+            </td>
+            <td style="font-size:13px;color:var(--text2)">{{ t.completed_at[:16].replace('T',' ') if t.completed_at else '—' }}</td>
+            <td>{% if t.score is not none %}<strong style="color:{% if t.score>=70 %}var(--green){% elif t.score>=50 %}var(--yellow){% else %}var(--red){% endif %}">{{ t.score }}%</strong>{% else %}—{% endif %}</td>
+            <td style="font-family:monospace;font-size:12px;color:var(--amber)">{{ t.cert_ref or '—' }}</td>
+            <td>{% if t.cert_ref %}<span class="badge badge-green">✓ Passed</span>{% elif t.completed_at %}<span class="badge badge-red">✗ Failed</span>{% elif t.started_at %}<span class="badge badge-yellow">In Progress</span>{% else %}<span class="badge" style="background:rgba(26,58,92,0.5);color:var(--text2);border-color:var(--border)">Registered</span>{% endif %}
+              {% if t.overdue_notice_count and t.overdue_notice_count > 0 %}
+              <div style="margin-top:4px;font-size:10px;color:{{ '#E63946' if t.escalated_at else 'var(--text2)' }}">
+                {{ t.overdue_notice_count }} overdue notice{{ 's' if t.overdue_notice_count != 1 else '' }} sent{% if t.escalated_at %} — ESCALATED{% endif %}
+              </div>
+              {% endif %}
+              <div style="margin-top:5px;display:flex;gap:4px;flex-wrap:wrap">
+                {% if debug_mode %}
+                <a href="/admin/test/expire/{{ t.id }}" onclick="return confirm('Set deadline to EXPIRED for {{ t.name }}? (Test only — no emails)')" style="font-size:10px;background:rgba(230,57,70,0.15);color:#E63946;border:1px solid rgba(230,57,70,0.4);border-radius:4px;padding:2px 6px;text-decoration:none">&#128274; Test Expire</a>
+                {% endif %}
+                <button onclick="openResetModal({{ t.id }}, '{{ t.name }}', '{{ t.department }}')" style="font-size:10px;background:rgba(46,196,182,0.1);color:#2EC4B6;border:1px solid rgba(46,196,182,0.3);border-radius:4px;padding:2px 6px;cursor:pointer">&#128260; Reset + Notify</button>
+              </div>
+            </td>
+          </tr>
+          {% else %}
+          <tr><td colspan="11" style="text-align:center;padding:40px;color:var(--text2)">No records yet. <a href="/" style="color:var(--amber)">Start a new training session →</a></td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+
+  <!-- ════════════════════════════════════════════════════════
+       BACKUP & RECOVERY  (ISO 27001:2022 A.8.13)
+  ════════════════════════════════════════════════════════ -->
+  <div class="section-header">
+    <h2>💾 Backup &amp; Recovery</h2>
+    <span class="section-badge">ISO 27001:2022 A.8.13</span>
+  </div>
+  <p class="section-desc">
+    All training completions, scores, and certificate references are stored in
+    <span class="mono">instance/cybershield.db</span>. Exports produce a structured JSON file
+    containing every trainee record, quiz score, and custom question. Server-side copies are
+    retained automatically for up to <strong>30 versions</strong> in
+    <span class="mono">instance/backups/</span>. Compliant with
+    <strong>ISO 27001:2022 A.8.13</strong> and <strong>DAS IT Policy IT22-001</strong>.
+    <strong style="color:var(--amber)"> Recommended: back up weekly or before any system changes.</strong>
+  </p>
+
+  <div class="two-col">
+    <!-- Export -->
+    <div class="panel-card">
+      <h3>📤 Export Full Backup</h3>
+      <p style="font-size:14px;color:var(--text2);line-height:1.6;margin-bottom:16px">
+        Downloads a complete JSON backup of all trainee records, certificates, quiz scores,
+        and custom questions. A timestamped copy is also saved automatically server-side.
+      </p>
+      <a href="/admin/backup" class="action-btn action-btn-primary" style="text-decoration:none">💾 DOWNLOAD BACKUP NOW</a>
+      <div style="margin-top:14px;padding:10px 14px;background:rgba(0,196,232,0.05);border:1px solid rgba(0,196,232,0.15);border-radius:8px;font-size:13px;color:var(--text2);line-height:1.6">
+        ℹ Backup includes: trainee names, employee IDs, departments, completion dates, assessment scores, certificate references, and all custom quiz questions.<br>
+        File format: <span class="mono">cyberShield_YYYYMMDD_HHMMSS.json</span>
+      </div>
+    </div>
+
+    <!-- Restore -->
+    <div class="panel-card">
+      <h3>📥 Restore from Backup</h3>
+      <p style="font-size:14px;color:var(--text2);line-height:1.6;margin-bottom:14px">
+        Upload a previously exported JSON backup file. Records are <strong>merged</strong> —
+        existing certificate references are never overwritten. Safe on a running system.
+      </p>
+      <div class="drop-zone" id="drop-zone" onclick="document.getElementById('restore-file').click()">
+        <input type="file" id="restore-file" accept=".json" onchange="handleRestoreFile(this)">
+        <div style="font-size:22px;margin-bottom:8px">📂</div>
+        <div>Click to select a backup .json file</div>
+        <div style="font-size:13px;margin-top:4px;opacity:0.7">or drag and drop here</div>
+      </div>
+      <div id="restore-status" style="display:none;margin-top:12px;padding:12px 14px;border-radius:8px;font-size:14px;line-height:1.6"></div>
+    </div>
+  </div>
+
+  <!-- Server-side backup history -->
+  <div class="panel-card" style="margin-top:0">
+    <h3>🗂️ Server-Side Backup History</h3>
+    <p style="font-size:14px;color:var(--text2);line-height:1.6;margin-bottom:14px">
+      Each time you click <em>Download Backup</em>, a copy is also saved on the server.
+      The last 30 are retained. You can download any version to restore a previous state — important
+      if a system failure or accidental deletion occurs.
+    </p>
+    <button class="action-btn action-btn-teal" onclick="loadBackupList()" id="btn-load-list">
+      🔄 LOAD BACKUP HISTORY
+    </button>
+    <div id="backup-list" style="margin-top:14px"></div>
+  </div>
+
+
+  <!-- ════════════════════════════════════════════════════════
+       CONTENT MANAGEMENT — Custom Quiz Questions
+  ════════════════════════════════════════════════════════ -->
+  <div class="section-header">
+    <h2>✏️ Training Content Management</h2>
+    <span class="section-badge">CUSTOM QUESTIONS</span>
+  </div>
+  <p class="section-desc">
+    Add custom quiz questions to either training track without modifying any source code.
+    Custom questions are appended <strong>after</strong> the built-in questions in the final assessment.
+    Deactivating a question hides it from assessments without permanently deleting it.
+  </p>
+  <div style="background:rgba(232,160,32,.08);border:1px solid rgba(232,160,32,.3);border-radius:8px;padding:12px 16px;margin-bottom:16px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px">
+    <div>
+      <div style="font-size:14px;font-weight:700;color:var(--amber)">📖 Lesson & Quiz Editor</div>
+      <div style="font-size:13px;color:var(--text2);margin-top:3px">Edit the content of any module slide, or correct built-in quiz questions and explanations</div>
+    </div>
+    <a href="/admin/lessons" style="display:inline-flex;align-items:center;gap:6px;padding:9px 18px;border-radius:7px;background:linear-gradient(135deg,#E8A020,#b87800);color:#0C2340;font-weight:700;font-size:13px;text-decoration:none">
+      ✏ Open Lesson Editor →
+    </a>
+  </div>
+
+  <div class="tab-bar">
+    <button class="tab-btn active" id="tab-on" onclick="switchTab('on')">
+      📘 Onboarding Track
+      <span style="margin-left:6px;background:rgba(232,160,32,0.15);border-radius:10px;padding:1px 8px;font-size:12px">
+        {{ builtin_on }} built-in{% if custom_on %} + {{ custom_on|length }} custom{% endif %}
+      </span>
+    </button>
+    <button class="tab-btn" id="tab-ref" onclick="switchTab('ref')">
+      🔄 Refresher Track
+      <span style="margin-left:6px;background:rgba(0,196,232,0.12);border-radius:10px;padding:1px 8px;font-size:12px">
+        {{ builtin_ref }} built-in{% if custom_ref %} + {{ custom_ref|length }} custom{% endif %}
+      </span>
+    </button>
+  </div>
+
+  <!-- Onboarding tab -->
+  <div class="tab-pane active" id="pane-on">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;flex-wrap:wrap;gap:10px">
+      <span style="font-size:15px;color:var(--text2)">Custom questions appended to the Onboarding track assessment</span>
+      <button class="action-btn action-btn-primary" onclick="openForm('onboarding')">+ ADD QUESTION</button>
+    </div>
+
+    <div class="q-form" id="form-onboarding">
+      <div style="font-family:var(--font-head);font-size:16px;color:var(--amber);margin-bottom:16px">📝 New Question — Onboarding Track</div>
+      <label>Question Text *</label>
+      <textarea id="on-q" placeholder="Enter your question..."></textarea>
+      <label>Answer Options * (fill 2–4 options)</label>
+      <div class="opts-grid">
+        <input type="text" id="on-o0" placeholder="Option A">
+        <input type="text" id="on-o1" placeholder="Option B">
+        <input type="text" id="on-o2" placeholder="Option C (optional)">
+        <input type="text" id="on-o3" placeholder="Option D (optional)">
+      </div>
+      <label>Correct Answer *</label>
+      <select id="on-ans">
+        <option value="0">Option A is the correct answer</option>
+        <option value="1">Option B is the correct answer</option>
+        <option value="2">Option C is the correct answer</option>
+        <option value="3">Option D is the correct answer</option>
+      </select>
+      <label>Explanation * (shown to trainees after answering)</label>
+      <textarea id="on-exp" placeholder="Explain why the correct answer is right — reference DAS Plc policy where relevant..."></textarea>
+      <div style="display:flex;gap:10px;margin-top:16px;flex-wrap:wrap">
+        <button class="action-btn action-btn-primary" onclick="saveQ('onboarding')">✅ SAVE QUESTION</button>
+        <button class="action-btn action-btn-grey" onclick="closeForm('onboarding')">CANCEL</button>
+      </div>
+    </div>
+
+    <div id="list-onboarding">
+      {% for q in custom_on %}
+        {% set opts = q.options|tojson|from_json %}
+        <div class="q-row {% if not q.active %}inactive{% endif %}" id="qrow-{{ q.id }}">
+          <div class="q-status"><span class="badge {% if q.active %}badge-green{% else %}badge-red{% endif %}">{% if q.active %}Active{% else %}Inactive{% endif %}</span></div>
+          <div class="q-text">{{ q.question }}</div>
+          <div class="q-options">
+            {% for i in range(q.options|tojson|from_json|length) %}
+              <span class="q-chip {% if i==q.answer %}correct{% endif %}">
+                {{ ['A','B','C','D'][i] }}{% if i==q.answer %} ✓{% endif %}: {{ (q.options|tojson|from_json)[i] }}
+              </span>
+            {% endfor %}
+          </div>
+          <div class="q-explanation">💡 {{ q.explanation }}</div>
+          <div class="q-actions">
+            <button class="action-btn action-btn-teal" style="font-size:12px;padding:6px 14px" onclick="toggleQ({{ q.id }})">{% if q.active %}⏸ Deactivate{% else %}▶ Activate{% endif %}</button>
+            <button class="action-btn action-btn-danger" style="font-size:12px;padding:6px 14px" onclick="deleteQ({{ q.id }})">🗑 Delete</button>
+          </div>
+        </div>
+      {% else %}
+        <div style="padding:28px;text-align:center;color:var(--text2);font-size:15px;background:rgba(8,15,26,0.4);border:1px dashed var(--border);border-radius:10px">
+          No custom questions added yet. Click <strong style="color:var(--amber)">+ ADD QUESTION</strong> above to create one.
+        </div>
+      {% endfor %}
+    </div>
+  </div>
+
+  <!-- Refresher tab -->
+  <div class="tab-pane" id="pane-ref">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;flex-wrap:wrap;gap:10px">
+      <span style="font-size:15px;color:var(--text2)">Custom questions appended to the Annual Refresher track assessment</span>
+      <button class="action-btn action-btn-primary" onclick="openForm('refresher')">+ ADD QUESTION</button>
+    </div>
+
+    <div class="q-form" id="form-refresher">
+      <div style="font-family:var(--font-head);font-size:16px;color:var(--amber);margin-bottom:16px">📝 New Question — Annual Refresher Track</div>
+      <label>Question Text *</label>
+      <textarea id="ref-q" placeholder="Enter your question..."></textarea>
+      <label>Answer Options * (fill 2–4 options)</label>
+      <div class="opts-grid">
+        <input type="text" id="ref-o0" placeholder="Option A">
+        <input type="text" id="ref-o1" placeholder="Option B">
+        <input type="text" id="ref-o2" placeholder="Option C (optional)">
+        <input type="text" id="ref-o3" placeholder="Option D (optional)">
+      </div>
+      <label>Correct Answer *</label>
+      <select id="ref-ans">
+        <option value="0">Option A is the correct answer</option>
+        <option value="1">Option B is the correct answer</option>
+        <option value="2">Option C is the correct answer</option>
+        <option value="3">Option D is the correct answer</option>
+      </select>
+      <label>Explanation * (shown to trainees after answering)</label>
+      <textarea id="ref-exp" placeholder="Explain why the correct answer is right..."></textarea>
+      <div style="display:flex;gap:10px;margin-top:16px;flex-wrap:wrap">
+        <button class="action-btn action-btn-primary" onclick="saveQ('refresher')">✅ SAVE QUESTION</button>
+        <button class="action-btn action-btn-grey" onclick="closeForm('refresher')">CANCEL</button>
+      </div>
+    </div>
+
+    <div id="list-refresher">
+      {% for q in custom_ref %}
+        <div class="q-row {% if not q.active %}inactive{% endif %}" id="qrow-{{ q.id }}">
+          <div class="q-status"><span class="badge {% if q.active %}badge-green{% else %}badge-red{% endif %}">{% if q.active %}Active{% else %}Inactive{% endif %}</span></div>
+          <div class="q-text">{{ q.question }}</div>
+          <div class="q-options">
+            {% for i in range(q.options|tojson|from_json|length) %}
+              <span class="q-chip {% if i==q.answer %}correct{% endif %}">
+                {{ ['A','B','C','D'][i] }}{% if i==q.answer %} ✓{% endif %}: {{ (q.options|tojson|from_json)[i] }}
+              </span>
+            {% endfor %}
+          </div>
+          <div class="q-explanation">💡 {{ q.explanation }}</div>
+          <div class="q-actions">
+            <button class="action-btn action-btn-teal" style="font-size:12px;padding:6px 14px" onclick="toggleQ({{ q.id }})">{% if q.active %}⏸ Deactivate{% else %}▶ Activate{% endif %}</button>
+            <button class="action-btn action-btn-danger" style="font-size:12px;padding:6px 14px" onclick="deleteQ({{ q.id }})">🗑 Delete</button>
+          </div>
+        </div>
+      {% else %}
+        <div style="padding:28px;text-align:center;color:var(--text2);font-size:15px;background:rgba(8,15,26,0.4);border:1px dashed var(--border);border-radius:10px">
+          No custom questions added yet for the Refresher track. Click <strong style="color:var(--amber)">+ ADD QUESTION</strong> above.
+        </div>
+      {% endfor %}
+    </div>
+  </div>
+
+
+  <!-- Footer -->
+  <div style="margin-top:32px;padding:16px 20px;background:rgba(13,30,49,0.7);border:1px solid var(--border);border-radius:10px;font-size:14px;color:var(--text2);display:flex;gap:24px;flex-wrap:wrap;align-items:center">
+    <div>🛡 <strong style="color:var(--amber)">CyberShield v3</strong> · Dannex Ayrton Starwin Plc</div>
+    <div>👤 Asst. IT Manager: <strong style="color:var(--text)">Alvin E.J. Dagbui</strong> · Ext. 204</div>
+    <div>👤 IT Manager: <strong style="color:var(--text)">Samuel Akushie</strong> · Ext. 115</div>
+    <div>📧 IThelpdesk@dasplcgh.com</div>
+    <div style="margin-left:auto;font-size:12px;opacity:0.6">Pass mark: 70% · Policy: IT22-001</div>
+  </div>
+
+</div><!-- /admin-page -->
+
+<script src="{{ url_for('static', filename='js/alvin.js') }}"></script>
+<script>
+// Particles
+(function(){const c=document.getElementById('particles-container');if(!c)return;for(let i=0;i<20;i++){const p=document.createElement('div');p.className='particle';p.style.left=Math.random()*100+'vw';p.style.setProperty('--drift',(Math.random()*60-30)+'px');p.style.animationDuration=(10+Math.random()*16)+'s';p.style.animationDelay=(Math.random()*14)+'s';p.style.background=Math.random()>.5?'var(--teal)':'var(--amber)';c.appendChild(p);}})();
+
+// Toast
+function toast(msg, type='ok'){
+  const t=document.getElementById('toast');
+  t.textContent=(type==='ok'?'✅ ':'❌ ')+msg;
+  t.className='show '+type;
+  setTimeout(()=>t.className='',3500);
+}
+
+// CSV Export
+function exportCSV(){
+  const rows=Array.from(document.getElementById('trainee-table').querySelectorAll('tr'));
+  const csv=rows.map(r=>Array.from(r.querySelectorAll('th,td')).map(c=>'"'+c.textContent.trim().replace(/"/g,'""')+'"').join(',')).join('\n');
+  const a=document.createElement('a');
+  a.href=URL.createObjectURL(new Blob([csv],{type:'text/csv'}));
+  a.download='CyberShield_Records_'+new Date().toISOString().slice(0,10)+'.csv';
+  a.click(); toast('CSV exported');
+}
+
+// Backup history
+function loadBackupList(){
+  const btn=document.getElementById('btn-load-list');
+  btn.textContent='⏳ Loading...'; btn.disabled=true;
+  fetch('/admin/backup/list').then(r=>r.json()).then(files=>{
+    btn.style.display='none';
+    const div=document.getElementById('backup-list');
+    if(!files.length){
+      div.innerHTML='<div style="color:var(--text2);font-size:14px;padding:12px 0">No server-side backups yet. Click <strong>Download Backup</strong> above to create the first one.</div>';
+      return;
+    }
+    div.innerHTML=files.map(f=>`
+      <div class="backup-row">
+        <span style="font-size:18px">📄</span>
+        <span style="flex:1;font-family:monospace;color:var(--teal);font-size:13px">${f.name}</span>
+        <span style="color:var(--text2);font-size:12px">${f.size_kb} KB · ${f.modified}</span>
+        <a href="/admin/backup/download/${encodeURIComponent(f.name)}" class="action-btn action-btn-teal" style="font-size:12px;padding:6px 14px;text-decoration:none">⬇ Download</a>
+      </div>`).join('');
+  }).catch(()=>{btn.textContent='🔄 LOAD BACKUP HISTORY';btn.disabled=false;toast('Could not load backup list','err');});
+}
+
+// Restore
+function handleRestoreFile(input){
+  const file=input.files[0]; if(!file)return;
+  const st=document.getElementById('restore-status');
+  st.style.display='block'; st.style.background='rgba(0,196,232,0.05)';
+  st.style.border='1px solid rgba(0,196,232,0.2)'; st.style.color='var(--text)';
+  st.innerHTML=`⏳ Reading <strong>${file.name}</strong> (${(file.size/1024).toFixed(1)} KB)...`;
+  const fd=new FormData(); fd.append('backup_file',file);
+  fetch('/admin/restore',{method:'POST',body:fd}).then(r=>r.json()).then(d=>{
+    if(d.ok){
+      const i=d.imported;
+      st.style.background='rgba(10,42,20,0.6)'; st.style.border='1px solid var(--green)'; st.style.color='var(--green)';
+      st.innerHTML=`✅ <strong>Restore successful</strong><br>Imported: ${i.trainees} trainees · ${i.progress} progress records · ${i.questions} custom questions<br><span style="font-size:12px;opacity:0.8">Backup dated: ${d.exported_at||'unknown'}</span>`;
+      toast(`Restored: ${i.trainees} trainees, ${i.questions} questions`);
+      setTimeout(()=>location.reload(),2500);
+    } else {
+      st.style.background='rgba(42,10,10,0.6)'; st.style.border='1px solid var(--red)'; st.style.color='var(--red)';
+      st.innerHTML=`❌ <strong>Restore failed:</strong> ${d.error}`;
+      toast('Restore failed: '+d.error,'err');
+    }
+  }).catch(()=>{ st.innerHTML='❌ Network error'; toast('Network error','err'); });
+}
+
+// Drag and drop
+const dz=document.getElementById('drop-zone');
+if(dz){
+  dz.addEventListener('dragover',e=>{e.preventDefault();dz.classList.add('drag-over');});
+  dz.addEventListener('dragleave',()=>dz.classList.remove('drag-over'));
+  dz.addEventListener('drop',e=>{
+    e.preventDefault(); dz.classList.remove('drag-over');
+    const f=e.dataTransfer.files[0]; if(!f)return;
+    const inp=document.getElementById('restore-file');
+    const dt=new DataTransfer(); dt.items.add(f); inp.files=dt.files;
+    handleRestoreFile(inp);
+  });
+}
+
+// Tab switching
+function switchTab(which){
+  ['on','ref'].forEach(t=>{
+    document.getElementById('tab-'+t).classList.toggle('active',t===which);
+    document.getElementById('pane-'+t).classList.toggle('active',t===which);
+  });
+}
+
+// Question form
+function openForm(track){ document.getElementById('form-'+track).classList.add('open'); document.getElementById('form-'+track).scrollIntoView({behavior:'smooth',block:'start'}); }
+function closeForm(track){
+  document.getElementById('form-'+track).classList.remove('open');
+  const p=track==='onboarding'?'on':'ref';
+  ['q','exp'].forEach(f=>document.getElementById(p+'-'+f).value='');
+  [0,1,2,3].forEach(i=>document.getElementById(p+'-o'+i).value='');
+  document.getElementById(p+'-ans').value='0';
+}
+
+function saveQ(track){
+  const p=track==='onboarding'?'on':'ref';
+  const question=document.getElementById(p+'-q').value.trim();
+  const explanation=document.getElementById(p+'-exp').value.trim();
+  const answer=parseInt(document.getElementById(p+'-ans').value);
+  const options=[0,1,2,3].map(i=>document.getElementById(p+'-o'+i).value.trim()).filter(v=>v);
+  if(!question){toast('Question text is required','err');return;}
+  if(options.length<2){toast('At least 2 answer options are required','err');return;}
+  if(!explanation){toast('Explanation is required','err');return;}
+  if(answer>=options.length){toast('Correct answer index out of range','err');return;}
+  fetch('/api/questions',{method:'POST',headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({track,question,options,answer,explanation})})
+  .then(r=>r.json()).then(d=>{
+    if(d.ok){toast('Question saved');closeForm(track);setTimeout(()=>location.reload(),700);}
+    else toast('Error: '+d.error,'err');
+  }).catch(()=>toast('Network error','err'));
+}
+
+function toggleQ(qid){
+  fetch(`/api/questions/${qid}/toggle`,{method:'POST'}).then(r=>r.json()).then(d=>{
+    if(d.ok){toast(d.active?'Question activated':'Question deactivated');setTimeout(()=>location.reload(),600);}
+  });
+}
+
+function deleteQ(qid){
+  if(!confirm('Permanently delete this question? This cannot be undone.'))return;
+  fetch(`/api/questions/${qid}`,{method:'DELETE'}).then(r=>r.json()).then(d=>{
+    if(d.ok){document.getElementById('qrow-'+qid)?.remove();toast('Question deleted');}
+  });
+}
+</script>
+
+<!-- ── Reset with Notification Modal ───────────────────────────── -->
+<div id="reset-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.7);z-index:1000;align-items:center;justify-content:center">
+  <div style="background:#1B2A3B;border:1.5px solid #2EC4B6;border-radius:14px;padding:32px;max-width:480px;width:90%;position:relative">
+    <div style="font-size:18px;font-weight:700;color:#fff;margin-bottom:4px">&#128260; Reset Training Window</div>
+    <div id="reset-modal-sub" style="font-size:13px;color:#8899AA;margin-bottom:20px"></div>
+
+    <div style="background:rgba(46,196,182,0.07);border:1px solid rgba(46,196,182,0.2);border-radius:8px;padding:12px 16px;margin-bottom:20px;font-size:12px;color:#C8D6E5;line-height:1.6">
+      &#9432; This will reset the deadline to <strong>5 days from now</strong> and automatically
+      send compliance notification emails to the line manager, HR, and IT.
+      The action will be logged in the compliance audit trail.
+    </div>
+
+    <form id="reset-form" method="POST">
+      <label style="display:block;font-size:13px;font-weight:600;color:#C8D6E5;margin-bottom:6px">
+        Reason for Reset <span style="color:#E63946">*</span>
+      </label>
+      <select name="reason" id="reset-reason-select" style="width:100%;background:#162232;border:1px solid #1e3450;color:#e0e8f0;border-radius:6px;padding:8px 12px;font-size:13px;margin-bottom:10px" onchange="toggleCustomReason(this)">
+        <option value="">Select a reason...</option>
+        <option value="Staff was absent during initial training window">Staff was absent during initial training window</option>
+        <option value="Technical issue prevented access to the platform">Technical issue prevented access to the platform</option>
+        <option value="Staff was on approved leave">Staff was on approved leave</option>
+        <option value="New staff member — initial window set incorrectly">New staff member — initial window set incorrectly</option>
+        <option value="Medical or personal emergency">Medical or personal emergency</option>
+        <option value="IT system downtime during training window">IT system downtime during training window</option>
+        <option value="custom">Other (specify below)</option>
+      </select>
+      <input type="text" name="reason_custom" id="reset-reason-custom" placeholder="Enter reason..." style="display:none;width:100%;box-sizing:border-box;background:#162232;border:1px solid #1e3450;color:#e0e8f0;border-radius:6px;padding:8px 12px;font-size:13px;margin-bottom:10px">
+      <div style="display:flex;gap:10px;margin-top:8px">
+        <button type="submit" id="reset-submit-btn" style="flex:1;background:#2EC4B6;color:#0D1B2A;border:none;padding:10px;border-radius:8px;font-size:14px;font-weight:700;cursor:pointer">
+          &#10003; Confirm Reset &amp; Send Notifications
+        </button>
+        <button type="button" onclick="closeResetModal()" style="background:rgba(136,153,170,0.15);color:#8899AA;border:1px solid rgba(136,153,170,0.3);padding:10px 16px;border-radius:8px;font-size:13px;cursor:pointer">
+          Cancel
+        </button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<script>
+function openResetModal(tid, name, dept) {
+  document.getElementById('reset-modal-sub').textContent = name + ' · ' + dept;
+  document.getElementById('reset-form').action = '/admin/reset/' + tid;
+  document.getElementById('reset-reason-select').value = '';
+  document.getElementById('reset-reason-custom').style.display = 'none';
+  document.getElementById('reset-reason-custom').value = '';
+  var modal = document.getElementById('reset-modal');
+  modal.style.display = 'flex';
+}
+function closeResetModal() {
+  document.getElementById('reset-modal').style.display = 'none';
+}
+function toggleCustomReason(sel) {
+  var custom = document.getElementById('reset-reason-custom');
+  if (sel.value === 'custom') {
+    custom.style.display = 'block';
+    custom.required = true;
+  } else {
+    custom.style.display = 'none';
+    custom.required = false;
+  }
+}
+document.getElementById('reset-form').addEventListener('submit', function(e) {
+  var sel    = document.getElementById('reset-reason-select');
+  var custom = document.getElementById('reset-reason-custom');
+  if (!sel.value) { e.preventDefault(); alert('Please select a reason.'); return; }
+  if (sel.value === 'custom') {
+    if (!custom.value.trim()) { e.preventDefault(); alert('Please enter a reason.'); return; }
+    // Swap the hidden custom text into the reason field name for the server
+    var inp = document.createElement('input');
+    inp.type = 'hidden'; inp.name = 'reason'; inp.value = custom.value.trim();
+    this.appendChild(inp);
+    sel.name = '';
+  }
+});
+// Close modal on backdrop click
+document.getElementById('reset-modal').addEventListener('click', function(e) {
+  if (e.target === this) closeResetModal();
+});
+</script>
+
+</body>
+</html>

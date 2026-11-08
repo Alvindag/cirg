@@ -1,0 +1,8 @@
+{% extends 'base.html' %}{% from '_macros.html' import pill %}{% block title %}People &amp; assets · DAS Trust Hub{% endblock %}
+{% block body %}<h1>People &amp; assets</h1><p class="sub">ITAM custody joined with CyberShield training. People are matched across systems by name (order and case ignored); review matches before acting.</p>
+<div class="row noprint" style="margin-bottom:12px">{% for k, l in [('exposed','Exposed (hold assets, not trained)'),('joiners','New joiners'),('all','Everyone')] %}<a class="btn {{ '' if f==k else 'sec' }} sm" href="?f={{ k }}">{{ l }}</a>{% endfor %}</div>
+<div class="card"><table><thead><tr><th>Person</th><th>Department</th><th>Assets held</th><th>Training</th><th>Score</th><th>Joiner</th></tr></thead><tbody>
+{% for p in rows %}<tr><td><b>{{ p.name }}</b></td><td class="m">{{ p.department }}</td>
+<td>{% for a in p.assets[:4] %}<span class="tag" title="{{ a.name }}">{{ a.tag }}</span>{% endfor %}{% if p.assets|length > 4 %}<span class="note">+{{ p.assets|length - 4 }}</span>{% endif %}{% if not p.assets %}<span class="note">none</span>{% endif %}</td>
+<td>{{ pill(p.training) }}</td><td>{{ p.score if p.score is not none else '—' }}</td><td class="m">{% if p.joiner %}{{ p.joiner.status }}{% endif %}</td></tr>
+{% else %}<tr><td colspan="6">Nothing to show.</td></tr>{% endfor %}</tbody></table></div>{% endblock %}

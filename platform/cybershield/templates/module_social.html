@@ -1,0 +1,120 @@
+{% extends "base_trainer.html" %}
+{% block content %}
+<div class="module-header">
+  <div class="module-tag">MODULE 6 OF 7 · ONBOARDING</div>
+  <div class="module-title">Social Engineering <span>at Reception</span></div>
+  <div class="module-desc">Physical security and human manipulation — how attackers gain access to DAS Plc premises by exploiting helpfulness and trust.</div>
+</div>
+<div class="slide-container">
+  <div class="slide active" id="slide-1">
+    <div class="info-card">
+      <h3>🎭 What Is Social Engineering?</h3>
+      <p>Social engineering manipulates people into giving up confidential information or physical access. Attackers exploit our desire to be helpful, our fear of authority, and our tendency to trust confident people.</p>
+      <ul>
+        <li><strong>Impersonation</strong> — pretending to be a vendor, colleague, or authority figure</li>
+        <li><strong>Tailgating</strong> — following someone through a secure door without badge access</li>
+        <li><strong>Pretexting</strong> — fabricating a scenario ("I'm here to fix the server")</li>
+        <li><strong>Baiting</strong> — leaving something tempting (the USB drive in the car park)</li>
+        <li><strong>Quid pro quo</strong> — offering a service in exchange for access ("free IT support")</li>
+      </ul>
+      <p style="margin-top:14px"><strong style="color:var(--amber)">DAS Plc's reception desk is the first and most important physical security checkpoint.</strong></p>
+    </div>
+  </div>
+  <div class="slide" id="slide-2">
+    <div class="info-card">
+      <h3>🏢 Scenario: The Kaspersky Visitor</h3>
+      <p>It is Monday morning. You are at the DAS Plc reception desk. A smartly dressed man arrives and says:</p>
+      <div style="background:var(--bg3);border-left:3px solid var(--teal);border-radius:0 10px 10px 0;padding:16px 18px;margin:14px 0;font-size:15px;color:var(--text);font-style:italic">"Good morning. I'm Daniel from Kaspersky Technical Support. We received alerts from your company's Kaspersky Security Center about critical infections. I need to access your server room to check the console directly — it will only take 15 minutes."</div>
+      <p>He shows a Kaspersky-branded business card and seems professional. What do you do?</p>
+    </div>
+    <div class="choice-grid">
+      <button class="choice-btn" onclick="socChoice(this, 'a')"><span class="choice-letter">A</span> Let him in — Kaspersky is our antivirus provider and he has a business card</button>
+      <button class="choice-btn" onclick="socChoice(this, 'b')"><span class="choice-letter">B</span> Ask him to wait and immediately call IT (Ext. 204) to verify the visit</button>
+      <button class="choice-btn" onclick="socChoice(this, 'c')"><span class="choice-letter">C</span> Give him a visitor badge and escort him to the IT area</button>
+      <button class="choice-btn" onclick="socChoice(this, 'd')"><span class="choice-letter">D</span> Ask him for photo ID and let him in if it looks authentic</button>
+    </div>
+    <div class="consequence-box" id="soc-result"></div>
+  </div>
+  <div class="slide" id="slide-3">
+    <div class="info-card">
+      <h3>📋 DAS Plc Visitor Management Protocol</h3>
+      <ul>
+        <li>All external visitors must be pre-registered with the department they are visiting</li>
+        <li>Unannounced visitors must wait while IT (Ext. 204) or the relevant manager is contacted</li>
+        <li>Visitors must sign the visitor log, show valid ID, and wear a visitor badge at all times</li>
+        <li>Visitors must be escorted by a DAS Plc employee at all times — never left alone</li>
+        <li>No visitor should access server rooms or IT infrastructure without IT approval</li>
+        <li>If in doubt — call Kaspersky's official number yourself, not the number the visitor gives you</li>
+      </ul>
+    </div>
+    <div class="info-card" style="border-color:var(--red)">
+      <h3 style="color:var(--red)">🚨 Red Flags in the Kaspersky Scenario</h3>
+      <ul>
+        <li>No prior appointment — legitimate vendors schedule visits in advance</li>
+        <li>Requesting server room access on arrival — Kaspersky manages security remotely</li>
+        <li>Creating urgency — "critical infections" to pressure quick access</li>
+        <li>Business card is not verification — anyone can print a business card</li>
+        <li>Kaspersky Security Center is administered remotely — no physical server visit needed</li>
+      </ul>
+    </div>
+  </div>
+  <div class="slide" id="slide-4">
+    <div class="info-card">
+      <h3>🚪 Tailgating — The Silent Threat</h3>
+      <p>Tailgating is when an unauthorised person follows a legitimate employee through a secured door without using their own access credentials. People feel rude "blocking" someone — attackers exploit this.</p>
+      <div style="background:var(--bg3);border-radius:10px;padding:18px;margin-top:14px">
+        <div style="font-family:var(--font-head);font-size:16px;color:var(--amber);margin-bottom:12px">DAS Plc Tailgating Rules:</div>
+        <ul>
+          <li>Every person entering a secured area must badge in with their own credentials</li>
+          <li>It is NOT rude to ask someone to badge in — it is your responsibility</li>
+          <li>If someone says "my badge isn't working", direct them to reception — do not hold the door</li>
+          <li>Report any unusual access attempts to IT (Ext. 204) immediately</li>
+        </ul>
+      </div>
+    </div>
+    <div class="info-card" style="border-color:var(--green)">
+      <h3 style="color:var(--green)">🎉 Module Complete!</h3>
+      <p>One more module to go — a short, hands-on <strong>Outlook Phishing Reporting Drill</strong> — before the Final Assessment.</p>
+      <p style="margin-top:10px;font-size:15px;color:var(--text2)">The final assessment has 21 questions covering all modules. You need <strong>70% or above</strong> to receive your DAS Plc Cybersecurity Awareness Certificate.</p>
+    </div>
+  </div>
+</div>
+<div class="nav-buttons">
+  <button class="btn-nav" id="btn-prev" onclick="prevSlide()" disabled>← BACK</button>
+  <span style="flex:1"></span>
+  <span style="font-size:14px;color:var(--text2);align-self:center" id="slide-counter">Slide 1 of 4</span>
+  <button class="btn-nav-primary" id="btn-next" onclick="nextSlide()">NEXT →</button>
+</div>
+{% endblock %}
+{% block scripts %}
+<script>
+let current = 1; const total = 4;
+const msgs = ["Social engineering exploits human nature — our helpfulness, trust, and respect for authority.","This is a real scenario type at DAS Plc. Think carefully — what would you do at reception?","Every visitor protocol rule exists because of a real attack case somewhere in the world.","Excellent! One more module — a hands-on Outlook reporting drill — then the final assessment!"];
+const consequences = {
+  a:{good:false,text:'🔴 <strong>Wrong — Dangerous.</strong> A business card proves nothing. Kaspersky does not visit client server rooms to check for infections — this is done remotely via the Security Center console. You would have given an attacker direct access to DAS Plc server infrastructure.'},
+  b:{good:true, text:'✅ <strong>Correct!</strong> Always verify unannounced visitors with IT (Ext. 204) before granting any access. Call Kaspersky\'s official support number yourself — not the number the visitor provides. A legitimate vendor will wait patiently. An attacker will leave or become aggressive.'},
+  c:{good:false,text:'🟡 <strong>Partially Wrong.</strong> Escorting is better than letting him in alone, but you must verify with IT FIRST before issuing a visitor badge. You do not have authority to grant server room access to unverified visitors. Call IT (Ext. 204) first.'},
+  d:{good:false,text:'🔴 <strong>Wrong.</strong> Photo ID confirms identity but NOT affiliation or intent. An attacker can use their real ID under a false pretence. Verify with Kaspersky via their official channels, and call IT (Ext. 204) to confirm if a visit was scheduled.'}
+};
+function socChoice(btn, choice) {
+  document.querySelectorAll('.choice-btn').forEach(b => b.disabled = true);
+  const c = consequences[choice];
+  const r = document.getElementById('soc-result');
+  r.className = 'consequence-box ' + (c.good ? 'good' : 'bad') + ' show';
+  r.innerHTML = c.text;
+  btn.classList.add(c.good ? 'correct' : 'wrong');
+  if (!c.good) document.querySelectorAll('.choice-btn')[1].classList.add('correct');
+  AlvinAvatar.react(c.good ? 'celebrate' : 'concerned');
+}
+function updateSlide() {
+  document.querySelectorAll('.slide').forEach((s,i) => s.classList.toggle('active', i+1===current));
+  document.getElementById('slide-counter').textContent = `Slide ${current} of ${total}`;
+  document.getElementById('btn-prev').disabled = current === 1;
+  document.getElementById('btn-next').textContent = current === total ? 'GO TO FINAL ASSESSMENT →' : 'NEXT →';
+  AlvinAvatar.speak(msgs[current-1]||'', 'alvin-speech');
+}
+function nextSlide() { if (current < total) { current++; updateSlide(); } else { completeModule('m6', '/module/m7'); } }
+function prevSlide() { if (current > 1) { current--; updateSlide(); } }
+updateSlide();
+</script>
+{% endblock %}

@@ -1,0 +1,110 @@
+{% extends "base_trainer.html" %}
+{% block title %}Lesson Editor — CyberShield Admin{% endblock %}
+{% block sidebar %}
+<aside class="sidebar">
+  <div class="sidebar-logo">⚔ DAS TRAINING</div>
+  <div class="alvin-label" style="margin-top:6px">ADMIN PANEL</div>
+  <div class="alvin-role">Content Management</div>
+
+  <div class="progress-steps" style="margin-top:8px">
+    <div class="progress-steps-title">NAVIGATE</div>
+    <a href="/admin" class="step-item"><div class="step-dot">📊</div><span>Dashboard</span></a>
+    <a href="/admin/lessons" class="step-item {% if '/admin/lessons' in request.path %}active{% endif %}"><div class="step-dot">📚</div><span>Lesson Editor</span></a>
+    <a href="/admin/quiz/onboarding" class="step-item {% if '/admin/quiz' in request.path %}active{% endif %}"><div class="step-dot">📝</div><span>Quiz Editor</span></a>
+    <a href="/admin/dept-managers" class="step-item"><div class="step-dot">👥</div><span>Dept Managers</span></a>
+    <a href="/admin/compliance-log" class="step-item"><div class="step-dot">📋</div><span>Compliance Log</span></a>
+  </div>
+
+  <div style="margin-top:auto;padding-top:20px;width:100%">
+    <div style="background:rgba(232,160,32,0.08);border:1px solid rgba(232,160,32,0.2);border-radius:10px;padding:12px 14px;font-size:12px;color:var(--text2)">
+      <div style="color:var(--amber);font-family:var(--font-head);font-size:13px;margin-bottom:6px">🔐 NEED HELP?</div>
+      <div>IT Dept: <strong style="color:var(--text)">Ext. 204</strong></div>
+      <div style="margin-top:3px">IT Manager: <strong style="color:var(--text)">Ext. 115</strong></div>
+      <div style="margin-top:3px;font-size:11px">IThelpdesk@dasplcgh.com</div>
+    </div>
+  </div>
+</aside>
+{% endblock %}
+{% block content %}
+
+<style>
+.lesson-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:28px}
+.lesson-card{background:var(--card);border:1px solid var(--border);border-radius:10px;padding:18px 20px;display:flex;align-items:center;gap:14px}
+.lesson-card:hover{border-color:var(--amber)}
+.lesson-icon{font-size:28px;flex-shrink:0}
+.lesson-info{flex:1;min-width:0}
+.lesson-name{font-size:14px;font-weight:700;color:var(--text);line-height:1.4}
+.lesson-track{font-size:12px;color:var(--text2);margin-top:3px;text-transform:uppercase;letter-spacing:.8px}
+.lesson-actions{display:flex;gap:8px;flex-shrink:0}
+.btn{display:inline-flex;align-items:center;gap:5px;padding:7px 14px;border-radius:7px;font-size:12px;font-weight:700;border:none;cursor:pointer;text-decoration:none;transition:.15s}
+.btn-amber{background:linear-gradient(135deg,var(--amber),#b87800);color:#0C2340}
+.btn-secondary{background:rgba(31,56,100,.7);color:var(--text);border:1px solid var(--border)}
+.btn-secondary:hover{border-color:var(--amber);text-decoration:none}
+.btn-amber:hover{text-decoration:none;transform:translateY(-1px)}
+.section-h{font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:1.5px;color:var(--amber);margin:24px 0 12px;border-bottom:1px solid var(--border);padding-bottom:6px}
+</style>
+
+<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:20px">
+  <div>
+    <h1 style="font-size:22px;font-weight:700;color:var(--amber)">Lesson & Quiz Editor</h1>
+    <div style="font-size:13px;color:var(--text2);margin-top:3px">Edit lesson content and quiz questions for any training module</div>
+  </div>
+  <a href="/admin" class="btn btn-secondary">← Back to Dashboard</a>
+</div>
+
+<div style="background:rgba(31,107,117,.1);border:1px solid rgba(31,107,117,.4);border-radius:9px;padding:12px 16px;margin-bottom:22px;font-size:13px;color:#4dcfe0;line-height:1.7">
+  <strong>How it works:</strong> Click <strong>Edit Lesson</strong> to update the slide content of any module.
+  Click <strong>Edit Quiz</strong> to correct or update the quiz questions for that track.
+  A backup of the original is kept — you can restore at any time.
+  Changes take effect immediately for the next learner who accesses that module.
+</div>
+
+<div class="section-h">📘 Onboarding Track — 6 Modules</div>
+<div class="lesson-grid">
+  {% for mid, mod in modules.items() if mod.track == 'onboarding' %}
+  <div class="lesson-card">
+    <div class="lesson-icon">
+      {% if 'Intro' in mod.name %}🛡{% elif 'Phishing' in mod.name %}🎣
+      {% elif 'Smishing' in mod.name %}📱{% elif 'USB' in mod.name %}💾
+      {% elif 'Password' in mod.name %}🔑{% elif 'Social' in mod.name %}🎭{% else %}📖{% endif %}
+    </div>
+    <div class="lesson-info">
+      <div class="lesson-name">{{ mod.name }}</div>
+      <div class="lesson-track">{{ mod.track }} · {{ mod.file }}</div>
+    </div>
+    <div class="lesson-actions">
+      <a href="/admin/lessons/{{ mid }}" class="btn btn-amber">✏ Edit Lesson</a>
+    </div>
+  </div>
+  {% endfor %}
+</div>
+<div style="margin-bottom:14px">
+  <a href="/admin/quiz/onboarding" class="btn btn-secondary" style="font-size:13px">
+    📝 Edit Onboarding Quiz Questions ({{ modules.values()|selectattr('track','eq','onboarding')|list|length * 3 }}+ questions)
+  </a>
+</div>
+
+<div class="section-h">🔄 Refresher Track — 3 Modules</div>
+<div class="lesson-grid">
+  {% for mid, mod in modules.items() if mod.track == 'refresher' %}
+  <div class="lesson-card">
+    <div class="lesson-icon">
+      {% if 'Threats' in mod.name %}⚠{% elif 'Scenario' in mod.name %}🎯{% elif 'Policy' in mod.name %}📋{% else %}📖{% endif %}
+    </div>
+    <div class="lesson-info">
+      <div class="lesson-name">{{ mod.name }}</div>
+      <div class="lesson-track">{{ mod.track }} · {{ mod.file }}</div>
+    </div>
+    <div class="lesson-actions">
+      <a href="/admin/lessons/{{ mid }}" class="btn btn-amber">✏ Edit Lesson</a>
+    </div>
+  </div>
+  {% endfor %}
+</div>
+<div style="margin-bottom:14px">
+  <a href="/admin/quiz/refresher" class="btn btn-secondary" style="font-size:13px">
+    📝 Edit Refresher Quiz Questions
+  </a>
+</div>
+
+{% endblock %}

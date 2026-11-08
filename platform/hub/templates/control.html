@@ -1,0 +1,12 @@
+{% extends 'base.html' %}{% from '_macros.html' import pill %}{% block title %}{{ c.id }} · DAS Trust Hub{% endblock %}
+{% block body %}<p><a href="{{ url_for('compliance') }}">← Compliance</a></p><h1>{{ c.id }} · {{ c.title }}</h1><p class="sub">{{ pill(c.status) }} · {{ c.kind }} control · weight {{ c.weight }}</p>
+<div class="grid g2"><div class="card"><h2>Evidence</h2><p><b>{{ c.metric }}</b></p><p>{{ c.evidence or '—' }}</p>{% if c.action %}<h2>Recommended action</h2><p>{{ c.action }}</p>{% endif %}
+<h2>Framework mapping</h2>{% for k, refs in c.maps.items() %}<p><b>{{ fws[k] }}</b>: {{ refs|join(', ') }}</p>{% endfor %}</div>
+{% if c.kind == 'manual' %}<div class="card"><h2>Attestation</h2>
+{% if c.attestation %}<p class="note">Last attested by {{ c.attestation.attested_by }} on {{ c.attestation.attested_at[:10] }}; review due {{ c.attestation.review_due }}.</p>{% endif %}
+{% if can('attest') %}<form method="post"><input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+<label>Status</label><select name="status">{% for v, l in [('implemented','Implemented'),('partial','Partially implemented'),('not_implemented','Not implemented'),('not_applicable','Not applicable')] %}<option value="{{ v }}" {{ 'selected' if c.attestation and c.attestation.status==v }}>{{ l }}</option>{% endfor %}</select>
+<label>Control owner</label><input name="owner" value="{{ c.attestation.owner if c.attestation else '' }}">
+<label>Evidence (what exists, where it is kept, when it was last tested)</label><textarea name="evidence" rows="5" required>{{ c.attestation.evidence if c.attestation else '' }}</textarea>
+<label>Next review due</label><input type="date" name="review_due" value="{{ c.attestation.review_due if c.attestation else '' }}">
+<p><button class="btn">Record attestation</button></p></form>{% else %}<p class="note">Your role can view attestations but not record them.</p>{% endif %}</div>{% endif %}</div>{% endblock %}

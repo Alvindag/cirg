@@ -1,0 +1,157 @@
+{% extends "base_trainer.html" %}
+{% block content %}
+<div class="module-header">
+  <div class="module-tag">MODULE 2 OF 6 · BUSINESS ETHICS</div>
+  <div class="module-title"><span>Bribery, Corruption</span> & Gifts — The Rules</div>
+  <div class="module-desc">Understand what constitutes bribery and corruption at DAS Plc, when gifts are acceptable, and how to declare them properly.</div>
+</div>
+
+<div class="slide-container">
+
+  <!-- Slide 1 -->
+  <div class="slide active" id="slide-1">
+    <div class="info-card" style="border-color:var(--red)">
+      <h3 style="color:var(--red)">🚫 DAS Plc's Position on Bribery & Corruption</h3>
+      <p>DAS Plc is <strong>absolutely opposed to bribery and corruption in any form</strong>. This means:</p>
+      <ul>
+        <li>No payments, gifts, or inducements made <strong>to influence someone to act improperly</strong> — this is expressly prohibited</li>
+        <li>No payments to public officials to influence their performance of duty (unless legally required by written law)</li>
+        <li>All sales and purchases are made solely on <strong>quality, performance, price, and value</strong> — never on the basis of giving or receiving inducements</li>
+      </ul>
+      <p style="margin-top:12px;color:var(--red)"><strong>Consequences:</strong> Violations will be investigated and may result in disciplinary action including <strong>summary dismissal</strong>. Criminal proceedings may also follow.</p>
+    </div>
+  </div>
+
+  <!-- Slide 2 -->
+  <div class="slide" id="slide-2">
+    <div class="info-card">
+      <h3>🎁 When Are Gifts Acceptable?</h3>
+      <p>Not all gifts are prohibited. A gift is acceptable only when it meets <strong>ALL</strong> of these conditions:</p>
+    </div>
+    <div class="info-card" style="border-color:var(--teal)">
+      <h3 style="color:var(--teal)">✅ Acceptable Gift Criteria</h3>
+      <table class="data-table">
+        <tbody>
+          <tr><td>✔</td><td><strong>Modest in value</strong> — not disproportionate to the business relationship</td></tr>
+          <tr><td>✔</td><td><strong>Infrequent</strong> — not a regular occurrence that could imply ongoing inducement</td></tr>
+          <tr><td>✔</td><td><strong>Appropriate</strong> to the nature of the business relationship</td></tr>
+          <tr><td>✔</td><td><strong>Does not create any appearance of impropriety</strong></td></tr>
+          <tr><td>✔</td><td><strong>Declared</strong> to the appropriate person (see below)</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="info-card" style="border-color:var(--red)">
+      <h3 style="color:var(--red)">❌ Always Prohibited</h3>
+      <ul>
+        <li><strong>No cash gifts</strong> — cash gifts must never be given or received under any circumstances</li>
+        <li>Any gift given or received with <strong>intent to influence a procurement decision</strong> — must be declared and returned. If return is impossible, it is donated to charity.</li>
+      </ul>
+    </div>
+  </div>
+
+  <!-- Slide 3 -->
+  <div class="slide" id="slide-3">
+    <div class="info-card">
+      <h3>📝 How to Declare a Gift — DAS Gift Declaration Rules</h3>
+      <p>Every acceptable gift received <strong>must be declared</strong>. Here is who to declare to:</p>
+    </div>
+    <div class="info-card" style="border-color:var(--amber)">
+      <table class="data-table">
+        <thead><tr><th>If you are…</th><th>Declare to…</th></tr></thead>
+        <tbody>
+          <tr><td>EXCO member</td><td>The Chief Executive Officer</td></tr>
+          <tr><td>All other employees</td><td>The Head of Human Resources</td></tr>
+          <tr><td>Procurement role</td><td>Gifts come under extra scrutiny — declare immediately; return if intent to influence is suspected</td></tr>
+        </tbody>
+      </table>
+      <p style="margin-top:14px"><strong>How to declare:</strong> Log the gift details into the appropriate section in <strong>NAV / Business Central</strong>, or complete the <strong>Declaration of Gifts form</strong>. This applies whether you accepted the gift or not.</p>
+      <p style="margin-top:10px;font-size:13px;color:var(--text2)">⚠ DAS Plc reserves the right to remove any undeclared gift from the employee, and for it to be raffled for charity.</p>
+    </div>
+  </div>
+
+  <!-- Slide 4 — scenario -->
+  <div class="slide" id="slide-4">
+    <div class="info-card">
+      <h3>🧪 Real-World Scenario — What Would You Do?</h3>
+      <p>A supplier whose contract renewal is coming up next month sends you a GH₵ 500 gift card as a "thank you for your partnership." What is the correct action?</p>
+    </div>
+    <div id="scenario-options">
+      <button class="btn-scenario" onclick="scenarioAnswer(false, this)">A. Accept it quietly — it's a gesture of goodwill and not unusually large</button>
+      <button class="btn-scenario" onclick="scenarioAnswer(false, this)">B. Accept it but tell a colleague — that's informal enough</button>
+      <button class="btn-scenario" onclick="scenarioAnswer(true, this)">C. Declare it to HR immediately and return it or donate to charity, since it arrives near a procurement decision</button>
+      <button class="btn-scenario" onclick="scenarioAnswer(false, this)">D. Ask the supplier to give it after the contract is signed to avoid any appearance of impropriety</button>
+    </div>
+    <div id="scenario-feedback" style="display:none;margin-top:16px"></div>
+  </div>
+
+</div>
+
+<div class="slide-nav">
+  <button class="btn-nav" id="btn-prev" onclick="prevSlide()" disabled>← Previous</button>
+  <div class="slide-dots" id="slide-dots"></div>
+  <button class="btn-nav" id="btn-next" onclick="nextSlide()">Next →</button>
+</div>
+<button class="btn-complete" id="btn-complete" style="display:none"
+  onclick="completeModule('e2', '/module/e3')">
+  Continue to Module 3 →
+</button>
+{% endblock %}
+{% block scripts %}
+<script>
+const TOTAL = 4;
+let cur = 1;
+function buildDots() {
+  const d = document.getElementById('slide-dots');
+  for (let i = 1; i <= TOTAL; i++) {
+    const dot = document.createElement('div');
+    dot.className = 'slide-dot' + (i === 1 ? ' active' : '');
+    dot.onclick = () => goSlide(i);
+    d.appendChild(dot);
+  }
+}
+function goSlide(n) {
+  document.getElementById('slide-' + cur).classList.remove('active');
+  document.querySelectorAll('.slide-dot')[cur-1].classList.remove('active');
+  cur = n;
+  document.getElementById('slide-' + cur).classList.add('active');
+  document.querySelectorAll('.slide-dot')[cur-1].classList.add('active');
+  document.getElementById('btn-prev').disabled = cur === 1;
+  document.getElementById('btn-next').style.display = cur === TOTAL ? 'none' : '';
+  document.getElementById('btn-complete').style.display = (cur === TOTAL && scenarioDone) ? 'block' : 'none';
+  const speech = {
+    1: "DAS Plc has zero tolerance for bribery and corruption. This is not just policy — it is a condition of your employment.",
+    2: "Not all gifts are wrong. But they must meet every one of these criteria AND be declared. Pay attention to the cash gift rule — no exceptions there.",
+    3: "Declaration is mandatory. Whether you accepted the gift or not, it must be logged in Business Central or on the Declaration form.",
+    4: "Let's test your understanding with a real scenario. Think carefully before you answer."
+  };
+  AlvinAvatar.speak(speech[cur] || '');
+}
+function nextSlide() { if (cur < TOTAL) goSlide(cur + 1); }
+function prevSlide() { if (cur > 1) goSlide(cur - 1); }
+
+let scenarioDone = false;
+function scenarioAnswer(correct, btn) {
+  if (scenarioDone) return;
+  const feedback = document.getElementById('scenario-feedback');
+  document.querySelectorAll('.btn-scenario').forEach(b => b.disabled = true);
+  if (correct) {
+    btn.style.background = 'rgba(0,200,130,0.15)';
+    btn.style.borderColor = 'var(--teal)';
+    feedback.innerHTML = '<div class="info-card" style="border-color:var(--teal)"><h3 style="color:var(--teal)">✅ Correct!</h3><p>A gift received close to a procurement decision — regardless of value — must be declared immediately and returned. If return is impossible, it goes to charity. The supplier relationship does not override the policy. Well done.</p></div>';
+    AlvinAvatar.speak("Correct! Timing matters. A gift before a procurement decision is a red flag regardless of its value. Always declare and return.");
+  } else {
+    btn.style.background = 'rgba(200,0,0,0.1)';
+    btn.style.borderColor = 'var(--red)';
+    feedback.innerHTML = '<div class="info-card" style="border-color:var(--red)"><h3 style="color:var(--red)">❌ Incorrect</h3><p>Any gift received near a procurement decision must be declared to HR and returned — or donated to charity if return is not possible. Keeping it, telling a colleague informally, or timing receipt around the contract are all policy violations. Option C is the only correct action.</p></div>';
+    AlvinAvatar.speak("That's not right. Any gift near a procurement decision must be declared and returned — no exceptions.");
+    document.querySelectorAll('.btn-scenario')[2].style.background = 'rgba(0,200,130,0.15)';
+    document.querySelectorAll('.btn-scenario')[2].style.borderColor = 'var(--teal)';
+  }
+  feedback.style.display = 'block';
+  scenarioDone = true;
+  document.getElementById('btn-complete').style.display = 'block';
+}
+buildDots();
+AlvinAvatar.speak("DAS Plc has zero tolerance for bribery and corruption. This is not just policy — it is a condition of your employment.");
+</script>
+{% endblock %}

@@ -1,0 +1,147 @@
+{% extends "base_trainer.html" %}
+{% block content %}
+<div class="module-header">
+  <div class="module-tag">MODULE 4 OF 6 · BUSINESS ETHICS</div>
+  <div class="module-title"><span>Customers, Suppliers</span> & Fair Competition</div>
+  <div class="module-desc">Understand how DAS Plc expects you to deal with customers, suppliers, and competitors — with fairness, honesty, and integrity.</div>
+</div>
+
+<div class="slide-container">
+
+  <!-- Slide 1 -->
+  <div class="slide active" id="slide-1">
+    <div class="info-card">
+      <h3>🤝 Treatment of Customers</h3>
+      <p>Mutual trust and confidence between DAS Plc and our customers is vital. The pharmaceutical industry depends on it.</p>
+    </div>
+    <div class="info-card" style="border-color:var(--teal)">
+      <h3 style="color:var(--teal)">✅ What DAS Plc Expects</h3>
+      <ul>
+        <li><strong>Service excellence and value for money</strong> — consistently, not occasionally</li>
+        <li><strong>Open and clear communication</strong> — accurate understanding of what the customer expects and what DAS Plc has committed to</li>
+        <li><strong>Anticipating needs</strong> — not just meeting current requirements but understanding changing requirements</li>
+        <li><strong>Honest feedback</strong> — if you become aware of practices in a customer's business that conflict with good industry practice, raise it</li>
+      </ul>
+    </div>
+    <div class="info-card" style="border-color:var(--amber)">
+      <h3 style="color:var(--amber)">📌 Important</h3>
+      <p>DAS Plc is obliged to dialogue with clients if honouring any request would <strong>compromise DAS Plc's own ethical standards</strong>. You must escalate — not comply silently — if a customer request crosses an ethical line.</p>
+    </div>
+  </div>
+
+  <!-- Slide 2 -->
+  <div class="slide" id="slide-2">
+    <div class="info-card">
+      <h3>🏭 Treatment of Suppliers</h3>
+      <p>DAS Plc's suppliers provide the raw materials, equipment, and services that keep production running. They are entitled to fair treatment.</p>
+    </div>
+    <div class="info-card" style="border-color:var(--teal)">
+      <table class="data-table">
+        <thead><tr><th>DAS Plc's Commitment to Suppliers</th></tr></thead>
+        <tbody>
+          <tr><td>Pay suppliers in accordance with <strong>agreed terms of trade</strong> — no deliberate payment delays</td></tr>
+          <tr><td>Set high ethical standards for suppliers — <strong>our ethics policy extends to our supply chain</strong></td></tr>
+          <tr><td>Select suppliers based solely on <strong>quality, performance, price, and value</strong> — never on inducements</td></tr>
+          <tr><td>Treat all potential suppliers <strong>equally and fairly</strong> in procurement processes</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="info-card" style="border-color:var(--amber)">
+      <h3 style="color:var(--amber)">⚠ Procurement Reminder</h3>
+      <p>Employees involved in procurement have heightened responsibilities. Any gifts, inducements, or unusual requests from suppliers must be declared immediately to your supervisor and HR.</p>
+    </div>
+  </div>
+
+  <!-- Slide 3 -->
+  <div class="slide" id="slide-3">
+    <div class="info-card">
+      <h3>🏆 Fair Competition</h3>
+      <p>DAS Plc competes vigorously in the Ghanaian pharmaceutical market — but <strong>always fairly and ethically</strong>.</p>
+    </div>
+    <div class="info-card" style="border-color:var(--teal)">
+      <h3 style="color:var(--teal)">✅ Acceptable Competitive Behaviour</h3>
+      <ul>
+        <li>Building competitive advantage through <strong>product quality, innovation, and service</strong></li>
+        <li>Monitoring publicly available competitor information (public reports, media, etc.)</li>
+        <li>Competing on price, value, and performance</li>
+      </ul>
+    </div>
+    <div class="info-card" style="border-color:var(--red)">
+      <h3 style="color:var(--red)">❌ Strictly Prohibited</h3>
+      <ul>
+        <li><strong>Sharing confidential information</strong> when in contact with competitors</li>
+        <li><strong>Attempting to obtain competitors' trade secrets</strong> or confidential information improperly</li>
+        <li><strong>Discussing pricing information with competitors</strong> — even indirectly — as this may constitute price-fixing under Ghanaian law</li>
+        <li>Any conduct that conflicts with <strong>applicable competition laws</strong></li>
+      </ul>
+      <p style="margin-top:12px;font-size:13px;color:var(--text2)">If a competitor approaches you at a conference, trade event, or informally — and begins discussing pricing or market strategy — you must disengage and report it to the Head of Corporate Affairs.</p>
+    </div>
+  </div>
+
+  <!-- Slide 4 — External Reporting -->
+  <div class="slide" id="slide-4">
+    <div class="info-card">
+      <h3>📢 External Reporting & Media</h3>
+      <p>DAS Plc may be required to make statements or provide reports to regulatory bodies, government agencies, or the media.</p>
+    </div>
+    <div class="info-card" style="border-color:var(--amber)">
+      <h3 style="color:var(--amber)">⚠ Key Rules</h3>
+      <ul>
+        <li>All statements and reports must be <strong>correct, timely, and not misleading</strong></li>
+        <li>Senior management must be made aware of any <strong>sensitive disclosure before it is made</strong></li>
+        <li><strong>Only authorised spokespersons</strong> may represent DAS Plc in media or external relations</li>
+        <li>All media enquiries must be <strong>referred to the company's media relations expert</strong> — do not respond directly</li>
+      </ul>
+    </div>
+    <div class="info-card" style="border-color:var(--red)">
+      <h3 style="color:var(--red)">🔴 Important — If a Journalist Contacts You</h3>
+      <p>Do not comment. Do not speculate. Do not say "no comment" and walk away. The correct response is: <em>"All media enquiries should go through our communications team. I'll pass your details along."</em> Then report it to your line manager immediately.</p>
+    </div>
+  </div>
+
+</div>
+
+<div class="slide-nav">
+  <button class="btn-nav" id="btn-prev" onclick="prevSlide()" disabled>← Previous</button>
+  <div class="slide-dots" id="slide-dots"></div>
+  <button class="btn-nav" id="btn-next" onclick="nextSlide()">Next →</button>
+</div>
+<button class="btn-complete" id="btn-complete" style="display:none"
+  onclick="completeModule('e4', '/module/e5')">
+  Continue to Module 5 →
+</button>
+{% endblock %}
+{% block scripts %}
+<script>
+const TOTAL = 4; let cur = 1;
+function buildDots() {
+  const d = document.getElementById('slide-dots');
+  for (let i = 1; i <= TOTAL; i++) {
+    const dot = document.createElement('div');
+    dot.className = 'slide-dot' + (i === 1 ? ' active' : '');
+    dot.onclick = () => goSlide(i); d.appendChild(dot);
+  }
+}
+function goSlide(n) {
+  document.getElementById('slide-' + cur).classList.remove('active');
+  document.querySelectorAll('.slide-dot')[cur-1].classList.remove('active');
+  cur = n;
+  document.getElementById('slide-' + cur).classList.add('active');
+  document.querySelectorAll('.slide-dot')[cur-1].classList.add('active');
+  document.getElementById('btn-prev').disabled = cur === 1;
+  document.getElementById('btn-next').style.display = cur === TOTAL ? 'none' : '';
+  document.getElementById('btn-complete').style.display = cur === TOTAL ? 'block' : 'none';
+  const speech = {
+    1: "Trust is the foundation of every customer relationship. If a customer asks you to do something that crosses an ethical line, you escalate — you do not comply silently.",
+    2: "Suppliers are partners, not just vendors. DAS Plc is committed to paying on time and treating them fairly. Our ethics extend through our supply chain.",
+    3: "Competing fairly means competing on merit. Discussing pricing with competitors — even casually — can be a criminal offence under competition law.",
+    4: "If a journalist contacts you directly, do not engage. Refer them to communications and report it to your manager immediately."
+  };
+  AlvinAvatar.speak(speech[cur] || '');
+}
+function nextSlide() { if (cur < TOTAL) goSlide(cur + 1); }
+function prevSlide() { if (cur > 1) goSlide(cur - 1); }
+buildDots();
+AlvinAvatar.speak("Trust is the foundation of every customer relationship. If a customer asks you to do something that crosses an ethical line, you escalate — you do not comply silently.");
+</script>
+{% endblock %}

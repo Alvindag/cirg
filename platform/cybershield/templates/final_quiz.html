@@ -1,0 +1,242 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>CyberShield — Final Assessment</title>
+<link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+<script>
+(function(){
+  var _origFetch = window.fetch;
+  window.fetch = function(input, init){
+    init = init || {};
+    var method = (init.method || 'GET').toUpperCase();
+    if (['POST','PUT','PATCH','DELETE'].indexOf(method) !== -1) {
+      init.headers = init.headers || {};
+      if (init.headers instanceof Headers) { init.headers.set('X-CSRFToken', window.CSRF_TOKEN || ''); }
+      else { init.headers['X-CSRFToken'] = window.CSRF_TOKEN || ''; }
+    }
+    return _origFetch(input, init);
+  };
+})();
+</script>
+</head>
+<body>
+
+<div class="bg-orbs">
+  <div class="bg-orb"></div>
+  <div class="bg-orb"></div>
+  <div class="bg-orb"></div>
+  <div class="bg-orb"></div>
+</div>
+<div class="particles" id="particles-container"></div>
+
+<div class="quiz-container">
+
+  <!-- Header with Alvin -->
+  <div style="display:flex;gap:24px;align-items:flex-start;margin-bottom:32px">
+    <div style="width:110px;height:150px;flex-shrink:0" id="alvin-mount"></div>
+    <div style="flex:1">
+      <div class="module-tag" id="track-tag">FINAL ASSESSMENT · ONBOARDING TRACK</div>
+      <div class="quiz-title">DAS Plc Cybersecurity<br>Knowledge Assessment</div>
+      <div id="quiz-speech" style="font-size:16px;color:var(--text2);margin-top:10px;line-height:1.6">
+        This is your final assessment. Read each question carefully. You need <strong style="color:var(--amber)">70% or above</strong> to pass and receive your DAS Plc Cybersecurity Certificate.
+      </div>
+    </div>
+  </div>
+
+  <!-- Quiz UI -->
+  <div id="quiz-ui">
+    <div class="quiz-progress-bar">
+      <div class="quiz-progress-fill" id="progress-fill" style="width:0%"></div>
+    </div>
+    <div class="quiz-counter" id="q-counter">Question 1 of {{ total }}</div>
+
+    <div class="quiz-question-card" id="question-card">
+      <div class="quiz-q" id="question-text"></div>
+      <div class="quiz-options" id="options-container"></div>
+      <div class="quiz-explanation" id="explanation-box"></div>
+    </div>
+
+    <div style="display:flex;justify-content:flex-end;margin-top:6px">
+      <button class="btn-nav-primary" id="next-btn" onclick="nextQuestion()" disabled>NEXT QUESTION →</button>
+    </div>
+  </div>
+
+  <!-- Results UI -->
+  <div id="results-ui" style="display:none">
+    <div class="result-card">
+      <div class="result-score" id="result-score"></div>
+      <div class="result-label" id="result-label"></div>
+      <div class="result-status" id="result-status"></div>
+      <div id="result-detail" style="font-size:16px;color:var(--text2);margin-top:18px;line-height:1.7"></div>
+    </div>
+
+    <div id="review-section" style="margin-top:22px"></div>
+
+    <div style="display:flex;gap:14px;margin-top:22px">
+      <button class="btn-nav" onclick="window.location.href='/'" style="flex:1">↩ START OVER</button>
+      <button class="btn-nav-primary" id="cert-btn" style="flex:2;display:none" onclick="goToCertificate()">
+        🎓 VIEW MY CERTIFICATE →
+      </button>
+      <button class="btn-nav-primary" id="retry-btn" style="flex:2;display:none" onclick="retryQuiz()">
+        🔄 RETAKE ASSESSMENT →
+      </button>
+    </div>
+  </div>
+
+</div>
+
+<script src="{{ url_for('static', filename='js/alvin.js') }}"></script>
+<script>
+// Particles
+(function() {
+  const c = document.getElementById('particles-container');
+  if (!c) return;
+  for (let i = 0; i < 20; i++) {
+    const p = document.createElement('div');
+    p.className = 'particle';
+    p.style.left = Math.random() * 100 + 'vw';
+    p.style.setProperty('--drift', (Math.random() * 60 - 30) + 'px');
+    p.style.animationDuration = (10 + Math.random() * 16) + 's';
+    p.style.animationDelay = (Math.random() * 12) + 's';
+    p.style.background = Math.random() > 0.5 ? 'var(--teal)' : 'var(--amber)';
+    c.appendChild(p);
+  }
+})();
+
+const QUESTIONS = {{ questions | safe }};
+const TOTAL = {{ total }};
+const TRACK = "{{ track }}";
+let current = 0, score = 0;
+let answered = [], userAnswers = [];
+
+document.getElementById('track-tag').textContent = TRACK === 'refresher'
+  ? 'ANNUAL REFRESHER ASSESSMENT · ' + TOTAL + ' QUESTIONS'
+  : 'FINAL ASSESSMENT · ONBOARDING TRACK · ' + TOTAL + ' QUESTIONS';
+
+AlvinAvatar.mount('#alvin-mount');
+setTimeout(() => AlvinAvatar.speak(
+  "This is your final assessment. Read carefully. You need 70% to pass and get your DAS Plc certificate. Good luck!",
+  'quiz-speech'
+), 600);
+
+function loadQuestion() {
+  const q = QUESTIONS[current];
+  document.getElementById('q-counter').textContent = `Question ${current+1} of ${TOTAL}`;
+  document.getElementById('progress-fill').style.width = ((current / TOTAL) * 100) + '%';
+  document.getElementById('question-text').textContent = q.q;
+  document.getElementById('explanation-box').className = 'quiz-explanation';
+  document.getElementById('explanation-box').textContent = '';
+  document.getElementById('next-btn').disabled = true;
+  document.getElementById('next-btn').textContent = current === TOTAL - 1 ? 'SEE MY RESULTS' : 'NEXT QUESTION →';
+
+  const container = document.getElementById('options-container');
+  container.innerHTML = '';
+  const letters = ['A','B','C','D'];
+  q.options.forEach((opt, i) => {
+    const btn = document.createElement('button');
+    btn.className = 'quiz-opt';
+    btn.innerHTML = `<span class="quiz-opt-letter">${letters[i]}</span>${opt}`;
+    btn.onclick = () => selectAnswer(i);
+    container.appendChild(btn);
+  });
+}
+
+function selectAnswer(idx) {
+  if (answered[current]) return;
+  answered[current] = true;
+  userAnswers[current] = idx;
+  const q = QUESTIONS[current];
+  const opts = document.querySelectorAll('.quiz-opt');
+  opts.forEach(b => b.disabled = true);
+  opts[q.answer].classList.add('correct');
+  if (idx !== q.answer) {
+    opts[idx].classList.add('wrong');
+    AlvinAvatar.react('wrong');
+  } else {
+    score++;
+    AlvinAvatar.react('correct');
+  }
+  const exp = document.getElementById('explanation-box');
+  exp.textContent = q.explanation;
+  exp.className = 'quiz-explanation show';
+  document.getElementById('next-btn').disabled = false;
+}
+
+function nextQuestion() {
+  if (current < TOTAL - 1) { current++; loadQuestion(); }
+  else { showResults(); }
+}
+
+function showResults() {
+  const pct = Math.round((score / TOTAL) * 100);
+  const passed = pct >= 70;
+
+  fetch('/api/submit_quiz', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({score, total: TOTAL})
+  }).then(r => r.json()).then(data => {
+    document.getElementById('quiz-ui').style.display = 'none';
+    document.getElementById('results-ui').style.display = 'block';
+    document.getElementById('progress-fill').style.width = '100%';
+
+    const scoreEl = document.getElementById('result-score');
+    scoreEl.textContent = pct + '%';
+    scoreEl.className = 'result-score ' + (passed ? 'pass' : 'fail');
+
+    document.getElementById('result-label').textContent = `${score} correct out of ${TOTAL} questions`;
+
+    const status = document.getElementById('result-status');
+    status.textContent = passed ? '✅ ASSESSMENT PASSED' : '❌ ASSESSMENT FAILED';
+    status.className = 'result-status ' + (passed ? 'pass' : 'fail');
+
+    document.getElementById('result-detail').innerHTML = passed
+      ? `Congratulations! You have demonstrated the knowledge required to protect DAS Plc systems and data. Your completion has been recorded${data.cert_ref ? ' — Certificate Ref: <strong style="color:var(--amber)">' + data.cert_ref + '</strong>' : ''}.`
+      : `You scored ${pct}% — below the 70% pass mark. Please review the training modules and retake the assessment. Focus on the questions you missed — the explanations show the correct answers.`;
+
+    if (passed) {
+      document.getElementById('cert-btn').style.display = 'block';
+      AlvinAvatar.react('celebrate');
+      AlvinAvatar.speak("Outstanding! You passed! Your DAS Plc Cybersecurity Certificate is ready. Well done!", 'quiz-speech');
+    } else {
+      document.getElementById('retry-btn').style.display = 'block';
+      AlvinAvatar.react('concerned');
+      AlvinAvatar.speak("You did not pass this time — but don't worry. Review the modules, focus on the missed questions, and try again. You can do this!", 'quiz-speech');
+    }
+
+    // Review section
+    const review = document.getElementById('review-section');
+    review.innerHTML = '<div style="font-family:var(--font-head);font-size:18px;color:var(--text);margin-bottom:14px;letter-spacing:1px">📝 QUESTION REVIEW</div>';
+    QUESTIONS.forEach((q, i) => {
+      const correct = userAnswers[i] === q.answer;
+      review.innerHTML += `
+        <div style="background:var(--card);border:1px solid ${correct?'var(--border)':'var(--red)'};border-radius:10px;padding:16px;margin-bottom:10px">
+          <div style="font-size:13px;color:${correct?'var(--green)':'var(--red)'};font-weight:600;margin-bottom:8px">${correct?'✅ CORRECT':'❌ INCORRECT'} — Q${i+1}</div>
+          <div style="font-size:16px;color:var(--text);margin-bottom:10px;line-height:1.6">${q.q}</div>
+          ${!correct ? `<div style="font-size:14px;color:var(--text2);background:var(--bg3);padding:10px 14px;border-radius:8px;border-left:3px solid var(--teal);line-height:1.6">${q.explanation}</div>` : ''}
+        </div>`;
+    });
+  });
+}
+
+function goToCertificate() { window.location.href = '/certificate'; }
+function retryQuiz() {
+  current = 0; score = 0; answered = []; userAnswers = [];
+  document.getElementById('quiz-ui').style.display = 'block';
+  document.getElementById('results-ui').style.display = 'none';
+  loadQuestion();
+  AlvinAvatar.speak("Let's try again! Take your time with each question.", 'quiz-speech');
+}
+
+loadQuestion();
+</script>
+
+<!-- Reading mode toggle -->
+<button class="reading-mode-toggle no-print" id="rm-toggle" onclick="toggleReadingMode()" title="Toggle white background reading mode">
+  <span id="rm-icon">&#9728;</span><span id="rm-label">READING MODE</span>
+</button>
+
+</body>
+</html>

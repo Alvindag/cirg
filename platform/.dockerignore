@@ -1,0 +1,5 @@
+.env
+*.db
+demo-data
+__pycache__
+tests

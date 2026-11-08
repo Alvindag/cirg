@@ -1,0 +1,135 @@
+{% extends 'base.html' %}
+{% from 'icons.html' import icon %}
+{% block title %}Dashboard{% endblock %}
+{% block topbar_title %}Asset Dashboard{% endblock %}
+{% block topbar_sub %}DAS Plc IT asset register · live summary{% endblock %}
+{% block content %}
+{% set pct_assigned = ((stats.assigned / stats.total_hw * 100)|round|int) if stats.total_hw else 0 %}
+{% set warr = stats.warranty_expiring + stats.warranty_expired %}
+{% set lic = stats.sw_expiring + stats.sw_expired %}
+{% set attention = warr + lic + stats.open_repairs %}
+
+<!-- KPI widget -->
+<section class="widget mb-2">
+  <div class="widget-title"><span>Register overview</span><span class="chip">Live</span></div>
+  <dl class="kpi-grid">
+    <div class="kpi"><dt class="k-label">Hardware assets</dt><dd class="k-val">{{ stats.total_hw }}</dd><dd class="k-hint">{{ stats.retired }} retired</dd></div>
+    <div class="kpi"><dt class="k-label">Assigned</dt><dd class="k-val" style="color:var(--success)">{{ stats.assigned }}</dd><dd class="k-hint">{{ pct_assigned }}% of hardware</dd></div>
+    <div class="kpi"><dt class="k-label">Unassigned pool</dt><dd class="k-val" {% if stats.unassigned > 0 %}style="color:var(--warning)"{% endif %}>{{ stats.unassigned }}</dd><dd class="k-hint">ready to issue</dd></div>
+    <div class="kpi"><dt class="k-label">Under repair</dt><dd class="k-val" {% if stats.under_repair > 0 %}style="color:var(--high)"{% endif %}>{{ stats.under_repair }}</dd><dd class="k-hint">{{ stats.open_repairs }} open tickets</dd></div>
+    <div class="kpi"><dt class="k-label">Warranty alerts</dt><dd class="k-val" {% if stats.warranty_expired > 0 %}style="color:var(--critical)"{% elif stats.warranty_expiring > 0 %}style="color:var(--warning)"{% endif %}>{{ warr }}</dd><dd class="k-hint">{{ stats.warranty_expired }} expired · {{ stats.warranty_expiring }} soon</dd></div>
+    <div class="kpi"><dt class="k-label">Software licences</dt><dd class="k-val" style="color:var(--blue)">{{ stats.total_sw }}</dd><dd class="k-hint">tracked titles</dd></div>
+    <div class="kpi"><dt class="k-label">Licence alerts</dt><dd class="k-val" {% if stats.sw_expired > 0 %}style="color:var(--critical)"{% elif stats.sw_expiring > 0 %}style="color:var(--warning)"{% else %}style="color:var(--success)"{% endif %}>{{ lic }}</dd><dd class="k-hint">{{ stats.sw_expired }} expired · {{ stats.sw_expiring }} soon</dd></div>
+    <div class="kpi"><dt class="k-label">Retired</dt><dd class="k-val" style="color:#a1a1aa">{{ stats.retired }}</dd><dd class="k-hint">out of service</dd></div>
+  </dl>
+</section>
+
+<div class="bento">
+  <!-- Assets by site (vertical gradient bars) -->
+  <section class="widget span-6">
+    <div class="widget-title"><span>Assets by site</span><span class="chip">{{ stats.by_location|length }} locations</span></div>
+    {% set site_map = {} %}
+    {% for row in stats.by_location %}{% set _ = site_map.update({row.location: row.cnt}) %}{% endfor %}
+    {% set sites = [('NIA — HQ','HQ'),('TA-F1','TA-F1'),('TA-F2','TA-F2'),('TAMELE','Tamale'),('KUMASI','Kumasi'),('TAKRODI','Takoradi')] %}
+    {% set vals = [] %}{% for s, l in sites %}{% set _ = vals.append(site_map.get(s, 0)) %}{% endfor %}
+    {% set mx = (vals|max) or 1 %}
+    <div class="bars">
+      {% for s, l in sites %}
+      <a class="bar-col {% if s == 'NIA — HQ' %}hq{% endif %}" href="{{ url_for('assets') }}?location={{ s }}" title="{{ s }}">
+        <span class="bar-n">{{ site_map.get(s, 0) }}</span>
+        <span class="bar" style="height:{{ (site_map.get(s, 0) / mx * 100)|round|int }}%;"></span>
+        <span class="bar-l">{{ l }}</span>
+      </a>
+      {% endfor %}
+    </div>
+  </section>
+
+  <!-- Quick actions -->
+  <section class="widget span-3" style="grid-column:span 3;">
+    <div class="widget-title"><span>Quick actions</span></div>
+    {% if has_perm('write') %}
+    <div class="quick-list">
+      <a href="{{ url_for('new_asset') }}" class="quick-action"><span class="icon">{{ icon('plus') }}</span><span class="label">Register asset</span></a>
+      <a href="{{ url_for('bulk_upload') }}" class="quick-action"><span class="icon">{{ icon('file-up') }}</span><span class="label">Bulk upload</span></a>
+      <a href="{{ url_for('export_assets') }}" class="quick-action"><span class="icon">{{ icon('file-down') }}</span><span class="label">Export Excel</span></a>
+      <a href="{{ url_for('new_software') }}" class="quick-action"><span class="icon">{{ icon('disc-3') }}</span><span class="label">Add licence</span></a>
+      <a href="{{ url_for('assets') }}?status=Active — Unassigned" class="quick-action"><span class="icon">{{ icon('package') }}</span><span class="label">Unassigned pool</span></a>
+      <a href="{{ url_for('reports') }}?report=warranty" class="quick-action"><span class="icon">{{ icon('calendar-clock') }}</span><span class="label">Warranty report</span></a>
+    </div>
+    {% else %}<p class="text-muted fs-sm">Your role has read-only access.</p>{% endif %}
+  </section>
+
+  <!-- Attention panel -->
+  <section class="widget insight span-3" style="grid-column:span 3;">
+    <div class="widget-title"><span style="display:flex;align-items:center;gap:8px;">{{ icon('sparkles') }} Needs attention</span></div>
+    <div class="big">{{ attention }}</div>
+    <p class="text-muted fs-sm">{% if attention %}items to review across warranties, licences and repairs.{% else %}Nothing needs attention right now.{% endif %}</p>
+    <ul>
+      <li><a href="{{ url_for('reports') }}?report=warranty">Warranty alerts</a><b {% if stats.warranty_expired %}style="color:var(--critical)"{% endif %}>{{ warr }}</b></li>
+      <li><a href="{{ url_for('software') }}">Licence alerts</a><b {% if stats.sw_expired %}style="color:var(--critical)"{% endif %}>{{ lic }}</b></li>
+      <li><a href="{{ url_for('repairs') }}">Open repairs</a><b>{{ stats.open_repairs }}</b></li>
+      <li><a href="{{ url_for('assets') }}?status=Active — Unassigned">Unassigned pool</a><b>{{ stats.unassigned }}</b></li>
+    </ul>
+  </section>
+</div>
+
+<div class="bento">
+  <section class="widget span-6">
+    <div class="widget-title"><span>Assets by company</span></div>
+    {% if stats.by_company %}
+    <table><thead><tr><th>Company</th><th style="text-align:right;">Assets</th><th style="width:140px;"></th></tr></thead>
+      <tbody>{% for row in stats.by_company %}
+      <tr><td class="fw-bold fs-sm">{{ row.company or 'Unspecified' }}</td><td style="text-align:right;" class="fw-bold">{{ row.cnt }}</td>
+        <td><div class="hbar"><div style="width:{{ (row.cnt / (stats.by_company[0].cnt or 1) * 100)|int }}%;"></div></div></td></tr>{% endfor %}</tbody></table>
+    {% else %}<div class="empty-state" style="padding:20px;"><p>No assets yet.</p></div>{% endif %}
+  </section>
+  <section class="widget span-6">
+    <div class="widget-title"><span>Top asset types</span></div>
+    {% if stats.by_type %}
+    <table><thead><tr><th>Type</th><th style="text-align:right;">Count</th><th style="width:140px;"></th></tr></thead>
+      <tbody>{% for row in stats.by_type %}
+      <tr><td class="fs-sm">{{ row.asset_type }}</td><td style="text-align:right;" class="fw-bold">{{ row.cnt }}</td>
+        <td><div class="hbar"><div style="width:{{ (row.cnt / (stats.by_type[0].cnt or 1) * 100)|int }}%;"></div></div></td></tr>{% endfor %}</tbody></table>
+    {% else %}<div class="empty-state" style="padding:20px;"><p>No assets yet.</p></div>{% endif %}
+  </section>
+</div>
+
+<div class="bento">
+  <section class="widget span-6">
+    <div class="widget-title"><span>Open repairs ({{ stats.open_repairs }})</span><a href="{{ url_for('repairs') }}" class="btn btn-xs btn-secondary">All</a></div>
+    {% if open_repairs %}
+    <table><thead><tr><th>Ref</th><th>Asset</th><th>Expected</th></tr></thead>
+      <tbody>{% for r in open_repairs %}<tr>
+        <td class="mono fs-sm text-accent">{{ r.repair_ref }}</td><td class="fs-sm">{{ r.asset_name[:30] }}</td><td class="fs-sm">{{ r.expected_return or '—' }}</td>
+      </tr>{% endfor %}</tbody></table>
+    {% else %}<div class="empty-state" style="padding:16px;"><span style="color:var(--success);">✓</span> No open repairs</div>{% endif %}
+  </section>
+  <section class="widget span-6">
+    <div class="widget-title"><span>Warranty alerts</span><a href="{{ url_for('reports') }}?report=warranty" class="btn btn-xs btn-secondary">Full report</a></div>
+    {% if expiring_w %}
+    <table><thead><tr><th>Tag</th><th>Name</th><th>Days</th></tr></thead>
+      <tbody>{% for a in expiring_w %}
+      {% set d = days_until(a.warranty_expiry) %}
+      <tr><td class="mono fs-sm"><a href="{{ url_for('view_asset', asset_id=a.id) }}">{{ a.asset_tag }}</a></td><td class="fs-sm">{{ a.asset_name[:28] }}</td>
+        <td><span class="{% if d is not none and d <= 7 %}warranty-expired{% else %}warranty-warn{% endif %}">{{ d }}d</span></td></tr>{% endfor %}</tbody></table>
+    {% else %}<div class="empty-state" style="padding:16px;"><span style="color:var(--success);">✓</span> No alerts</div>{% endif %}
+  </section>
+</div>
+
+<!-- Recent activity (timeline) -->
+<section class="widget">
+  <div class="widget-title"><span>Recent activity</span><a href="{{ url_for('movement_log_view') }}" class="btn btn-xs btn-secondary">Full log</a></div>
+  {% if recent_log %}
+  <div class="timeline">
+    {% for l in recent_log %}
+    {% set ic = 'package' if 'Unassign' in l.action else ('users' if 'Assign' in l.action else ('wrench' if 'Repair' in l.action else ('plus' if 'Register' in l.action else 'scroll-text'))) %}
+    <div class="tl-item">
+      <div class="tl-dot">{{ icon(ic, 16) }}</div>
+      <div class="tl-body"><b>{{ l.action }}</b><small><span class="mono">{{ l.asset_tag }}</span> · {{ l.to_user or l.to_location or '—' }} · by {{ l.performed_by }}</small></div>
+      <div class="tl-time">{{ l.created_at[5:16] }}</div>
+    </div>
+    {% endfor %}
+  </div>
+  {% else %}<div class="empty-state" style="padding:20px;"><p>No activity yet.</p></div>{% endif %}
+</section>
+{% endblock %}

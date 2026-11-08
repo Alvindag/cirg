@@ -1,0 +1,373 @@
+{% extends "base_trainer.html" %}
+{% block content %}
+<div class="module-header">
+  <div class="module-tag">MODULE 2 OF 7 · ONBOARDING</div>
+  <div class="module-title"><span>Phishing</span> — Recognition, Reporting & BC365</div>
+  <div class="module-desc">Identify phishing emails, learn exactly how to report them in Outlook, and protect DAS Plc's Business Central from financial fraud.</div>
+</div>
+
+<div class="slide-container">
+
+  <!-- Slide 1: What is phishing -->
+  <div class="slide active" id="slide-1">
+    <div class="info-card">
+      <h3>🎣 What Is Phishing?</h3>
+      <p>Phishing is an attack where criminals send emails pretending to be a trusted person or organisation — your bank, IT department, a supplier, or even your CEO. Their goal is to:</p>
+      <ul>
+        <li>Steal your Microsoft 365 login credentials (username and password)</li>
+        <li>Trick you into approving a fraudulent payment through Business Central</li>
+        <li>Install ransomware that encrypts all DAS Plc files and stops production</li>
+        <li>Access DAS Plc systems through your compromised account</li>
+        <li>Steal manufacturing formulas, supplier data, or financial records</li>
+      </ul>
+      <p style="margin-top:14px">Phishing is the <strong style="color:var(--amber)">number one attack vector</strong> against organisations like DAS Plc. Business Email Compromise (BEC) — a type of phishing targeting Finance teams — costs Ghanaian businesses hundreds of thousands of cedis every year.</p>
+    </div>
+    <div class="info-card" style="border-color:var(--red)">
+      <h3 style="color:var(--red)">🔴 The 8 Warning Signs — Memorise These</h3>
+      <table class="data-table">
+        <tbody>
+          <tr><td>1. Sender domain</td><td>Does not match the real organisation (check after the @)</td></tr>
+          <tr><td>2. Urgency</td><td>"Act NOW", "Account expires in 24 hours", "URGENT"</td></tr>
+          <tr><td>3. Generic greeting</td><td>"Dear Valued Employee" — IT knows your name from Active Directory</td></tr>
+          <tr><td>4. Suspicious links</td><td>Hover — if the real URL differs from the display text, it's a trap</td></tr>
+          <tr><td>5. Requesting credentials</td><td>IT will NEVER ask for your password by email. Ever.</td></tr>
+          <tr><td>6. Unexpected attachments</td><td>Especially .exe, .zip, .docm files from unknown senders</td></tr>
+          <tr><td>7. Unusual send time</td><td>3am emails from "IT" — attackers work outside business hours</td></tr>
+          <tr><td>8. Wrong domain in links</td><td>Link shows "dasplcgh.com" but actually goes to "das-secure-portal.net"</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- Slide 2: Phishing email simulation -->
+  <div class="slide" id="slide-2">
+    <div class="info-card">
+      <h3>📧 Spot the Phishing Email</h3>
+      <p style="margin-bottom:16px">Below is your DAS Plc inbox. <strong>One of these emails is a phishing attempt.</strong> Click the email you think is fake.</p>
+    </div>
+    <div class="email-client">
+      <div class="email-header-bar">
+        <div class="email-app-name">⊞ DAS Plc — Outlook Web App</div>
+        <div style="margin-left:auto;font-size:12px;color:#8ba4bc">inbox (3 unread)</div>
+      </div>
+      <div class="email-layout">
+        <div class="email-inbox-list">
+          <div class="email-item unread" onclick="selectEmail('safe1')">
+            <div class="from">HR Department</div>
+            <div class="subject">Q2 2026 Leave Schedule</div>
+            <div style="font-size:11px;color:#555;margin-top:2px">Today 9:14am</div>
+          </div>
+          <div class="email-item unread phish" onclick="selectEmail('phish')" id="email-phish-item">
+            <div class="from">IT Support</div>
+            <div class="subject">URGENT: M365 Account Suspension</div>
+            <div style="font-size:11px;color:#555;margin-top:2px">Today 3:47am</div>
+          </div>
+          <div class="email-item" onclick="selectEmail('safe2')">
+            <div class="from">Business Central</div>
+            <div class="subject">Purchase Order PO-2026-0441 Approved</div>
+            <div style="font-size:11px;color:#555;margin-top:2px">Yesterday</div>
+          </div>
+        </div>
+        <div class="email-pane" id="email-pane-content">
+          <p style="color:var(--text2);font-size:15px;padding:20px 0">← Click an email to view it</p>
+        </div>
+      </div>
+    </div>
+    <div id="email-feedback" style="display:none"></div>
+  </div>
+
+  <!-- Slide 3: Red flags -->
+  <div class="slide" id="slide-3">
+    <div class="info-card">
+      <h3>🚩 The 8 Red Flags in That Email</h3>
+      <p style="margin-bottom:16px">Every phishing email contains multiple red flags. Here are the 8 in the email you just saw — train yourself to spot all of them simultaneously:</p>
+    </div>
+    <div id="flags-container"></div>
+    <button class="btn-nav-primary" onclick="revealAllFlags()" id="reveal-btn" style="margin-top:6px">REVEAL ALL 8 FLAGS</button>
+  </div>
+
+  <!-- Slide 4: HOW TO REPORT in Outlook — STEP BY STEP -->
+  <div class="slide" id="slide-4">
+    <div class="info-card">
+      <h3>📋 How to Report Phishing in Microsoft Outlook</h3>
+      <p>At DAS Plc, <strong>reporting a phishing email is just as important as not clicking it.</strong> Every report feeds into our ISMS Phishing Intelligence system and protects the other 200+ staff. Here are your two methods:</p>
+    </div>
+
+    <div class="info-card" style="border-color:var(--teal)">
+      <h3 style="color:var(--teal)">✅ Method 1 — Outlook Report Message Button (Recommended)</h3>
+      <p style="margin-bottom:16px">This is the fastest way and automatically notifies Microsoft's security systems too.</p>
+
+      <div class="step-box">
+        <div class="step-num">1</div>
+        <div class="step-content">
+          <div class="step-title">Select the suspicious email in your inbox</div>
+          <div class="step-detail">Click once on the email to select it — do NOT open it or click any links inside it.</div>
+        </div>
+      </div>
+      <div class="step-box">
+        <div class="step-num">2</div>
+        <div class="step-content">
+          <div class="step-title">Find the "Report" button in the Home ribbon</div>
+          <div class="step-detail">In Outlook desktop: Look at the top ribbon (Home tab) → Find the <strong>"Report"</strong> or <strong>"Report Message"</strong> button. In Outlook Web App: Right-click the email in the list, or use the "…" (More actions) menu at the top of the reading pane.</div>
+        </div>
+      </div>
+      <div class="step-box">
+        <div class="step-num">3</div>
+        <div class="step-content">
+          <div class="step-title">Click "Report Message" → Select "Phishing"</div>
+          <div class="step-detail">A dropdown will appear with options: Junk, Phishing, Not Junk. Select <strong>"Phishing"</strong> (not just Junk). This sends the email to Microsoft for analysis AND flags it in our ISMS Phishing Intelligence system.</div>
+        </div>
+      </div>
+      <div class="step-box">
+        <div class="step-num">4</div>
+        <div class="step-content">
+          <div class="step-title">Confirm the report when prompted</div>
+          <div class="step-detail">A confirmation dialog may appear. Click <strong>"Report"</strong> to confirm. The email will be moved to your Deleted Items or Junk folder automatically.</div>
+        </div>
+      </div>
+      <div class="step-box">
+        <div class="step-num">5</div>
+        <div class="step-content">
+          <div class="step-title">Call IT to give verbal notification</div>
+          <div class="step-detail">For emails that look targeted (e.g. they use your name, mention DAS Plc systems specifically), also call <strong>Ext. 204</strong> to inform IT directly. This triggers a faster investigation.</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="info-card" style="border-color:var(--amber)">
+      <h3 style="color:var(--amber)">📩 Method 2 — Forward to IT Helpdesk</h3>
+      <p style="margin-bottom:12px">Use this method if the Report Message button is not available, or if you want IT to investigate a specific email urgently.</p>
+
+      <div class="step-box">
+        <div class="step-num">1</div>
+        <div class="step-content">
+          <div class="step-title">Do NOT click Reply — use "Forward as Attachment"</div>
+          <div class="step-detail">In Outlook: Go to Home → More → <strong>"Forward as Attachment"</strong>. This sends the full email including all headers (critical for IT forensic analysis). A standard Forward removes header metadata.</div>
+        </div>
+      </div>
+      <div class="step-box">
+        <div class="step-num">2</div>
+        <div class="step-content">
+          <div class="step-title">Address it to IT helpdesk</div>
+          <div class="step-detail">Send to: <strong>IThelpdesk@dasplcgh.com</strong> or <strong>servicedesk@dasplcgh.com</strong>. Add a brief subject like: "Suspected phishing — please investigate".</div>
+        </div>
+      </div>
+      <div class="step-box">
+        <div class="step-num">3</div>
+        <div class="step-content">
+          <div class="step-title">Delete the original email</div>
+          <div class="step-detail">Once forwarded, delete the original from your inbox and empty your Deleted Items to prevent accidental clicks later.</div>
+        </div>
+      </div>
+    </div>
+
+    <div style="background:rgba(42,10,10,0.6);border:1px solid rgba(239,68,68,0.4);border-radius:10px;padding:16px 18px;margin-top:4px">
+      <div style="font-family:var(--font-head);font-size:16px;color:var(--red);margin-bottom:6px">🚫 NEVER do these things with a phishing email:</div>
+      <ul style="list-style:none;padding:0">
+        <li style="padding:6px 0 6px 20px;position:relative;font-size:15px;color:#f8a0a0" class="before-x">Click any link or attachment inside the email</li>
+        <li style="padding:6px 0 6px 20px;position:relative;font-size:15px;color:#f8a0a0">Reply to the sender asking them to stop</li>
+        <li style="padding:6px 0 6px 20px;position:relative;font-size:15px;color:#f8a0a0">Forward it to colleagues to "warn them" — use the proper reporting channel</li>
+        <li style="padding:6px 0 6px 20px;position:relative;font-size:15px;color:#f8a0a0">Delete it without reporting — reporting protects all 200+ DAS Plc staff</li>
+      </ul>
+    </div>
+  </div>
+
+  <!-- Slide 5: BUSINESS CENTRAL PHISHING — new slide -->
+  <div class="slide" id="slide-5">
+    <div class="info-card">
+      <h3>💼 Phishing Targeting Microsoft 365 Business Central</h3>
+      <p>Business Central (BC) is now DAS Plc's core ERP system managing <strong>purchase orders, supplier payments, financial approvals, and production data</strong>. This makes it a high-value target. Criminals specifically craft phishing attacks designed to steal BC credentials or trick Finance staff into approving fraudulent payments.</p>
+    </div>
+
+    <div class="info-card" style="border-color:var(--red)">
+      <h3>🎯 BC Phishing Attack Types — What to Watch For</h3>
+      <div class="bc-warning">
+        <div class="bc-warning-title">🔴 Fake BC Login Pages</div>
+        <div class="bc-warning-text">You receive an email saying "Your Business Central session has expired — click here to log back in." The link goes to a fake BC login page that looks identical to Microsoft's — but steals your M365 credentials. <strong>DAS Plc will never send you a BC login link by email.</strong> Always navigate to BC by typing the URL directly.</div>
+      </div>
+      <div class="bc-warning">
+        <div class="bc-warning-title">🔴 Fake BC Payment Approval Emails</div>
+        <div class="bc-warning-text">An email arrives looking like a BC notification: "Supplier payment GHS 120,000 pending your approval — click here to review." The link goes to a fake BC portal that either steals your credentials or tricks you into "approving" a payment to the attacker's account. <strong>Real BC approvals happen INSIDE Business Central only — never via external email links.</strong></div>
+      </div>
+      <div class="bc-warning">
+        <div class="bc-warning-title">🔴 Fake Supplier Invoices with BC References</div>
+        <div class="bc-warning-text">A supplier email claims "Please update our bank account in your BC system for future payments" and includes a fake invoice with new bank details. This is fraud. <strong>Never change supplier bank details based on an email alone.</strong> Always verify by calling the supplier on their known official number — not the number in the email.</div>
+      </div>
+      <div class="bc-warning">
+        <div class="bc-warning-title">🔴 BEC — CEO/MD Requesting BC Payment</div>
+        <div class="bc-warning-text">WhatsApp or email appearing to be from the MD/CEO: "I'm in a meeting — urgently process GHS 85,000 payment to [new supplier] in BC before close of business." This is Business Email Compromise. <strong>Financial instructions via WhatsApp or email require mandatory phone verification — no exceptions.</strong></div>
+      </div>
+    </div>
+
+    <div class="info-card" style="border-color:var(--green)">
+      <h3>✅ How to Stay Safe in Business Central</h3>
+      <div class="bc-safe">
+        <div class="bc-safe-title">✅ Always access BC directly</div>
+        <div class="bc-safe-text">Log into Business Central by navigating directly to the BC URL in your browser — never through a link in an email or Teams message. Bookmark the real BC URL.</div>
+      </div>
+      <div class="bc-safe">
+        <div class="bc-safe-title">✅ Verify approvals in BC itself</div>
+        <div class="bc-safe-text">If you receive an email claiming a BC approval is pending, ignore the email link and log directly into BC. Check the Approvals section inside BC. If nothing is there, the email was fake.</div>
+      </div>
+      <div class="bc-safe">
+        <div class="bc-safe-title">✅ Verify ALL supplier bank detail changes by phone</div>
+        <div class="bc-safe-text">Any request to change a supplier's bank account details in BC — whether by email, WhatsApp, or letter — must be verified by calling the supplier on their established known phone number. Not the number provided in the request.</div>
+      </div>
+      <div class="bc-safe">
+        <div class="bc-safe-title">✅ Report any suspicious BC-related emails immediately</div>
+        <div class="bc-safe-text">If you receive a suspicious email referencing Business Central, forward it to IThelpdesk@dasplcgh.com and call Ext. 204 immediately. Early reporting has stopped real attacks at DAS Plc.</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Slide 6: Inbox challenge -->
+  <div class="slide" id="slide-6">
+    <div class="info-card">
+      <h3>🎯 Inbox Challenge</h3>
+      <p>Test your knowledge. Which of these email subjects is most likely a phishing attempt?</p>
+    </div>
+    <div class="choice-grid">
+      <button class="choice-btn" onclick="inboxChoice(this, false)">
+        <span class="choice-letter">A</span> Monthly payslip from HR (payroll@dasplcgh.com)
+      </button>
+      <button class="choice-btn" onclick="inboxChoice(this, true)">
+        <span class="choice-letter">B</span> "Your Business Central session expired — verify now" from (bc-admin@das-businesscentral-support.net)
+      </button>
+      <button class="choice-btn" onclick="inboxChoice(this, false)">
+        <span class="choice-letter">C</span> BC Approval notification from your manager (manager@dasplcgh.com) logged in BC
+      </button>
+      <button class="choice-btn" onclick="inboxChoice(this, false)">
+        <span class="choice-letter">D</span> Updated DAS Plc IT Security Policy from IT team (@dasplcgh.com)
+      </button>
+    </div>
+    <div class="consequence-box" id="inbox-result"></div>
+  </div>
+
+</div>
+
+<div class="nav-buttons">
+  <button class="btn-nav" id="btn-prev" onclick="prevSlide()" disabled>← BACK</button>
+  <span style="flex:1"></span>
+  <span style="font-size:14px;color:var(--text2);align-self:center" id="slide-counter">Slide 1 of 6</span>
+  <button class="btn-nav-primary" id="btn-next" onclick="nextSlide()">NEXT →</button>
+</div>
+
+{% endblock %}
+{% block scripts %}
+<script>
+let current = 1;
+const total = 6;
+let emailSelected = false;
+let inboxDone = false;
+
+const msgs = [
+  "Phishing is the number one attack vector against DAS Plc. Learn to spot it and you protect everyone.",
+  "Take a close look at these emails. One of them is a phishing attempt — can you spot it?",
+  "I can already see multiple red flags in that email. Let me show you all of them.",
+  "This is critical — knowing HOW to report is just as important as recognising the threat.",
+  "Business Central is a prime target. Attackers specifically go after ERP systems to steal financial data.",
+  "Final challenge — apply everything you have learned in this module!"
+];
+
+const flags = [
+  {icon:'⚠️', label:'Suspicious sender domain', text:'The email came from it-support@das-pharma-helpdesk.net — NOT from @dasplcgh.com. Legitimate DAS Plc IT emails always come from @dasplcgh.com. Check the actual domain after the @.'},
+  {icon:'🚨', label:'Urgency tactic', text:'"URGENT" and "account will be suspended in 24 hours" are pressure tactics designed to make you act without thinking. DAS Plc IT never threatens account deletion by email.'},
+  {icon:'👤', label:'Generic greeting', text:'The email says "Dear Valued Employee" — legitimate DAS Plc IT emails use your actual name because IT knows you from Active Directory.'},
+  {icon:'🔗', label:'Suspicious link URL', text:'Hovering over the "Click Here" button reveals it goes to das-secure-portal.net — not dasplcgh.com or microsoft.com. Always hover before clicking any link.'},
+  {icon:'📝', label:'Requesting credentials', text:'DAS Plc IT will NEVER ask for your password or account verification by email. If your account has an issue, IT resets it directly in Active Directory.'},
+  {icon:'✉️', label:'Sent at 3:47am', text:'The email was sent at 3:47am — unusual for internal IT communications. Attackers often send outside business hours to reduce scrutiny.'},
+  {icon:'📎', label:'Executable attachment', text:'There is an attachment called "AccountVerification.exe" — executable files from unknown sources are malware. Never open .exe, .vbs, or .bat email attachments.'},
+  {icon:'🎨', label:'Poor formatting / logo quality', text:'The email layout is slightly off — fonts are inconsistent and the DAS Plc logo appears pixelated. Real IT communications use official DAS Plc email templates.'},
+];
+
+const emailContent = {
+  safe1: `<div class="email-full-from">From: <span class="addr">hr@dasplcgh.com</span> — DAS Plc Human Resources</div>
+  <div class="email-full-subject">Q2 2026 Leave Schedule</div>
+  <div class="email-full-body"><p>Dear Colleagues,</p><p>Please find attached the approved leave schedule for Q2 2026. Kindly note all approved leave dates and coordinate with your line manager for cover arrangements.</p><p>Regards,<br>HR Department<br>Dannex Ayrton Starwin Plc</p></div>
+  <div style="margin-top:16px;padding:12px;background:rgba(10,42,20,0.8);border:1px solid var(--green);border-radius:10px;font-size:14px;color:var(--green)">✅ This appears LEGITIMATE — correct @dasplcgh.com domain, professional tone, no suspicious links.</div>`,
+
+  phish: `<div class="email-full-from">From: <span class="addr">it-support@das-pharma-helpdesk.net</span> [⚠️ NOT @dasplcgh.com]</div>
+  <div class="email-full-subject">⚠️ URGENT: Your DAS Plc M365 Account Will Be SUSPENDED in 24 Hours</div>
+  <div class="email-full-body">
+    <p>Dear Valued Employee,</p>
+    <p>Our security system has detected <strong>suspicious login activity</strong> on your M365 account. You must verify your credentials <strong>IMMEDIATELY</strong> to avoid permanent suspension.</p>
+    <p><a class="sms-link" href="#">🔴 CLICK HERE TO VERIFY YOUR ACCOUNT NOW</a></p>
+    <p>Failure to verify within 24 hours will result in account deletion and loss of all Business Central data.</p>
+    <p>IT Support Team<br>DAS Plc Group</p>
+  </div>
+  <div style="margin-top:16px;padding:12px;background:rgba(42,10,10,0.8);border:1px solid var(--red);border-radius:10px;font-size:14px;color:var(--red)">🚨 PHISHING DETECTED — 8 red flags present. Do NOT click any links. Report using Outlook's Report Phishing button or forward to IThelpdesk@dasplcgh.com.</div>`,
+
+  safe2: `<div class="email-full-from">From: <span class="addr">businesscentral@microsoft.com</span> — Microsoft Business Central</div>
+  <div class="email-full-subject">Purchase Order PO-2026-0441 Approved</div>
+  <div class="email-full-body"><p>The following purchase order has been approved in Business Central:</p><p><strong>PO-2026-0441</strong> — Stationery supplies — GHS 2,450.00</p><p>Approved by: Samuel Akushie on 15 April 2026</p><p>View this record in Business Central using your normal login.</p></div>
+  <div style="margin-top:16px;padding:12px;background:rgba(10,42,20,0.8);border:1px solid var(--green);border-radius:10px;font-size:14px;color:var(--green)">✅ This appears LEGITIMATE — official @microsoft.com domain, no suspicious links, refers you to log in normally.</div>`
+};
+
+function selectEmail(type) {
+  document.getElementById('email-pane-content').innerHTML = emailContent[type];
+  if (!emailSelected && type === 'phish') {
+    emailSelected = true;
+    AlvinAvatar.react('correct');
+    AlvinAvatar.speak("Excellent! You spotted the phishing email! Now let me show you exactly why it's fake — all 8 red flags.", 'alvin-speech');
+    document.getElementById('email-feedback').innerHTML = '<div class="consequence-box good show" style="margin-top:10px">✅ Correct! That email is a phishing attempt. Continue to see all 8 red flags in detail.</div>';
+    document.getElementById('email-feedback').style.display = 'block';
+  } else if (!emailSelected && (type === 'safe1' || type === 'safe2')) {
+    AlvinAvatar.react('wrong');
+    AlvinAvatar.speak("Not that one. Look more carefully — which email came from an unusual domain and was sent at 3am?", 'alvin-speech');
+    document.getElementById('email-feedback').innerHTML = '<div class="consequence-box bad show" style="margin-top:10px">❌ That\'s a legitimate email. Look at the one marked with a red bar — notice the domain and the send time.</div>';
+    document.getElementById('email-feedback').style.display = 'block';
+  }
+}
+
+function revealAllFlags() {
+  const container = document.getElementById('flags-container');
+  container.innerHTML = '';
+  flags.forEach((f, i) => {
+    setTimeout(() => {
+      container.innerHTML += `<div class="red-flag-item">
+        <div class="red-flag-icon">${f.icon}</div>
+        <div><div class="red-flag-label">${i+1}. ${f.label}</div>
+        <div class="red-flag-text">${f.text}</div></div>
+      </div>`;
+    }, i * 180);
+  });
+  document.getElementById('reveal-btn').style.display = 'none';
+  AlvinAvatar.speak("Eight red flags! A skilled attacker packs multiple signs into one email to overwhelm your defences. Now let's learn how to report it properly.", 'alvin-speech');
+}
+
+function inboxChoice(btn, isPhish) {
+  document.querySelectorAll('.choice-btn').forEach(b => b.disabled = true);
+  const result = document.getElementById('inbox-result');
+  if (isPhish) {
+    btn.classList.add('correct');
+    result.className = 'consequence-box good show';
+    result.innerHTML = '✅ <strong>Correct!</strong> Option B is phishing. Key red flags: the sender domain is "das-businesscentral-support.net" — not microsoft.com or dasplcgh.com. Legitimate BC session notifications come from Microsoft\'s own domain. DAS Plc IT will never send you a BC login link by email. Log into BC directly using your bookmarked URL.';
+    AlvinAvatar.react('celebrate');
+    inboxDone = true;
+  } else {
+    btn.classList.add('wrong');
+    document.querySelectorAll('.choice-btn')[1].classList.add('correct');
+    result.className = 'consequence-box bad show';
+    result.innerHTML = '❌ <strong>Incorrect.</strong> Option B is the phishing email — the sender domain "das-businesscentral-support.net" is not an official Microsoft or DAS Plc domain. Always check the actual email domain, not just the display name.';
+    AlvinAvatar.react('wrong');
+    inboxDone = true;
+  }
+}
+
+function updateSlide() {
+  document.querySelectorAll('.slide').forEach((s,i) => s.classList.toggle('active', i+1===current));
+  document.getElementById('slide-counter').textContent = `Slide ${current} of ${total}`;
+  document.getElementById('btn-prev').disabled = current === 1;
+  document.getElementById('btn-next').textContent = current === total ? 'COMPLETE MODULE →' : 'NEXT →';
+  AlvinAvatar.speak(msgs[current-1]||'', 'alvin-speech');
+  if (current === 3) revealAllFlags();
+}
+
+function nextSlide() {
+  if (current < total) { current++; updateSlide(); }
+  else { completeModule('m2', '/module/m3'); }
+}
+function prevSlide() { if (current > 1) { current--; updateSlide(); } }
+updateSlide();
+</script>
+{% endblock %}

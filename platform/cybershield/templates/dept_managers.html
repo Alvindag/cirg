@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Department Manager Emails — CyberShield Admin</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+  <style>
+    body { background: var(--bg, #0D1B2A); color: var(--text, #e0e8f0); font-family: var(--font-body, Arial, sans-serif); }
+    .page-wrap { max-width: 760px; margin: 0 auto; padding: 32px 24px; }
+    .page-header { display: flex; align-items: flex-start; justify-content: space-between; margin-bottom: 28px; flex-wrap: wrap; gap: 12px; }
+    .page-title { font-size: 22px; font-weight: 700; color: #fff; letter-spacing: 1px; }
+    .page-sub { font-size: 13px; color: #8899AA; margin-top: 4px; line-height: 1.6; }
+    .back-btn { background: rgba(46,196,182,0.1); border: 1px solid rgba(46,196,182,0.3); color: #2EC4B6; padding: 8px 16px; border-radius: 6px; text-decoration: none; font-size: 13px; white-space: nowrap; }
+    .info-box { background: rgba(46,196,182,0.07); border: 1px solid rgba(46,196,182,0.25); border-radius: 8px; padding: 14px 18px; margin-bottom: 24px; font-size: 13px; color: #C8D6E5; line-height: 1.7; }
+    .info-box strong { color: #2EC4B6; }
+    .dept-row { display: flex; align-items: center; gap: 14px; padding: 14px 0; border-bottom: 1px solid #1a2a3a; }
+    .dept-name { width: 200px; font-size: 14px; font-weight: 600; color: #fff; flex-shrink: 0; }
+    .dept-email-input { flex: 1; background: #162232; border: 1px solid #1e3450; color: #e0e8f0; border-radius: 6px; padding: 8px 12px; font-size: 13px; font-family: monospace; }
+    .dept-email-input:focus { outline: none; border-color: #2EC4B6; }
+    .save-btn { background: #2EC4B6; color: #0D1B2A; border: none; padding: 12px 28px; border-radius: 8px; font-size: 14px; font-weight: 700; cursor: pointer; margin-top: 24px; letter-spacing: 0.5px; }
+    .save-btn:hover { background: #26a99e; }
+    .success-flash { background: rgba(45,198,83,0.12); border: 1px solid rgba(45,198,83,0.35); color: #2DC653; border-radius: 8px; padding: 12px 18px; margin-bottom: 20px; font-size: 14px; }
+  </style>
+</head>
+<body>
+  <div class="page-wrap">
+    <div class="page-header">
+      <div>
+        <div class="page-title">&#128101; Department Manager Emails</div>
+        <div class="page-sub">
+          Configure the line manager email for each department.<br>
+          These are used automatically — no manual input needed from staff.
+        </div>
+      </div>
+      <a href="/admin" class="back-btn">&#8592; Back to Dashboard</a>
+    </div>
+
+    {% with messages = get_flashed_messages() %}
+      {% if messages %}
+        <div class="success-flash">&#10003; {{ messages[0] }}</div>
+      {% endif %}
+    {% endwith %}
+
+    <div class="info-box">
+      <strong>How this works:</strong> When any staff member starts CyberShield training,
+      the system looks up their department here and automatically assigns the correct line manager
+      email. All deadline warnings, expiry alerts, and reset notifications go to this address,
+      plus HR (<strong>hr@dasplcgh.com</strong>) and IT (<strong>IThelpdesk@dasplcgh.com</strong>).
+      Update these whenever a manager changes — no code changes needed.
+    </div>
+
+    <form method="POST">
+      {% set depts = ['Finance','Human Resources','Sales & Marketing','Information Technology',
+                      'Logistics','Risk & Compliance','Production','QA & QC',
+                      'Engineering','Corporate Affairs'] %}
+      {% for dept in depts %}
+      <div class="dept-row">
+        <div class="dept-name">{{ dept }}</div>
+        <input
+          type="email"
+          name="email_{{ dept }}"
+          class="dept-email-input"
+          value="{{ managers.get(dept, '') }}"
+          placeholder="manager@dasplcgh.com"
+          required
+        >
+      </div>
+      {% endfor %}
+      <button type="submit" class="save-btn">&#128190; Save All Manager Emails</button>
+    </form>
+  </div>
+</body>
+</html>

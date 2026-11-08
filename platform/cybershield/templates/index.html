@@ -1,0 +1,175 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>DAS Plc — Learning & Compliance Platform</title>
+<link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body>
+
+<!-- Animated background -->
+<div class="bg-orbs">
+  <div class="bg-orb"></div>
+  <div class="bg-orb"></div>
+  <div class="bg-orb"></div>
+  <div class="bg-orb"></div>
+</div>
+<div class="particles" id="particles-container"></div>
+
+<div class="landing">
+  <div class="brand-header">
+    <div class="brand-logo">
+      <div class="brand-shield">🛡</div>
+      <div class="brand-name">CYBERSHIELD</div>
+    </div>
+    <div class="brand-sub">Learning & Compliance Training Platform</div>
+    <div class="brand-company">Dannex Ayrton Starwin Plc · IT Security Department</div>
+  </div>
+
+  <!-- Track selection -->
+  <div class="track-grid">
+    <div class="track-card" id="card-onboarding" onclick="selectTrack('onboarding')">
+      <div class="track-icon">🚀</div>
+      <div class="track-title">Cybersecurity Onboarding</div>
+      <div class="track-desc">For new staff and all employees. Complete introduction to cybersecurity at DAS Plc — phishing, reporting, Business Central security, passwords, and more.</div>
+      <div class="track-meta">⏱ 55–75 minutes · 7 modules · 21-question assessment</div>
+      <div class="track-modules">
+        <span class="track-mod-tag">Phishing & Reporting</span>
+        <span class="track-mod-tag">BC365 Security</span>
+        <span class="track-mod-tag">Outlook Reporting Drill</span>
+        <span class="track-mod-tag">Password & MFA</span>
+        <span class="track-mod-tag">Social Engineering</span>
+        <span class="track-mod-tag">USB Attacks</span>
+      </div>
+    </div>
+
+    <div class="track-card" id="card-refresher" onclick="selectTrack('refresher')">
+      <div class="track-icon">🔄</div>
+      <div class="track-title">Annual Refresher</div>
+      <div class="track-desc">For all staff who completed onboarding. Covers new threats for 2025/2026, real DAS Plc scenarios, and the latest policy updates including MFA mandate.</div>
+      <div class="track-meta">⏱ 20–30 minutes · 3 modules · 10-question assessment</div>
+      <div class="track-modules">
+        <span class="track-mod-tag">AI Phishing</span>
+        <span class="track-mod-tag">Quishing</span>
+        <span class="track-mod-tag">BEC Scenarios</span>
+        <span class="track-mod-tag">Policy Updates</span>
+        <span class="track-mod-tag">MFA Mandate</span>
+      </div>
+    </div>
+    <div class="track-card" id="card-ethics" onclick="selectTrack('ethics')">
+      <div class="track-icon">⚖</div>
+      <div class="track-title">Business Ethics</div>
+      <div class="track-desc">For all DAS Plc employees. Covers the Business Ethics Policy (DAS/BEP/005 V5) — bribery, gifts, record-keeping, conflicts of interest, harassment, and how to report concerns.</div>
+      <div class="track-meta">⏱ 30–45 minutes · 6 modules · 15-question assessment</div>
+      <div class="track-modules">
+        <span class="track-mod-tag">Bribery & Gifts</span>
+        <span class="track-mod-tag">Confidentiality</span>
+        <span class="track-mod-tag">Conflicts of Interest</span>
+        <span class="track-mod-tag">Labour Act 651</span>
+        <span class="track-mod-tag">Whistleblowing</span>
+        <span class="track-mod-tag">Fair Competition</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Registration form -->
+  <form class="reg-form" action="/start" method="POST">
+    <h3>📋 REGISTER TO BEGIN</h3>
+    <input type="hidden" name="track" id="track-input" value="onboarding">
+
+    <div class="form-row">
+      <div class="form-group">
+        <label>Full Name *</label>
+        <input type="text" name="name" placeholder="e.g. Ama Asante" required>
+      </div>
+      <div class="form-group">
+        <label>Employee ID</label>
+        <input type="text" name="employee_id" placeholder="e.g. DAS-1042">
+      </div>
+    </div>
+
+    <div class="form-group">
+      <label>Department</label>
+      <select name="department">
+        <option value="">Select your department</option>
+        <option>Finance</option>
+        <option>Human Resources</option>
+        <option>Sales & Marketing</option>
+        <option>Information Technology</option>
+        <option>Logistics</option>
+        <option>Risk & Compliance</option>
+        <option>Production</option>
+        <option>QA & QC</option>
+        <option>Engineering</option>
+        <option>Corporate Affairs</option>
+      </select>
+    </div>
+
+    <div id="track-display" style="background:rgba(232,160,32,0.1);border:1px solid rgba(232,160,32,0.3);border-radius:8px;padding:12px 16px;margin-bottom:16px;font-size:14px;color:var(--amber)">
+      Selected Track: <strong id="track-label">Cybersecurity Onboarding</strong>
+    </div>
+
+    <div style="background:rgba(46,196,182,0.07);border:1px solid rgba(46,196,182,0.25);border-radius:8px;padding:14px 16px;margin-bottom:16px">
+      <div style="font-size:13px;font-weight:700;color:#2EC4B6;margin-bottom:6px">&#9201; Training Deadline Notice</div>
+      <div style="font-size:12px;color:var(--text2);line-height:1.7">
+        Once you start, you have <strong style="color:#ffaa44">5 days</strong> to complete this training.
+        If you do not finish within 5 days, your line manager and HR will be notified automatically
+        based on your department. No email entry required.
+      </div>
+    </div>
+
+    <button type="submit" class="btn-start">START TRAINING →</button>
+  </form>
+
+  <!-- Footer info -->
+  <div style="margin-top:32px;text-align:center;font-size:13px;color:var(--text2)">
+    <p>🔐 Need IT support? Call <strong style="color:var(--amber)">Ext. 204</strong> (IT Dept) &nbsp;|&nbsp; <strong style="color:var(--teal)">Ext. 115</strong> (IT Manager)</p>
+    <p style="margin-top:6px">📧 IThelpdesk@dasplcgh.com &nbsp;|&nbsp; servicedesk@dasplcgh.com</p>
+    <p style="margin-top:8px;font-size:11px;opacity:0.6">CyberShield v3 · Dannex Ayrton Starwin Plc · IT Security Department · 2026</p>
+  </div>
+</div>
+
+<script src="{{ url_for('static', filename='js/alvin.js') }}"></script>
+<script>
+// Particles
+(function() {
+  const c = document.getElementById('particles-container');
+  if (!c) return;
+  for (let i = 0; i < 25; i++) {
+    const p = document.createElement('div');
+    p.className = 'particle';
+    p.style.left = Math.random() * 100 + 'vw';
+    p.style.setProperty('--drift', (Math.random() * 60 - 30) + 'px');
+    p.style.animationDuration = (8 + Math.random() * 16) + 's';
+    p.style.animationDelay = (Math.random() * 10) + 's';
+    p.style.background = Math.random() > 0.5 ? 'var(--teal)' : 'var(--amber)';
+    c.appendChild(p);
+  }
+})();
+
+function selectTrack(track) {
+  document.getElementById('track-input').value = track;
+  document.getElementById('card-onboarding').classList.toggle('selected', track === 'onboarding');
+  document.getElementById('card-refresher').classList.toggle('selected', track === 'refresher');
+  const ethicsCard = document.getElementById('card-ethics');
+  if (ethicsCard) ethicsCard.classList.toggle('selected', track === 'ethics');
+  const labels = {
+    'onboarding': 'Cybersecurity Onboarding',
+    'refresher':  'Annual Cybersecurity Refresher',
+    'ethics':     'Business Ethics Policy Training'
+  };
+  document.getElementById('track-label').textContent = labels[track] || 'Cybersecurity Onboarding';
+}
+
+// Select onboarding by default
+selectTrack('onboarding');
+</script>
+
+<!-- Reading mode toggle -->
+<button class="reading-mode-toggle no-print" id="rm-toggle" onclick="toggleReadingMode()" title="Toggle white background reading mode">
+  <span id="rm-icon">&#9728;</span><span id="rm-label">READING MODE</span>
+</button>
+
+</body>
+</html>

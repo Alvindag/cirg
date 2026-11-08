@@ -1,0 +1,185 @@
+{% extends 'base.html' %}
+{% from 'icons.html' import icon %}
+{% from 'macros.html' import status_badge, warranty_badge %}
+{% block title %}Reports{% endblock %}
+{% block topbar_title %}Asset Reports{% endblock %}
+{% block topbar_sub %}Generated: {{ report_date }}{% endblock %}
+{% block content %}
+<div class="page-header">
+  <div><h1>Asset Reports</h1><p>{{ report_date }}</p></div>
+  <button onclick="window.print()" class="btn btn-secondary">{{ icon('printer', 15) }} Print</button>
+</div>
+
+<!-- Report Selector -->
+<div class="card mb-3">
+  <div class="card-body" style="padding:12px 18px;">
+    <div style="display:flex;gap:8px;flex-wrap:wrap;">
+      {% for r_id, r_label in [
+        ('summary','Summary'),('by_company','By Company'),
+        ('by_department','By Department'),('by_location','By Location'),
+        ('by_user','By User'),('under_repair','Under Repair'),
+        ('warranty','Warranty Alerts'),('software_licenses','Software Licenses'),
+        ('full_log','Full Movement Log')] %}
+      <a href="{{ url_for('reports') }}?report={{ r_id }}" class="btn btn-sm {% if report==r_id %}btn-primary{% else %}btn-secondary{% endif %}">{{ r_label }}</a>
+      {% endfor %}
+    </div>
+  </div>
+</div>
+
+{% if report == 'summary' %}
+<!-- SUMMARY -->
+<div class="stat-grid mb-3" style="grid-template-columns:repeat(auto-fill,minmax(140px,1fr));">
+  <div class="stat-card"><div class="stat-val blue">{{ stats.total_hw }}</div><div class="stat-label">Hardware Assets</div></div>
+  <div class="stat-card ok"><div class="stat-val green">{{ stats.assigned }}</div><div class="stat-label">Assigned</div></div>
+  <div class="stat-card warn"><div class="stat-val yellow">{{ stats.unassigned }}</div><div class="stat-label">Unassigned</div></div>
+  <div class="stat-card orange"><div class="stat-val orange">{{ stats.under_repair }}</div><div class="stat-label">Under Repair</div></div>
+  <div class="stat-card"><div class="stat-val muted">{{ stats.retired }}</div><div class="stat-label">Retired/Disposed</div></div>
+  <div class="stat-card blue"><div class="stat-val blue">{{ stats.total_sw }}</div><div class="stat-label">SW Licenses</div></div>
+  <div class="stat-card warn"><div class="stat-val {% if stats.warranty_expired > 0 %}red{% elif stats.warranty_expiring > 0 %}yellow{% else %}green{% endif %}">{{ stats.warranty_expiring + stats.warranty_expired }}</div><div class="stat-label">Warranty Alerts</div></div>
+  <div class="stat-card warn"><div class="stat-val {% if stats.sw_expired > 0 %}red{% elif stats.sw_expiring > 0 %}yellow{% else %}green{% endif %}">{{ stats.sw_expiring + stats.sw_expired }}</div><div class="stat-label">License Alerts</div></div>
+</div>
+<div class="card"><div class="card-body"><p class="text-muted" style="text-align:center;font-size:13px;">Select a report type above to view detailed asset lists.</p></div></div>
+
+{% elif report in ['by_company','by_department','by_location'] %}
+{% if not filter_val %}
+<!-- GROUP VIEW -->
+<div class="card"><div class="card-body" style="padding:0;"><div class="table-wrap"><table>
+  <thead><tr><th>{{ 'Company' if report=='by_company' else 'Department' if report=='by_department' else 'Location' }}</th><th style="text-align:right;">Assets</th><th></th></tr></thead>
+  <tbody>{% for row in data %}
+  <tr>
+    <td class="fw-bold">{{ row[0] if row[0] else 'Unspecified' }}</td>
+    <td style="text-align:right;" class="text-accent fw-bold">{{ row[1] }}</td>
+    <td><a href="?report={{ report }}&filter={{ row[0] }}" class="btn btn-xs btn-secondary">View Assets →</a></td>
+  </tr>{% endfor %}</tbody>
+</table></div></div></div>
+{% else %}
+<!-- FILTERED LIST -->
+<div class="page-header" style="margin-bottom:14px;">
+  <div><h1 style="font-size:16px;">{{ filter_val }}</h1></div>
+  <a href="?report={{ report }}" class="btn btn-secondary btn-sm">← Back</a>
+</div>
+<div class="card"><div class="card-body" style="padding:0;"><div class="table-wrap"><table>
+  <thead><tr><th>Tag</th><th>Name</th><th>Type</th><th>Assigned To</th><th>Status</th><th>Warranty</th></tr></thead>
+  <tbody>{% for a in data %}<tr>
+    <td class="mono fs-sm text-accent"><a href="{{ url_for('view_asset', asset_id=a.id) }}" style="color:var(--accent);">{{ a.asset_tag }}</a></td>
+    <td class="fw-bold">{{ a.asset_name }}</td>
+    <td class="fs-sm text-muted">{{ a.asset_type }}</td>
+    <td class="fs-sm">{{ a.assigned_to_name or '—' }}</td>
+    <td>{{ status_badge(a.status) }}</td>
+    <td>{{ warranty_badge(a) }}</td>
+  </tr>{% endfor %}</tbody>
+</table></div></div></div>
+{% endif %}
+
+{% elif report == 'by_user' %}
+{% if not filter_val %}
+<div class="card mb-2"><div class="card-body" style="padding:12px 18px;">
+  <form method="GET" style="display:flex;gap:8px;align-items:flex-end;">
+    <input type="hidden" name="report" value="by_user">
+    <div class="form-group" style="margin:0;"><label>Search User</label><input name="filter" value="{{ filter_val }}" placeholder="Name or username…" style="width:220px;margin:0;"></div>
+    <button class="btn btn-primary btn-sm" type="submit">Search</button>
+  </form>
+</div></div>
+<div class="card"><div class="card-body" style="padding:0;"><div class="table-wrap"><table>
+  <thead><tr><th>User</th><th style="text-align:right;">Assets</th><th></th></tr></thead>
+  <tbody>{% for row in data %}<tr>
+    <td class="fw-bold">{{ row[0] or 'Unspecified' }}</td>
+    <td style="text-align:right;" class="text-accent fw-bold">{{ row[1] }}</td>
+    <td><a href="?report=by_user&filter={{ row[0] }}" class="btn btn-xs btn-secondary">View →</a></td>
+  </tr>{% endfor %}</tbody>
+</table></div></div></div>
+{% else %}
+<div class="page-header" style="margin-bottom:14px;">
+  <div><h1 style="font-size:16px;">Assets assigned to: {{ filter_val }}</h1></div>
+  <a href="?report=by_user" class="btn btn-secondary btn-sm">← Back</a>
+</div>
+<div class="card"><div class="card-body" style="padding:0;"><div class="table-wrap"><table>
+  <thead><tr><th>Tag</th><th>Name</th><th>Type</th><th>Location</th><th>Status</th></tr></thead>
+  <tbody>{% for a in data %}<tr>
+    <td class="mono fs-sm text-accent"><a href="{{ url_for('view_asset', asset_id=a.id) }}" style="color:var(--accent);">{{ a.asset_tag }}</a></td>
+    <td class="fw-bold">{{ a.asset_name }}</td>
+    <td class="fs-sm text-muted">{{ a.asset_type }}</td>
+    <td class="fs-sm text-muted">{{ a.location or '—' }}</td>
+    <td>{{ status_badge(a.status) }}</td>
+  </tr>{% endfor %}</tbody>
+</table></div></div></div>{% endif %}
+
+{% elif report == 'under_repair' %}
+<div class="card"><div class="card-body" style="padding:0;">
+  {% if data %}
+  <div class="table-wrap"><table>
+    <thead><tr><th>Repair Ref</th><th>Asset</th><th>Type</th><th>Fault</th><th>Vendor</th><th>Sent</th><th>Expected Return</th><th>Cost</th></tr></thead>
+    <tbody>{% for r in data %}<tr>
+      <td class="mono fs-sm text-accent">{{ r.repair_ref }}</td>
+      <td class="fw-bold">{{ r.asset_name }}</td>
+      <td class="fs-sm text-muted">{{ r.asset_type or '—' }}</td>
+      <td class="fs-sm">{{ r.fault_description[:50] }}</td>
+      <td class="fs-sm text-muted">{{ r.vendor or '—' }}</td>
+      <td class="fs-sm">{{ r.sent_date or '—' }}</td>
+      <td class="fs-sm text-warning">{{ r.expected_return or '—' }}</td>
+      <td class="fs-sm">{% if r.repair_cost %}GHS {{ '%.0f'|format(r.repair_cost) }}{% else %}—{% endif %}</td>
+    </tr>{% endfor %}</tbody>
+  </table></div>
+  {% else %}<div class="empty-state" style="padding:20px;"><span style="color:var(--success);">✓</span> No assets under repair</div>{% endif %}
+</div></div>
+
+{% elif report == 'warranty' %}
+<div class="card"><div class="card-body" style="padding:0;">
+  {% if data %}
+  <div class="table-wrap"><table>
+    <thead><tr><th>Tag</th><th>Name</th><th>Type</th><th>Company</th><th>Warranty Expiry</th><th>Days Left</th><th>Assigned To</th></tr></thead>
+    <tbody>{% for a, d in data %}<tr>
+      <td class="mono fs-sm text-accent"><a href="{{ url_for('view_asset', asset_id=a.id) }}" style="color:var(--accent);">{{ a.asset_tag }}</a></td>
+      <td class="fw-bold">{{ a.asset_name }}</td>
+      <td class="fs-sm text-muted">{{ a.asset_type }}</td>
+      <td class="fs-sm text-muted">{{ a.company or '—' }}</td>
+      <td class="fs-sm">{{ a.warranty_expiry }}</td>
+      <td><span class="{% if d < 0 %}warranty-expired{% elif d <= 7 %}warranty-expired{% elif d <= 30 %}warranty-warn{% else %}warranty-ok{% endif %}">{{ d }}d</span></td>
+      <td class="fs-sm">{{ a.assigned_to_name or '—' }}</td>
+    </tr>{% endfor %}</tbody>
+  </table></div>
+  {% else %}<div class="empty-state" style="padding:20px;"><span style="color:var(--success);">✓</span> No warranty alerts</div>{% endif %}
+</div></div>
+
+{% elif report == 'software_licenses' %}
+<div class="card"><div class="card-body" style="padding:0;">
+  {% if data %}
+  <div class="table-wrap"><table>
+    <thead><tr><th>SW Tag</th><th>Name</th><th>Type</th><th>Vendor</th><th>Seats</th><th>Expiry</th><th>Days</th><th>Auto-Renew</th><th>Status</th></tr></thead>
+    <tbody>{% for s in data %}
+    {% set d = days_until(s.expiry_date) %}
+    <tr>
+      <td class="mono fs-sm text-accent">{{ s.sw_tag }}</td>
+      <td class="fw-bold">{{ s.sw_name }}</td>
+      <td class="fs-sm text-muted">{{ s.sw_type }}</td>
+      <td class="fs-sm text-muted">{{ s.vendor or '—' }}</td>
+      <td class="fs-sm">{{ s.used_seats }}/{{ s.total_seats }}</td>
+      <td class="fs-sm">{{ s.expiry_date or 'No expiry' }}</td>
+      <td class="{% if d is not none and d < 0 %}warranty-expired{% elif d is not none and d <= 30 %}warranty-warn{% else %}warranty-ok{% endif %}">{{ d if d is not none else '—' }}</td>
+      <td>{% if s.auto_renew %}<span style="color:var(--success);">✓</span>{% else %}<span style="color:var(--critical);">✗</span>{% endif %}</td>
+      <td><span class="badge badge-{% if s.status=='Active' %}active{% else %}retired{% endif %}">{{ s.status }}</span></td>
+    </tr>{% endfor %}</tbody>
+  </table></div>
+  {% else %}<div class="empty-state" style="padding:20px;"><p>No software records.</p></div>{% endif %}
+</div></div>
+
+{% elif report == 'full_log' %}
+<div class="card"><div class="card-body" style="padding:0;">
+  {% if data %}
+  <div class="table-wrap"><table>
+    <thead><tr><th>Time</th><th>Tag</th><th>Asset</th><th>Action</th><th>From</th><th>To</th><th>By</th><th>Notes</th></tr></thead>
+    <tbody>{% for l in data %}<tr>
+      <td class="mono fs-sm text-muted">{{ l.created_at[:16] }}</td>
+      <td class="mono fs-sm text-accent">{{ l.asset_tag }}</td>
+      <td class="fs-sm">{{ l.asset_name }}</td>
+      <td class="fw-bold fs-sm">{{ l.action }}</td>
+      <td class="fs-sm text-muted">{{ l.from_user or l.from_location or '—' }}</td>
+      <td class="fs-sm">{{ l.to_user or l.to_location or '—' }}</td>
+      <td class="fs-sm text-muted">{{ l.performed_by }}</td>
+      <td class="fs-sm text-muted">{{ l.notes or '—' }}</td>
+    </tr>{% endfor %}</tbody>
+  </table></div>
+  {% else %}<div class="empty-state" style="padding:20px;"><p>No log entries.</p></div>{% endif %}
+</div></div>
+{% endif %}
+{% endblock %}

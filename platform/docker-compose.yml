@@ -1,0 +1,24 @@
+# DAS Trust Hub: ITAM + CyberShield + Hub. Put a TLS reverse proxy (Caddy/nginx) in front.
+x-common: &common
+  build: .
+  restart: unless-stopped
+  env_file: .env
+  volumes: ["data:/data"]
+  read_only: true
+  tmpfs: ["/tmp"]
+  security_opt: ["no-new-privileges:true"]
+  cap_drop: ["ALL"]
+services:
+  hub:
+    <<: *common
+    ports: ["5080:5080"]
+  itam:
+    <<: *common
+    command: ["python", "-c", "import importlib.util as u,sys;s=u.spec_from_file_location('a','itam/app.py');m=u.module_from_spec(s);sys.modules['a']=m;s.loader.exec_module(m);m.init_db();from waitress import serve;serve(m.app,host='0.0.0.0',port=5057)"]
+    ports: ["5057:5057"]
+  cybershield:
+    <<: *common
+    command: ["python", "-c", "import importlib.util as u,sys;s=u.spec_from_file_location('a','cybershield/app.py');m=u.module_from_spec(s);sys.modules['a']=m;s.loader.exec_module(m);m.init_db();from waitress import serve;serve(m.app,host='0.0.0.0',port=5076)"]
+    ports: ["5076:5076"]
+volumes:
+  data:

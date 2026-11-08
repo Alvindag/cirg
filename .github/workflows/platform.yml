@@ -1,0 +1,19 @@
+name: platform
+on:
+  push: { paths: ['platform/**', '.github/workflows/platform.yml'] }
+  pull_request: { paths: ['platform/**'] }
+permissions: { contents: read }
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    defaults: { run: { working-directory: platform } }
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: { python-version: '3.12', cache: pip }
+      - run: pip install -r requirements-dev.txt
+      - run: python -m pytest tests -q
+      - name: Static security scan
+        run: bandit -r hub common -ll -q
+      - name: Dependency vulnerabilities
+        run: pip-audit -r requirements.txt

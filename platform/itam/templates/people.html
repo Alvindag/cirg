@@ -1,0 +1,98 @@
+{% extends 'base.html' %}
+{% from 'icons.html' import icon %}
+{% block title %}People & Assets{% endblock %}
+{% block topbar_title %}People & Assets{% endblock %}
+{% block topbar_sub %}All staff with assigned assets — {{ total_ppl }} people · {{ total_assigned }} assets{% endblock %}
+{% block content %}
+
+<div class="page-header">
+  <div>
+    <h1>People & Assets</h1>
+    <p>{{ total_ppl }} staff currently holding assets · {{ total_assigned }} assets assigned</p>
+  </div>
+</div>
+
+<!-- Search -->
+<div class="card mb-2">
+  <div class="card-body" style="padding:12px 18px;">
+    <form method="GET" style="display:flex;gap:8px;align-items:flex-end;">
+      <div class="form-group" style="margin:0;">
+        <label>Search Staff</label>
+        <input name="q" value="{{ q }}" placeholder="Name or username…" style="width:260px;margin:0;" autofocus>
+      </div>
+      <button class="btn btn-primary btn-sm" type="submit">Search</button>
+      {% if q %}<a href="{{ url_for('people') }}" class="btn btn-secondary btn-sm">Clear</a>{% endif %}
+    </form>
+  </div>
+</div>
+
+{% if staff %}
+<div class="card">
+  <div class="card-body" style="padding:0;">
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>Staff Member</th>
+            <th>Username</th>
+            <th>Department</th>
+            <th>Location</th>
+            <th>Assets Held</th>
+            <th>Asset Types</th>
+            <th>Last Assignment</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for s in staff %}
+          <tr>
+            <td>
+              <a href="{{ url_for('person_profile', username=s.username) }}"
+                 style="color:var(--accent);font-weight:700;text-decoration:none;">
+                {{ s.full_name or s.username }}
+              </a>
+            </td>
+            <td class="mono fs-sm text-muted">{{ s.username }}</td>
+            <td class="fs-sm text-muted">{{ (s.departments or '—').split(',')[0] }}</td>
+            <td class="fs-sm">
+              {% for loc in (s.locations or '').split(',') | unique %}
+              <span style="color:{% if 'NIA' in loc %}var(--accent){% else %}var(--text){% endif %};font-size:12px;">
+                {{ loc.strip() }}
+              </span>{% if not loop.last %}, {% endif %}
+              {% endfor %}
+            </td>
+            <td>
+              <span style="font-size:22px;font-weight:800;color:{% if s.total_assets >= 3 %}var(--warning){% else %}var(--success){% endif %};">
+                {{ s.total_assets }}
+              </span>
+            </td>
+            <td class="fs-sm text-muted">
+              {% for atype in (s.asset_types or '').split(',') %}
+              <span style="display:inline-block;background:var(--card2);border:1px solid var(--border);border-radius:4px;padding:1px 6px;margin:1px;font-size:11px;">
+                {{ atype.strip() }}
+              </span>
+              {% endfor %}
+            </td>
+            <td class="fs-sm text-muted">{{ (s.last_assigned or '—')[:10] }}</td>
+            <td style="white-space:nowrap;">
+              <a href="{{ url_for('person_profile', username=s.username) }}"
+                 class="btn btn-xs btn-secondary">View Profile</a>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+{% else %}
+<div class="card">
+  <div class="empty-state">
+    <div class="icon">{{ icon('user-round', 15) }} </div>
+    <p>{% if q %}No staff found matching "{{ q }}".{% else %}No assets are currently assigned to any staff member.{% endif %}</p>
+  </div>
+</div>
+{% endif %}
+
+{% endblock %}

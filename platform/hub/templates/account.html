@@ -1,0 +1,20 @@
+{% extends 'base.html' %}{% block title %}Account · DAS Trust Hub{% endblock %}
+{% block body %}<h1>Your account</h1><p class="sub">{{ u['username'] }} · {{ u['role'] }}{% if u['must_change_pw'] %} · <b>you must set a new password to continue</b>{% endif %}</p>
+<div class="grid g2">
+<div class="card"><h2>Change password</h2>
+<form method="post"><input type="hidden" name="csrf_token" value="{{ csrf_token }}"><input type="hidden" name="act" value="password">
+<label>Current password</label><input type="password" name="current" autocomplete="current-password" required>
+<label>New password</label><input type="password" name="new" autocomplete="new-password" required>
+<label>Confirm</label><input type="password" name="confirm" autocomplete="new-password" required>
+<p class="note">At least 12 characters, mixing 3 of: lowercase, uppercase, digit, symbol; not common; not containing your username.</p>
+<button class="btn">Update password</button></form></div>
+<div class="card"><h2>Multi-factor authentication</h2>
+{% if u['mfa_enabled'] %}<p><span class="pill pass">Enabled</span></p>
+<form method="post"><input type="hidden" name="csrf_token" value="{{ csrf_token }}"><input type="hidden" name="act" value="mfa_disable"><button class="btn sec">Disable</button></form>
+{% elif uri %}<p>Add this key to an authenticator app (Microsoft Authenticator, Google Authenticator, Authy):</p>
+<p class="mono">{{ u['totp_secret'] }}</p><p class="note mono">{{ uri }}</p>
+<form method="post"><input type="hidden" name="csrf_token" value="{{ csrf_token }}"><input type="hidden" name="act" value="mfa_confirm">
+<label>Enter the 6-digit code to confirm</label><input name="code" inputmode="numeric" maxlength="7" required><p><button class="btn">Enable MFA</button></p></form>
+{% else %}<p>Protect your account with a time-based one-time code. Required for administrators, auditors and IT managers.</p>
+<form method="post"><input type="hidden" name="csrf_token" value="{{ csrf_token }}"><input type="hidden" name="act" value="mfa_start"><button class="btn">Set up MFA</button></form>{% endif %}
+</div></div>{% endblock %}

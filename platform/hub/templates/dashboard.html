@@ -1,0 +1,40 @@
+{% extends 'base.html' %}{% from '_macros.html' import pill, ring, spark %}{% block title %}Overview · DAS Trust Hub{% endblock %}
+{% block body %}
+<div class="row"><div><h1>Overview</h1><p class="sub">Assets, people and security posture in one view · {{ now if now else '' }}</p></div>
+<div class="right row noprint">{% if can('sync') %}<form method="post" action="{{ url_for('sync') }}"><input type="hidden" name="csrf_token" value="{{ csrf_token }}"><button class="btn sec">Sync audit trails</button></form>{% endif %}
+{% if can('export') %}<a class="btn" href="{{ url_for('report_html') }}">Compliance report</a>{% endif %}</div></div>
+
+<div class="grid g4">
+ <div class="card kpi"><div class="l">Security &amp; compliance score</div>
+  <div class="gauge">{{ ring(summ.overall, 'Compliance score') }}<div><span class="pill {{ 'pass' if summ.overall and summ.overall>=85 else ('partial' if summ.overall and summ.overall>=45 else 'fail') }}">{{ summ.rating }}</span>
+  <div class="d">{{ summ.counts.pass }} pass · {{ summ.counts.partial }} partial · {{ summ.counts.fail }} fail · {{ summ.counts.unassessed }} unassessed</div></div></div></div>
+ <div class="card kpi"><div class="l">Live IT assets</div><div class="n">{{ a.live if a.available else '—' }}</div>
+  <div class="d">{% if a.available %}{{ a.in_use }} in use · {{ a.unassigned }} spare · {{ a.open_repairs }} in repair{% else %}ITAM not connected{% endif %}</div></div>
+ <div class="card kpi"><div class="l">Security training complete</div><div class="n">{{ (t.completion_pct ~ '%') if t.available and t.completion_pct is not none else '—' }}</div>
+  <div class="d">{% if t.available %}{{ t.completed }}/{{ t.people }} staff · {{ t.overdue }} overdue{% if t.avg_score %} · avg {{ t.avg_score }}%{% endif %}{% else %}CyberShield not connected{% endif %}</div></div>
+ <div class="card kpi"><div class="l">Asset holders without current training</div><div class="n" style="color:{{ 'var(--bad)' if n_exposed else 'var(--ok)' }}">{{ n_exposed }}</div>
+  <div class="d"><a href="{{ url_for('exposure') }}">View exposure list →</a></div></div>
+</div>
+
+<div class="grid g2" style="margin-top:14px">
+ <div class="card"><h2>Priority actions</h2>
+  {% if top_gaps %}<table><tbody>{% for g in top_gaps %}<tr><td style="width:96px">{{ pill(g.status) }}</td><td><a href="{{ url_for('control', cid=g.id) }}"><b>{{ g.id }}</b> {{ g.title }}</a><div class="note">{{ g.metric }}{% if g.action %} — {{ g.action }}{% endif %}</div></td></tr>{% endfor %}</tbody></table>
+  {% else %}<p>No open gaps. 🎉</p>{% endif %}
+  <p><a href="{{ url_for('compliance') }}">All controls →</a></p></div>
+ <div class="card"><h2>Framework coverage</h2>
+  {% for k, f in summ.frameworks.items() %}<div class="row" style="margin:8px 0"><div style="width:200px"><b>{{ f.label }}</b><div class="note">{{ f.passing }}/{{ f.controls }} controls pass</div></div>
+   <div style="flex:1;min-width:120px"><div class="bar2"><i style="width:{{ f.score or 0 }}%"></i></div></div><b style="width:52px;text-align:right">{{ '—' if f.score is none else (f.score|round|int ~ '%') }}</b></div>{% endfor %}
+  <div class="row"><span class="note">Trend</span>{{ spark(hist) }}{% if can('attest') %}<form class="right" method="post" action="{{ url_for('take_snapshot') }}"><input type="hidden" name="csrf_token" value="{{ csrf_token }}"><button class="btn sec sm">Save snapshot</button></form>{% endif %}</div></div>
+</div>
+
+<div class="grid g2" style="margin-top:14px">
+ <div class="card"><h2>Exposure: devices held without current training</h2>
+ {% if exposed %}<table><thead><tr><th>Person</th><th>Assets</th><th>Training</th></tr></thead><tbody>{% for p in exposed %}<tr><td>{{ p.name }}<div class="note">{{ p.department }}</div></td><td>{{ p.asset_count }}</td><td>{{ pill(p.training) }}</td></tr>{% endfor %}</tbody></table>
+ {% else %}<p>Every asset holder has current training.</p>{% endif %}</div>
+ <div class="card"><h2>Audit-trail integrity</h2>
+  <p>{{ pill('pass' if led.ok and led.entries else ('unassessed' if not led.entries else 'fail')) }} {{ led.entries }} events sealed in a hash chain.</p>
+  {% if led.problems %}<ul>{% for p in led.problems[:4] %}<li class="note" style="color:var(--bad)">{{ p }}</li>{% endfor %}</ul>{% endif %}
+  <p class="note mono">head {{ led.head[:32] }}…</p>
+  <h2 style="margin-top:14px">Launch</h2><div class="row"><a class="btn" href="{{ url_for('launch', target='itam') }}">Open ITAM</a><a class="btn" href="{{ url_for('launch', target='cybershield') }}">Open CyberShield</a></div>
+  {% if not sso_on %}<p class="note">Single sign-on is off (set SSO_SECRET to enable); links open each app's own login.</p>{% endif %}</div>
+</div>{% endblock %}

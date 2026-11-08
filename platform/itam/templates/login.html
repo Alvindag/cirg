@@ -1,0 +1,22 @@
+<!DOCTYPE html><html lang="en" class="dark"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="color-scheme" content="dark">
+<title>ITAM — Sign in</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Cdefs%3E%3ClinearGradient id='g' x1='0' y1='0' x2='1' y2='1'%3E%3Cstop offset='0' stop-color='%23818cf8'/%3E%3Cstop offset='1' stop-color='%235eead4'/%3E%3C/linearGradient%3E%3C/defs%3E%3Crect width='32' height='32' rx='8' fill='url(%23g)'/%3E%3C/svg%3E">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head><body class="auth">
+<div class="mesh" aria-hidden="true"><i></i><i></i><i></i></div>
+<div class="login-page"><div class="login-box">
+  <div class="login-logo mb-3">
+    <div class="logo-mark" aria-hidden="true"></div>
+    <div class="name">ITAM</div>
+    <div class="tagline">IT Asset Management · DAS Plc</div>
+  </div>
+  {% with messages = get_flashed_messages(with_categories=true) %}
+    {% for cat, msg in messages %}<div class="alert alert-{{ cat }}">{{ msg }}</div>{% endfor %}
+  {% endwith %}
+  <form method="POST">
+    <div class="form-group mb-2"><label for="u">Username</label><input id="u" name="username" autocomplete="username" autofocus required></div>
+    <div class="form-group mb-2"><label for="p">Password</label><input id="p" name="password" type="password" autocomplete="current-password" required></div>
+    <button class="btn btn-primary" style="width:100%;margin-top:8px;padding:9px 14px;" type="submit">Sign in</button>
+  </form>
+</div></div></body></html>
