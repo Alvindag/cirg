@@ -1,4 +1,5 @@
 """Regression/smoke tests: the original apps must keep working after hardening."""
+import sqlite3
 from common import sso
 
 
@@ -178,3 +179,23 @@ def test_itam_onboarding_can_be_cancelled_and_only_known_statuses_are_accepted(i
     assert b'Cancel Me' in c.get('/onboarding?status=Cancelled').data
     # a cancelled record is skipped by the Trust Hub joiner automation
     assert 'Cancelled' in __import__('hub.integration', fromlist=['x']).SKIP_STATUS
+
+
+def test_itam_bulk_location_department_update_is_validated_and_logged(itam):
+    """Assets imported with a placeholder Location/Department can be corrected in bulk afterwards."""
+    c = itam.app.test_client(); c.post('/login', data={'username': 'admin', 'password': 'admin123'})
+    conn = sqlite3.connect(itam.DB_PATH)
+    conn.execute("INSERT INTO assets (asset_tag,asset_name,asset_type,company,location,department,status) VALUES "
+                 "('BLK-1','Bulk A','Laptop','DAS Plc','To be confirmed','To be confirmed','Active — Unassigned')")
+    conn.commit(); aid = conn.execute("SELECT id FROM assets WHERE asset_tag='BLK-1'").fetchone()[0]
+    # an unknown value changes nothing
+    c.post('/assets/bulk-location', data={'asset_ids': [aid], 'bulk_location': 'Mars', 'bulk_department': 'Nope'})
+    assert conn.execute("SELECT location FROM assets WHERE id=?", (aid,)).fetchone()[0] == 'To be confirmed'
+    # location only: department is left alone
+    c.post('/assets/bulk-location', data={'asset_ids': [aid], 'bulk_location': 'KUMASI'})
+    assert conn.execute("SELECT location,department FROM assets WHERE id=?", (aid,)).fetchone() == ('KUMASI', 'To be confirmed')
+    c.post('/assets/bulk-location', data={'asset_ids': [aid], 'bulk_department': 'Finance & Accounts'})
+    assert conn.execute("SELECT location,department FROM assets WHERE id=?", (aid,)).fetchone() == ('KUMASI', 'Finance & Accounts')
+    assert conn.execute("SELECT COUNT(*) FROM movement_log WHERE asset_tag='BLK-1' AND action='Bulk Location/Department Update'").fetchone()[0] == 2
+    assert 'Set Location / Dept' in c.get('/assets').get_data(as_text=True)
+    conn.close()

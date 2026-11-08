@@ -939,6 +939,38 @@ def bulk_status():
     flash(f'✓ {count} assets updated to {new_status}.', 'success')
     return redirect(url_for('assets'))
 
+# ── BULK LOCATION / DEPARTMENT UPDATE ─────────────────────────────────────────
+@app.route('/assets/bulk-location', methods=['POST'])
+@login_required
+@require_perm('bulk')
+def bulk_location():
+    """Set Location and/or Department on the selected assets (either may be left unchanged).
+    Values must come from the standard lists; every change is written to the movement log."""
+    db   = get_db()
+    ids  = request.form.getlist('asset_ids')
+    loc  = (request.form.get('bulk_location') or '').strip()
+    dept = (request.form.get('bulk_department') or '').strip()
+    if loc and loc not in LOCATIONS:  loc = ''
+    if dept and dept not in DEPARTMENTS: dept = ''
+    if not ids or not (loc or dept):
+        flash('Select assets and choose a Location and/or a Department.', 'warning')
+        return redirect(url_for('assets'))
+    count = 0
+    for aid in ids:
+        asset = db.execute("SELECT * FROM assets WHERE id=?", (aid,)).fetchone()
+        if not asset: continue
+        new_loc, new_dept = loc or asset['location'], dept or asset['department']
+        log_movement(db, asset['asset_tag'], asset['asset_name'], 'Bulk Location/Department Update',
+            asset['assigned_to'], asset['assigned_to'], asset['location'], new_loc,
+            asset['department'], new_dept, asset['status'], asset['status'], 'Bulk update')
+        db.execute("UPDATE assets SET location=?,department=?,updated_at=datetime('now') WHERE id=?",
+                   (new_loc, new_dept, aid))
+        count += 1
+    audit(db, 'BULK_LOCATION', f'{count} assets → {loc or "(location unchanged)"} / {dept or "(department unchanged)"}')
+    db.commit()
+    flash(f'✓ {count} assets updated.', 'success')
+    return redirect(url_for('assets'))
+
 # ── REPAIR ────────────────────────────────────────────────────────────────────
 @app.route('/repairs')
 @login_required

@@ -271,7 +271,7 @@ body.auth { display:flex; align-items:center; justify-content:center; padding:16
 .page-btn.disabled { opacity:0.4; pointer-events:none; }
 .bulk-check, .asset-cb, .bulk-cb { accent-color:#6366f1; width:15px; height:15px; cursor:pointer; }
 .bulk-bar { background:rgba(255,255,255,0.06); border:1px solid var(--border); border-radius:10px; padding:10px 16px; align-items:center; gap:12px; margin-bottom:10px; display:none; }
-.bulk-bar.show { display:flex; }
+.bulk-bar.show { display:flex; flex-wrap:wrap; }
 input.invalid, select.invalid { border-color:#f87171 !important; }
 input.valid { border-color:#2dd4bf; }
 .field-error { font-size:11px; color:var(--critical); margin-top:3px; }

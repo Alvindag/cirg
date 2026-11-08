@@ -64,6 +64,14 @@
     </select>
     <input name="bulk_notes" placeholder="Notes for bulk update" style="width:200px;margin:0;">
     <button class="btn btn-primary btn-sm" type="submit" onclick="return confirm('Update all selected assets?')">Update Selected</button>
+    <span class="fs-sm text-muted">or set</span>
+    <select name="bulk_location" style="width:150px;margin:0;">
+      <option value="">Location…</option>{% for l in locations %}<option>{{ l }}</option>{% endfor %}
+    </select>
+    <select name="bulk_department" style="width:180px;margin:0;">
+      <option value="">Department…</option>{% for d in departments %}<option>{{ d }}</option>{% endfor %}
+    </select>
+    <button class="btn btn-primary btn-sm" type="submit" formaction="{{ url_for('bulk_location') }}" onclick="return confirm('Set Location / Department on all selected assets?')">Set Location / Dept</button>
     <button type="button" class="btn btn-secondary btn-sm" onclick="clearBulk()">Cancel</button>
   </div>
 {% endif %}
